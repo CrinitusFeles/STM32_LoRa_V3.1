@@ -10,6 +10,7 @@
 #define FLASH_CONFIG_OFFSET     30
 #define FLASH_PAGE              63
 #define WATCHDOG_PERIOD_MS      3000
+#define WAKEUP_PERIOD_SEC       60*20
 
 
 void TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t is_sorted){
@@ -131,7 +132,10 @@ uint8_t Calibration_routine(DS18B20 *sensors, tBuzzer *buzzer, uint64_t *sorted_
 
     int sensors_amount = OneWire_SearchDevices(sensors[0].ow);
     if(sensors_amount != TEMP_SENSOR_AMOUNT - 1){
-        buzzer->down(buzzer, 500, 300, 30, 30, 5);
+        for(uint8_t i = 0; i < 3; i++){
+            buzzer->down(buzzer, 500, 300, 30, 30, 1);
+            buzzer->up(buzzer, 300, 500, 30, 30, 1);
+        }
         return 0;
     }
     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
@@ -238,7 +242,6 @@ void System_Init(){
 
     char str[BUFFER_SIZE] = {0};
 
-    WAKEUP_PERIOD_SEC = 2;
     RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
 
     SDMMC_INIT();
