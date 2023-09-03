@@ -256,11 +256,11 @@ void read(FAT32_File *file, uint32_t start_cluster, char *result_buffer){
 
 }
 
-FAT32_File *FILE_INIT(struct FAT32s *fat32){
-    FAT32_File* file = (FAT32_File*)malloc(sizeof(FAT32_File));
-    file->__parent = fat32;
-    file->append = append;
-    file->read = read;
+FAT32_File FILE_INIT(struct FAT32s *fat32){
+    FAT32_File file;
+    file.__parent = fat32;
+    file.append = append;
+    file.read = read;
     return file;
 }
 

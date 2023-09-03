@@ -91,14 +91,14 @@ typedef struct FAT32s{
     uint32_t FAT2_sector;  // address
     FAT32_FAT_Table table;
 
-    FAT32_File* (*open)(struct FAT32s*, char *file_path);
+    FAT32_File (*open)(struct FAT32s*, char *file_path);
     FAT32_Status (*create_file)(struct FAT32s*, char *file_path);
     // uint8_t* (*read_file)(char *filename, uint32_t sector, FAT32t *fat32, FAT32_File *file);
     // void (*write_file)(FAT32_File*);
 } FAT32t;
 
 
-FAT32t* FAT32();
+FAT32t FAT32();
 SDResult read_data_cluster(FAT32t *this, uint32_t cluster_num, uint8_t *buffer);
 SDResult write_data_cluster(FAT32t *this, uint32_t cluster_num, uint8_t *buffer);
 SDResult read_FAT_sector(FAT32t *this, uint32_t sector_num);

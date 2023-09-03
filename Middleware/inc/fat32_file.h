@@ -42,7 +42,7 @@ typedef struct sFAT32_File{
 
 } FAT32_File;
 
-FAT32_File *FILE_INIT(struct FAT32s *fat32);
+FAT32_File FILE_INIT(struct FAT32s *fat32);
 FAT32_Status find_first_cluster(FAT32_File *file, char *short_filename);
 FAT32_Status find_last_cluster(FAT32_File *file);
 #endif

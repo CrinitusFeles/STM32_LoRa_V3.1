@@ -127,21 +127,21 @@ FAT32_Status UpdateFSInfo(FAT32t *this, uint8_t decrement, uint32_t next_free_cl
     return OK;
 }
 
-FAT32_File *open_file(struct FAT32s* fat32, char *filename){
-    FAT32_File* file = FILE_INIT(fat32);
+FAT32_File open_file(struct FAT32s* fat32, char *filename){
+    FAT32_File file = FILE_INIT(fat32);
     char converted_name[11];
     if(convert_file_name(filename, converted_name) != 0){
-        file->status = INCORRECT_FILE_NAME;
+        file.status = INCORRECT_FILE_NAME;
         return file;
     }
 
-    FAT32_Status result = find_first_cluster(file, converted_name);
+    FAT32_Status result = find_first_cluster(&file, converted_name);
     if(result != OK){
-        file->status = result;
+        file.status = result;
         return file;
     }
-    result = find_last_cluster(file);
-    file->status = result;
+    result = find_last_cluster(&file);
+    file.status = result;
     return file;
 }
 
@@ -169,12 +169,12 @@ FAT32_Status create_file(FAT32t *this, char* filename){
 }
 
 
-FAT32t* FAT32(){
-    FAT32t* this = (FAT32t*)malloc(sizeof(FAT32t));
-    FAT32_Status result = FAT32_init(this);
+FAT32t FAT32(){
+    FAT32t this;
+    FAT32_Status result = FAT32_init(&this);
 
-    this->open = open_file;
-    this->create_file = create_file;
+    this.open = open_file;
+    this.create_file = create_file;
     return this;
 }
 

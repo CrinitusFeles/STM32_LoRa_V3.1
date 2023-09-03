@@ -166,10 +166,10 @@ void System_Init(){
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
 
-    tBuzzer *buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PA3_TIM15_CH2);
+    tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PA3_TIM15_CH2);
     if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
         RCC->CSR |= RCC_CSR_RMVF;
-        buzzer->down(buzzer, 400, 100, 30, 30, 3);
+        buzzer.down(&buzzer, 400, 100, 30, 30, 3);
     }
     IWDG_init(WATCHDOG_PERIOD_MS);
 
@@ -182,14 +182,14 @@ void System_Init(){
         sensors[i].ow = &ow;
     }
     if(init_status) {  // first power on
-        buzzer->mario(buzzer);
+        buzzer.mario(&buzzer);
     }
 
     gpio_state(EN_PERIPH, HIGH);
 
     FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
     if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
-        if(Calibration_routine(sensors, buzzer, sorted_serials)){
+        if(Calibration_routine(sensors, &buzzer, sorted_serials)){
             FLASH_write(FLASH_PAGE, FLASH_CONFIG_OFFSET, sorted_serials, TEMP_SENSOR_AMOUNT);
             FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
         }
@@ -247,20 +247,20 @@ void System_Init(){
     SDMMC_INIT();
     SDResult result = SD_Init();
     // Delay(5000);
-    FAT32t *fat32;
-    FAT32_File *file;
+    FAT32t fat32;
+    FAT32_File file;
     if(result == SDR_Success){
         fat32 = FAT32();
-        file = fat32->open(fat32, "text1.txt");
-        if(file->status == OK){
+        file = fat32.open(&fat32, "text1.txt");
+        if(file.status == OK){
             uint16_t counter = RTC_string_datetime(&current_rtc, str);
             counter += DS18B20_array_to_str(sensors, TEMP_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
             counter += ADC_array_to_str(&adc, MOISTURE_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
-            uint32_t wrote_count = file->append(file, str, strlen(str));
+            uint32_t wrote_count = file.append(&file, str, strlen(str));
         }
 
     } else {
-        buzzer->down(buzzer, 1500, 500, 30, 30, 3);
+        buzzer.down(&buzzer, 1500, 500, 30, 30, 3);
     }
     gpio_state(EN_PERIPH, LOW);
     stop_cortex();

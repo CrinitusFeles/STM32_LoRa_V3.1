@@ -1,7 +1,6 @@
 #include "delay.h"
 #include "buzzer.h"
 #include "pwm.h"
-#include "stdlib.h"
 #include "gpio.h"
 
 
@@ -123,21 +122,21 @@ void tmnt(tBuzzer *this){
 }
 
 
-tBuzzer* Buzzer(TIM_TypeDef *TIMx, int channel, int pin, int pin_func){
-    tBuzzer* this = (tBuzzer*)malloc(sizeof(tBuzzer));
+tBuzzer Buzzer(TIM_TypeDef *TIMx, int channel, int pin, int pin_func){
+    tBuzzer this;
     gpio_init(pin, pin_func, Push_pull, no_pull, Very_high_speed);
-    this->__channel = channel;
-    this->__pin = pin;
-    this->__pin_func = pin_func;
-    this->__TIMx = TIMx;
+    this.__channel = channel;
+    this.__pin = pin;
+    this.__pin_func = pin_func;
+    this.__TIMx = TIMx;
 
-    this->beep = beep;
-    this->beep_repeat = beep_repeat;
-    this->up = up;
-    this->down = down;
-    this->mario = mario;
-    this->mario_underground = underground;
-    this->tmnt = tmnt;
+    this.beep = beep;
+    this.beep_repeat = beep_repeat;
+    this.up = up;
+    this.down = down;
+    this.mario = mario;
+    this.mario_underground = underground;
+    this.tmnt = tmnt;
 
     return this;
 }
