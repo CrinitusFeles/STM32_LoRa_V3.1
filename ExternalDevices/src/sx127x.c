@@ -1,4 +1,4 @@
-#include "sx1278.h"
+#include "sx127x.h"
 #include "gpio.h"
 #include "delay.h"
 #include "spi.h"
