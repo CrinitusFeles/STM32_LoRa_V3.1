@@ -12,6 +12,10 @@
 #define WATCHDOG_PERIOD_MS      3000
 #define WAKEUP_PERIOD_SEC       60*20
 
+void _close_r(void) {}
+void _lseek_r(void) {}
+void _read_r(void) {}
+void _write_r(void) {}
 
 void TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t is_sorted){
     OneWireStatus status;

@@ -75,7 +75,7 @@ uint8_t FLASH_erase_page(uint8_t page_num){
     FLASH->CR |= (page_num << FLASH_CR_PNB_Pos) | FLASH_CR_PER;
     FLASH->CR |= FLASH_CR_STRT;
 
-    for(uint16_t timeout = 0; (!(FLASH->SR & FLASH_SR_EOP)) && (timeout < FLASH_OPERATION_TIMEOUT); timeout++);
+    for(uint16_t timeout = 0; (!(FLASH->SR & FLASH_SR_EOP)) && (timeout < FLASH_OPERATION_TIMEOUT); timeout++){}
 	FLASH->SR = FLASH_SR_EOP;
 
     FLASH_soft_lock();

@@ -4,7 +4,6 @@
 #include "System.h"
 
 
-volatile time_t current_time;
 void LED_BLINK(){
 	gpio_toggle(LED);
 	// Delay(1000);
