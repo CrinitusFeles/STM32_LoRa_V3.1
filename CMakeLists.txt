@@ -5,7 +5,7 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
-project(STM32_LoRa_v3.0)
+project(STM32_LoRa_v3.1)
 enable_language(C CXX ASM)
 
 set(CPU_PARAMETERS

@@ -1,4 +1,5 @@
 #include "fat32.h"
+#include "mbr.h"
 #include "sdio.h"
 #include "stdlib.h"
 #include <string.h>
@@ -6,7 +7,8 @@
 #include "delay.h"
 
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
-#define has_boot_sector(content) (content[0] == 0 && content[1] == 0 && content[2] == 0 && SDCard.Type == SDCT_SDHC)
+#define has_MBR(content) ((content[0x1C7] != 0 || content[0x1C6] != 0) && content[0x1FE] == 0x55 && content[0x1FF] == 0xAA)
+#define boot_signature(content)(__builtin_bswap32(*(uint32_t *)content) == 0xEB58904D)
 
 SDResult ReadBiosPartBlock(uint32_t boot_address, FAT32_BiosPartBlock* BPB){
     sd_last_result = SD_ReadBlock(boot_address * SDCard.BlockSize, (uint32_t *)sd_read_buf, 512);
@@ -31,21 +33,24 @@ int8_t ReadFSInfoSector(FAT32t *fat32){
 }
 
 
+
 FAT32_Status FAT32_init(FAT32t *fat32){
 	sd_last_result = SD_ReadBlock(0, (uint32_t *)sd_read_buf, 512);
-    fat32->boot_address = 0;
-	if(has_boot_sector(sd_read_buf)){
-		if(sd_read_buf[0x1C7] != 0){
-			fat32->boot_address = (sd_read_buf[0x1C7] << 8 | sd_read_buf[0x1C6]);
-            ReadBiosPartBlock(fat32->boot_address, &fat32->BPB);
-		}
-		else{
-            return BOOT_SECTOR_NOT_FOUND;
-		}
-	} else {
+    if(boot_signature(sd_read_buf)){
+        fat32->boot_address = 0;
         ReadBiosPartBlock(fat32->boot_address, &fat32->BPB);
+    } else if (has_MBR(sd_read_buf)){
+        MBR mbr = *(MBR*)(sd_read_buf + 446);
+        fat32->boot_address = mbr.entries[0].BPB_offset;
+        ReadBiosPartBlock(fat32->boot_address, &fat32->BPB);
+    } else {
+        return BOOT_SECTOR_NOT_FOUND;
     }
+
     fat32->FAT1_sector = fat32->boot_address + fat32->BPB.RsvdSecCnt;
+    if(fat32->FAT1_sector == 0){
+        return BPB_ERROR;
+    }
     fat32->FAT2_sector = fat32->BPB.FATSz32 + fat32->FAT1_sector;
     fat32->root_sector = fat32->BPB.FATSz32 * fat32->BPB.NumFATs + fat32->FAT1_sector;
     fat32->table.sector_num = -1;
@@ -171,7 +176,7 @@ FAT32_Status create_file(FAT32t *this, char* filename){
 
 FAT32t FAT32(){
     FAT32t this;
-    FAT32_Status result = FAT32_init(&this);
+    this.last_status = FAT32_init(&this);
 
     this.open = open_file;
     this.create_file = create_file;

@@ -58,7 +58,7 @@
             "system.h": "c",
             "functional": "c"
         },
-        "cortex-debug.variableUseNaturalFormat": true,
+        "cortex-debug.variableUseNaturalFormat": false,
         "cortex-debug.registerUseNaturalFormat": true
 	}
 }

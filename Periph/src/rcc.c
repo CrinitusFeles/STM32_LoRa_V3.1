@@ -3,6 +3,31 @@
 #include "stm32l431xx.h"
 
 
+void RCC_init_MSI(){
+    if(!(RCC->CR & RCC_CR_HSIRDY)) {
+        RCC->CR |= RCC_CR_HSION;
+        while(!(RCC->CR & RCC_CR_HSIRDY));
+    }
+    RCC->CFGR |= RCC_CFGR_SW_HSI;
+    if(RCC->CR & RCC_CR_MSIRDY){
+        RCC->CR &= ~RCC_CR_MSION;
+        while(RCC->CR & RCC_CR_MSIRDY);
+    }
+    RCC->CR &= ~RCC_CR_MSIRANGE;
+    RCC->CR |= RCC_CR_MSIRANGE_11; // 48 MHz
+    RCC->CR |= RCC_CR_MSIRGSEL;
+
+    RCC->CR |= RCC_CR_MSION;
+    while(!(RCC->CR & RCC_CR_MSIRDY));
+    RCC->CFGR &= ~RCC_CFGR_SW_HSI;
+    RCC->CFGR |= RCC_CFGR_SW_MSI;
+
+    FLASH->ACR &= 0xFFFFFFF8; //clear register
+	FLASH->ACR |= FLASH_ACR_LATENCY_2WS;
+
+    RCC->CR &= ~(RCC_CR_HSION);
+}
+
 int RCC_init_hse(){
 	//RCC_DeInit();
 	if(!(RCC->CR & RCC_CR_HSERDY)){ //check HSE if it didn't launch, then launch
@@ -76,7 +101,7 @@ int RCC_init_hsi(){
 	//RCC_DeInit();
 	RCC->CR |= RCC_CR_HSION;
 	while(!(RCC->CR & RCC_CR_HSIRDY));
-	
+
 	RCC->CR &= ~(RCC_CR_PLLON);
 
 	RCC->PLLCFGR |= RCC_PLLCFGR_PLLSRC_HSI;

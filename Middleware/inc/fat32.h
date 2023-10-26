@@ -90,6 +90,7 @@ typedef struct FAT32s{
     uint32_t FAT1_sector;  // address
     uint32_t FAT2_sector;  // address
     FAT32_FAT_Table table;
+    FAT32_Status last_status;
 
     FAT32_File (*open)(struct FAT32s*, char *file_path);
     FAT32_Status (*create_file)(struct FAT32s*, char *file_path);
