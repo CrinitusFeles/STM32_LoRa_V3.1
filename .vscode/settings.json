@@ -1,0 +1,23 @@
+{
+	"files.exclude": {
+		"**/.vscode": false,
+		"**/JLink": true,
+		"**/.git*": true,
+		"**/*.code-workspace": false,
+		"**/cortexbuilder.json": true
+	},
+    "cmake.generator": "MinGW Makefiles",
+    "cmake.configureEnvironment": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "on"
+    },
+    "cmake.configureSettings": {
+        "TARGET_TRIPLET":"arm-none-eabi",
+        "STM32_LINKER_SCRIPT":"${workspaceFolder}/CMSIS_L431/Startup/STM32L431RBTX_FLASH.ld"
+    },
+    "C_Cpp.default.intelliSenseMode": "gcc-arm",
+    "C_Cpp.dimInactiveRegions": true,
+    "files.associations": {
+        "stm32l4xx.h": "c"
+    },
+    "cortex-debug.variableUseNaturalFormat": false
+}

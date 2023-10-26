@@ -1,0 +1,25 @@
+{
+	"configurations": [
+		{
+			"name": "ARM-Debug",
+			"cwd": "${workspaceRoot}",
+			"executable": "${command:cmake.launchTargetPath}",
+			"svdFile": "${execPath}/../../stm32_utils/svd/STM32L4X1.svd",
+			"request": "launch",
+			"type": "cortex-debug",
+			"servertype": "openocd",
+			"device": "cortex-m4",
+			"interface": "swd",
+			"runToEntryPoint": "main",
+			"configFiles": [
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
+			],
+            // "liveWatch": {
+            //     "enabled": true,
+            //     "samplesPerSecond": 2
+            // }
+		}
+	],
+	"version": "0.2.0"
+}

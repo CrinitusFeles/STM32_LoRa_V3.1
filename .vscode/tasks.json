@@ -1,0 +1,137 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build",
+			"type": "shell",
+			"command": "cmake --build .",
+			"options": {
+				"cwd": "${workspaceFolder}/build/Debug",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": ["relative", "${workspaceFolder}/build/Debug/Debug"]
+            }
+		},
+		{
+			"label": "Clean",
+			"type": "shell",
+			"command": "make -s clean",
+			"options": {
+				"cwd": "${workspaceRoot}",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Write",
+			"type": "shell",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.hex; reset; exit\" & echo. & echo Done",
+			"options": {
+				"cwd": "${workspaceRoot}",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Erase",
+			"type": "shell",
+			"command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash erase_sector 0 0 1; exit\" & echo. & echo Done",
+			"options": {
+				"cwd": "${workspaceRoot}",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Reset",
+			"type": "shell",
+			"command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset; exit\" & echo. & echo Done",
+			"options": {
+				"cwd": "${workspaceRoot}",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "dbg",
+			"type": "process",
+			"command": "${command:workbench.action.debug.start}"
+		},
+		{
+			"label": "Debag",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Build",
+				"Write",
+				"dbg"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		}
+	]
+}
