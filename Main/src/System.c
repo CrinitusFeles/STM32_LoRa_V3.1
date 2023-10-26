@@ -169,10 +169,13 @@ void System_Init(){
     // RCC_init_MSI();
 
     gpio_init(LED, General_output, Push_pull, no_pull, Low_speed);
-    gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
-    gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
 
-    // tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PA3_TIM15_CH2);
+    // gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
+    // gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
+
+    tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PB15_TIM15_CH2);
+    buzzer.beep(&buzzer, 400, 200);
+    buzzer.beep(&buzzer, 800, 200);
     // if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
     //     RCC->CSR |= RCC_CSR_RMVF;
     //     buzzer.down(&buzzer, 400, 100, 30, 30, 3);
@@ -191,7 +194,7 @@ void System_Init(){
     //     buzzer.mario(&buzzer);
     // }
 
-    gpio_state(EN_PERIPH, HIGH);
+    // gpio_state(EN_PERIPH, HIGH);
 
     // FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
     // if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
@@ -250,16 +253,16 @@ void System_Init(){
 
     // RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
 
-    RCC->CRRCR |= RCC_CRRCR_HSI48ON;
-    while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY));
-    SDMMC_INIT();
-    SDResult result = SD_Init();
-    FAT32t fat32;
-    FAT32_File file;
-    fat32 = FAT32();
-    if(fat32.last_status == OK){
+    // RCC->CRRCR |= RCC_CRRCR_HSI48ON;
+    // while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY));
+    // SDMMC_INIT();
+    // SDResult result = SD_Init();
+    // FAT32t fat32;
+    // FAT32_File file;
+    // fat32 = FAT32();
+    // if(fat32.last_status == OK){
 
-    }
+    // }
     // file = fat32.open(&fat32, "text1.txt");
     // if(file.status == OK){
     //     file.append(&file, "hello", 6);

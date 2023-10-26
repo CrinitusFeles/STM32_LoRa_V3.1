@@ -34,7 +34,7 @@
 // #define SCREEN_PLUGGED
 // #define SENSORS_PLUGGED
 
-#define V3_0
+#define V3_2
 
 #ifdef V3_1
 #define LED 		PC13
@@ -101,6 +101,30 @@
 #define GSM_DTR         PA12
 #define GSM_PWR         PC13
 #define GSM_NRESET      PB7
+#endif
+
+#ifdef V3_2
+#define LED 		PA12
+
+#define EN_PERIPH   PB13
+#define EN_LORA   PH1
+#define EN_SD   PB12
+
+#define BUZZ        PB15
+
+#define UART3_TX	PB10
+
+#define TEMP_SENSOR_PWR_EN    PC7
+#define SOIL_SENSOR_PWR_EN    PA8
+
+#define LoRa_SPI          SPI1
+#define LoRa_BUSY         PA3
+#define LoRa_SCK          PB3
+#define LoRa_MISO         PB4
+#define LoRa_MOSI         PB5
+#define LoRa_NSS          PC13
+#define LoRa_DIO1         PA2
+#define LoRa_DIO0         PA6
 #endif
 
 #define SD_D0				PC9

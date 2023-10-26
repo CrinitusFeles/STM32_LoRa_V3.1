@@ -69,7 +69,7 @@ void OneWire_InitStruct(OneWire *ow) {
         for (uint8_t j = 0; j < 8; j++)
             r[j] = 0;
     }
-    for (uint8_t i; i < 8; i++)
+    for (uint8_t i = 0; i < 8; i++)
         ow->lastROM[i] = 0x00;
     ow->last_diff_bit_position = 64;
 

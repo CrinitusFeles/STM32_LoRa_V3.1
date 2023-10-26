@@ -14,10 +14,8 @@ int main(){
 
     while(1){
         battary_voltage = !battary_voltage;
-        Delay(3000);
-        gpio_state(LED, HIGH);
-        Delay(3000);
-        gpio_state(LED, LOW);
+        Delay(1000);
+        gpio_toggle(LED);
         // stop_cortex();
     }
 }
