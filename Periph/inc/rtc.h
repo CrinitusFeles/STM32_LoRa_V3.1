@@ -20,13 +20,13 @@ typedef struct s_RTC_struct_full {
 } RTC_struct_full;
 
 typedef struct s_RTC_struct_brief {
-	uint8_t years;			// 2019
-	uint8_t week_day;		// 001 for Monday, 111 for Sunday
-	uint8_t months;			// 12
-	uint8_t date;			// 25
-	uint8_t hours;			// 0
-	uint8_t minutes;		// 03
-	uint8_t seconds;		// 15
+	uint8_t years;
+	uint8_t week_day;
+	uint8_t months;
+	uint8_t date;
+	uint8_t hours;
+	uint8_t minutes;
+	uint8_t seconds;
 } RTC_struct_brief;
 
 

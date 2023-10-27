@@ -34,7 +34,7 @@
 // #define SCREEN_PLUGGED
 // #define SENSORS_PLUGGED
 
-#define V3_2
+#define V3_1
 
 #ifdef V3_1
 #define LED 		PC13
@@ -46,13 +46,6 @@
 
 #define UART3_RX	PB11
 #define UART3_TX	PB10
-
-#define I2C1_SDA	PB9
-#define I2C1_SCL	PB8
-
-
-#define TEMP_SENSOR_PWR_EN    PC7
-#define SOIL_SENSOR_PWR_EN    PA8
 
 #define LoRa_SPI          SPI2
 #define LoRa_BUSY         PB12

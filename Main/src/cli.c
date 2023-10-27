@@ -45,21 +45,21 @@ void CMD_Parser(SX126x *driver, CommandStruct *pkt){
             RTC_data_update(&rtc_data);
             break;
         case SINGLE_MEASURE:
-            gpio_state(TEMP_SENSOR_PWR_EN, HIGH);
-            gpio_state(SOIL_SENSOR_PWR_EN, HIGH);
-            uint8_t status = DS18B20_StartTempMeas(&ow);
-            for(uint8_t i = 0; i < 12; i++)
-                status += DS18B20_ReadScratchpad(&sensors[i]);
-            ADC_Start(&adc);
-            while(adc.measure_process);
-            for(uint8_t i = 0; i < 12; i++){
-                measured_data[i] = adc.reg_channel_queue[i].result;
-                measured_data[i + 12] = sensors[i].scratchpad.temperature;
-            }
-            measured_data[11] = adc.vdda_mvolt;
-            gpio_state(TEMP_SENSOR_PWR_EN, LOW);
-            gpio_state(SOIL_SENSOR_PWR_EN, LOW);
-            SX126x_SendData(driver, (uint8_t*)(&measured_data), 48);
+            // gpio_state(TEMP_SENSOR_PWR_EN, HIGH);
+            // gpio_state(SOIL_SENSOR_PWR_EN, HIGH);
+            // uint8_t status = DS18B20_StartTempMeas(&ow);
+            // for(uint8_t i = 0; i < 12; i++)
+            //     status += DS18B20_ReadScratchpad(&sensors[i]);
+            // ADC_Start(&adc);
+            // while(adc.measure_process);
+            // for(uint8_t i = 0; i < 12; i++){
+            //     measured_data[i] = adc.reg_channel_queue[i].result;
+            //     measured_data[i + 12] = sensors[i].scratchpad.temperature;
+            // }
+            // measured_data[11] = adc.vdda_mvolt;
+            // gpio_state(TEMP_SENSOR_PWR_EN, LOW);
+            // gpio_state(SOIL_SENSOR_PWR_EN, LOW);
+            // SX126x_SendData(driver, (uint8_t*)(&measured_data), 48);
             break;
         case GET_MEASURED_DATA:
             for(uint8_t i = 0; i < 12; i++){

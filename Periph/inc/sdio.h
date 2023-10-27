@@ -327,6 +327,7 @@ extern SDCard_TypeDef SDCard;
 // Function prototypes
 void SD_SDIO_DeInit(void);
 
+void SDMMC_INIT();
 SDResult SD_SetBlockSize(uint32_t block_size);
 SDResult SD_Init(void);
 SDResult SD_SetBusWidth(uint32_t BW);
