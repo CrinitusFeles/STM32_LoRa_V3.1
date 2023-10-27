@@ -1,6 +1,8 @@
 #include "ds18b20.h"
 #include "delay.h"
 #include "stdio.h"
+#include "math.h"
+// #include "xprintf.h"
 
 
 uint8_t DS18B20_StartTempMeas(OneWire *ow){
@@ -63,6 +65,15 @@ uint16_t DS18B20_ReadTemperature(DS18B20 *sensor){
     return (uint16_t)(sensor->scratchpad.temperature);
 }
 
+int float_to_str(char *buff, float value){
+    char *tmpSign = (value < 0) ? "-" : "";
+    float tmpVal = (value < 0) ? -value : value;
+    int tmpInt1 = tmpVal;                  // Get the integer
+    float tmpFrac = tmpVal - tmpInt1;      // Get fraction
+    int tmpInt2 = trunc(tmpFrac * 100);
+    return sprintf(buff, "%s%d.%02d\t", tmpSign, tmpInt1, tmpInt2);
+}
+
 uint16_t DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t buf_size, uint16_t offset){
     uint16_t b_end = offset;
     for(uint16_t i = 0; i < buf_size; i++){
@@ -73,7 +84,8 @@ uint16_t DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t
     }
     uint16_t wrote_count = 0;
     for(uint8_t i = 0; i < length; i++){
-        int size = snprintf(buf + b_end + wrote_count, 7, "%.2f\t", sensors[i].temperature);
+        // xsprintf(buf + b_end + wrote_count, "%.2f\t", sensors[i].temperature);
+        int size = float_to_str(buf + b_end + wrote_count, sensors[i].temperature);
         if(size > 0)
             wrote_count += size;
         else
