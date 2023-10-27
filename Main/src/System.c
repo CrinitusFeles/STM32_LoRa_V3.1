@@ -9,15 +9,15 @@
 #define CALIBRATION_TEMP_DELTA  3
 #define FLASH_CONFIG_OFFSET     30
 #define FLASH_PAGE              63
-#define WATCHDOG_PERIOD_MS      3000
-#define WAKEUP_PERIOD_SEC       20//60*20
+#define WATCHDOG_PERIOD_MS      5000
+#define WAKEUP_PERIOD_SEC       60*20
 
 void _close_r(void) {}
 void _lseek_r(void) {}
 void _read_r(void) {}
 void _write_r(void) {}
 
-void TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t is_sorted){
+OneWireStatus TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t is_sorted){
     OneWireStatus status;
     DS18B20_StartTempMeas(sensors[0].ow);
     for(uint8_t i = 0; i < sensors_count; i++){
@@ -34,6 +34,7 @@ void TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t 
             Delay(1);
         }
     }
+    return status;
 }
 
 float max_temp_deviation(float *temperatures, uint8_t temp_amount){
@@ -170,120 +171,116 @@ void System_Init(){
 
     gpio_init(LED, General_output, Push_pull, no_pull, Low_speed);
 
-    // gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
-    // gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
+    gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
+    gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
 
-    tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PB15_TIM15_CH2);
-    buzzer.beep(&buzzer, 400, 200);
-    buzzer.beep(&buzzer, 800, 200);
-    // if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
-    //     RCC->CSR |= RCC_CSR_RMVF;
-    //     buzzer.down(&buzzer, 400, 100, 30, 30, 3);
-    // }
-    // IWDG_init(WATCHDOG_PERIOD_MS);
+    tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PA3_TIM15_CH2);
+    if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
+        RCC->CSR |= RCC_CSR_RMVF;
+        buzzer.down(&buzzer, 400, 100, 30, 30, 3);
+    }
+    IWDG_init(WATCHDOG_PERIOD_MS);
 
-    // volatile uint8_t init_status = RTC_Init();
+    volatile uint8_t init_status = RTC_Init();
 
-    // ow = (OneWire){.uart=USART2};
+    ow = (OneWire){.uart=USART2};
 
-    // for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-    //     sensors[i] = (DS18B20){0};
-    //     sensors[i].ow = &ow;
-    // }
-    // if(init_status) {  // first power on
-    //     buzzer.mario(&buzzer);
-    // }
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+        sensors[i] = (DS18B20){0};
+        sensors[i].ow = &ow;
+    }
+    if(init_status) {  // first power on
+        buzzer.mario(&buzzer);
+    }
 
-    // gpio_state(EN_PERIPH, HIGH);
+    gpio_state(EN_PERIPH, HIGH);
 
-    // FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
-    // if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
-    //     if(Calibration_routine(sensors, &buzzer, sorted_serials)){
-    //         FLASH_write(FLASH_PAGE, FLASH_CONFIG_OFFSET, sorted_serials, TEMP_SENSOR_AMOUNT);
-    //         FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
-    //     }
-    // }
+    FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
+    if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
+        if(Calibration_routine(sensors, &buzzer, sorted_serials)){
+            FLASH_write(FLASH_PAGE, FLASH_CONFIG_OFFSET, sorted_serials, TEMP_SENSOR_AMOUNT);
+            FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
+        }
+    }
 
-    // adc = (ADC){
-    //     .ADCx = ADC1,
-    //     .clk_devider = ADC_ClockDevider_1,
-    //     .internal_channels = {
-    //         .temp = false,
-    //         .vbat = false,
-    //         .vref = true
-    //     },
-    //     .resolution = ADC_12bit,
-    //     .mode = ADC_SINGLE_MODE,
-    //     .trigger.polarity = ADC_Software_trigger,
-    //     .ovrsmpl_ratio = OVRSMPL_32x
-    // };
-    // ADC_Init(&adc);
-    // /*
-    //                 6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
-    //                 (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
-    // VCC GNS TMP_S
-    //                 NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
-    //                 (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
-    // */
-    // ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
-    // ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
-    // ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
-    // ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
-    // ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
-    // ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
-    // // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
-    // ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
-    // ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
-    // ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
-    // ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
-    // ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
-    // ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
-    // // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
-    // // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
-    // ADC_Enable(&adc);
-    // RTC_get_time(&current_rtc);
-    // ADC_Start(&adc);
-    // TemperatureSensorsMeasure(sensors, TEMP_SENSOR_AMOUNT, 1);
-    // ADC_WaitMeasures(&adc, 1000000);
+    adc = (ADC){
+        .ADCx = ADC1,
+        .clk_devider = ADC_ClockDevider_1,
+        .internal_channels = {
+            .temp = false,
+            .vbat = false,
+            .vref = true
+        },
+        .resolution = ADC_12bit,
+        .mode = ADC_SINGLE_MODE,
+        .trigger.polarity = ADC_Software_trigger,
+        .ovrsmpl_ratio = OVRSMPL_32x
+    };
+    ADC_Init(&adc);
+    /*
+                    6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
+                    (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
+    VCC GNS TMP_S
+                    NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
+                    (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
+    */
+    ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
+    ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
+    ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
+    ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
+    ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
+    ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
+    // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
+    ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
+    ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
+    ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
+    ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
+    ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
+    ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
+    // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
+    // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
+    ADC_Enable(&adc);
+    RTC_get_time(&current_rtc);
+    ADC_Start(&adc);
+    TemperatureSensorsMeasure(sensors, TEMP_SENSOR_AMOUNT, 1);
+    ADC_WaitMeasures(&adc, 1000000);
 
-    // // uint32_t vdda = adc.vdda_mvolt;
-    // // float internal_temp = ADC_internal_temp(adc.reg_channel_queue[13].result);
+    uint32_t vdda = adc.vdda_mvolt;
+    float internal_temp = ADC_internal_temp(adc.reg_channel_queue[13].result);
 
-    // char str[BUFFER_SIZE] = {0};
+    char str[BUFFER_SIZE] = {0};
 
-    // RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
+    RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
 
-    // RCC->CRRCR |= RCC_CRRCR_HSI48ON;
-    // while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY));
-    // SDMMC_INIT();
-    // SDResult result = SD_Init();
-    // FAT32t fat32;
-    // FAT32_File file;
-    // fat32 = FAT32();
-    // if(fat32.last_status == OK){
-
-    // }
-    // file = fat32.open(&fat32, "text1.txt");
-    // if(file.status == OK){
-    //     file.append(&file, "hello", 6);
-    // }
-    // FAT32_File file;
-    // if(result == SDR_Success){
-    //     fat32 = FAT32();
-    //     file = fat32.open(&fat32, "text1.txt");
-    //     if(file.status == OK){
-    //         // // uint16_t counter = RTC_string_datetime(&current_rtc, str);
-    //         // counter += DS18B20_array_to_str(sensors, TEMP_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
-    //         // counter += ADC_array_to_str(&adc, MOISTURE_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
-    //         // uint32_t wrote_count = file.append(&file, str, strlen(str));
-    //     }
-
-    // }
-    // else {
-    //     buzzer.down(&buzzer, 1500, 500, 30, 30, 3);
-    // }
-    // gpio_state(EN_PERIPH, LOW);
-    // stop_cortex();
+    RCC->CRRCR |= RCC_CRRCR_HSI48ON;
+    while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY));
+    SDMMC_INIT();
+    SDResult result = SD_Init();
+    FAT32t fat32;
+    FAT32_File file;
+    uint32_t wrote_count = 0;
+    fat32 = FAT32();
+    if(fat32.last_status == OK){
+        file = fat32.open(&fat32, "text1.txt");
+        if(file.status == OK){
+            uint16_t counter = RTC_string_datetime(&current_rtc, str);
+            counter += DS18B20_array_to_str(sensors, TEMP_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
+            counter += ADC_array_to_str(&adc, MOISTURE_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
+            wrote_count = file.append(&file, str, strlen(str));
+        }
+        else {
+            buzzer.down(&buzzer, 900, 500, 30, 30, 3);
+            buzzer.beep_repeat(&buzzer, 800, 100, 200, 3);
+        }
+    }
+    else {
+        buzzer.down(&buzzer, 1500, 1000, 30, 30, 3);
+    }
+    // buzzer.beep_repeat(&buzzer, 1500, 100, 100, 2);
+    gpio_state(EN_PERIPH, LOW);
+    RCC->CRRCR &= ~RCC_CRRCR_HSI48ON;
+    // Delay(3000);
+    stop_cortex();
 
 }
 
