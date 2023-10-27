@@ -164,6 +164,10 @@ FAT32_Status find_last_cluster(FAT32_File *file){
         sd_last_result = read_FAT_sector(file->__parent, FAT_sector);
         for(uint16_t i = 0; i < (file->__parent->BPB.BytesPerSec >> 2); i++){
             prev_cluster = next_cluster;
+            uint32_t new_FAT_sector = next_cluster >> 7;
+            if(new_FAT_sector != FAT_sector){  // when the next part of file is far away from previous in FAT table
+                sd_last_result = read_FAT_sector(file->__parent, new_FAT_sector);
+            }
             in_FAT_sector_offset = (uint8_t)MOD(next_cluster, (file->__parent->BPB.BytesPerSec >> 2));
             next_cluster = *(file->__parent->table.content + in_FAT_sector_offset);
             file->cluster_amount++;
