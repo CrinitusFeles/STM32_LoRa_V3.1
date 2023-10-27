@@ -72,6 +72,7 @@ typedef struct FAT32_ByteDirEntryStruct{
 typedef struct FAT32_FSInfo{
     uint32_t FreeCount;  // Contains the last known free cluster count on the volume. The value 0xFFFFFFFF indicates the free count is not known. The contents of this field must be validated at volume mount (and subsequently maintained in memory by the file system driver implementation). It is recommended that this field contain an accurate count of the number of free clusters at volume dismount (during controlled dismount/shutdown).
     uint32_t NextFree;  // Contains the cluster number of the first available (free) cluster on the volume.
+    uint32_t sector_address;
 } FAT32_FSInfo;
 
 

@@ -25,7 +25,7 @@ SDResult ReadBiosPartBlock(uint32_t boot_address, FAT32_BiosPartBlock* BPB){
 
 
 int8_t ReadFSInfoSector(FAT32t *fat32){
-    sd_last_result = SD_ReadBlock(fat32->BPB.FSInfo * fat32->BPB.BytesPerSec, (uint32_t *)sd_read_buf, 512);
+    sd_last_result = SD_ReadBlock(fat32->FSI.sector_address * fat32->BPB.BytesPerSec, (uint32_t *)sd_read_buf, 512);
     if(*(uint32_t*)(sd_read_buf) != FSI_Signature) return -1;
     fat32->FSI.FreeCount = *(uint32_t*)(sd_read_buf + FSI_FreeCount_offset);
     fat32->FSI.NextFree = *(uint32_t*)(sd_read_buf + FSI_NextFree_offset);
@@ -54,6 +54,7 @@ FAT32_Status FAT32_init(FAT32t *fat32){
     fat32->FAT2_sector = fat32->BPB.FATSz32 + fat32->FAT1_sector;
     fat32->root_sector = fat32->BPB.FATSz32 * fat32->BPB.NumFATs + fat32->FAT1_sector;
     fat32->table.sector_num = -1;
+    fat32->FSI.sector_address = fat32->BPB.FSInfo + fat32->boot_address;
     ReadFSInfoSector(fat32);
     return OK;
 }
@@ -119,14 +120,14 @@ FAT32_Status UpdateFSInfo(FAT32t *this, uint8_t decrement, uint32_t next_free_cl
     if(next_free == 0)
         return NO_FREE_CLUSTER;
     this->FSI.NextFree = next_free_cluster == next_free ? next_free_cluster : next_free;
-    sd_last_result = SD_ReadBlock(this->BPB.FSInfo * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
+    sd_last_result = SD_ReadBlock(this->FSI.sector_address * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
     if(sd_last_result != SDR_Success)
         return SD_READ_ERROR;
     if(*(uint32_t*)(sd_read_buf) != FSI_Signature)
         return FSI_SIGNATURE_ERROR;
     *(uint32_t*)(sd_read_buf + FSI_FreeCount_offset) = this->FSI.FreeCount;
     *(uint32_t*)(sd_read_buf + FSI_NextFree_offset) = next_free_cluster;
-    sd_last_result = SD_WriteBlock(this->BPB.FSInfo * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
+    sd_last_result = SD_WriteBlock(this->FSI.sector_address * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
     if(sd_last_result != SDR_Success)
         return SD_WRITE_ERROR;
     return OK;
