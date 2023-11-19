@@ -91,9 +91,9 @@ uint16_t RTC_string_datetime(RTC_struct_brief *rtc_data, char *buf){
     // fills first 20 bytes
     snprintf(buf + 0, 5, "%04d", 2000 + rtc_data->years);
     buf[4] = '-';
-    snprintf(buf + 5, 3, "%02d", rtc_data->months);
+    snprintf(buf + 5, 3, "%02d", rtc_data->months == 0 ? 1 : rtc_data->months);
     buf[7] = '-';
-    snprintf(buf + 8, 3, "%02d", rtc_data->date);
+    snprintf(buf + 8, 3, "%02d", rtc_data->date == 0 ? 1 : rtc_data->date);
     buf[10] = ' ';
     snprintf(buf + 11, 3, "%02d", rtc_data->hours);
     buf[13] = ':';
