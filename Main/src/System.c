@@ -1,7 +1,7 @@
 #include "main.h"
 #include "string.h"
 #include "stdlib.h"
-
+#include "sx126x.h"
 
 #define BUFFER_SIZE             256
 #define TEMP_SENSOR_AMOUNT      12
@@ -137,10 +137,10 @@ uint8_t Calibration_routine(DS18B20 *sensors, tBuzzer *buzzer, uint64_t *sorted_
 
     int sensors_amount = OneWire_SearchDevices(sensors[0].ow);
     if(sensors_amount != TEMP_SENSOR_AMOUNT - 1){
-        for(uint8_t i = 0; i < 3; i++){
-            buzzer->down(buzzer, 500, 300, 30, 30, 1);
-            buzzer->up(buzzer, 300, 500, 30, 30, 1);
-        }
+        // for(uint8_t i = 0; i < 3; i++){
+        //     buzzer->down(buzzer, 500, 300, 30, 30, 1);
+        //     buzzer->up(buzzer, 300, 500, 30, 30, 1);
+        // }
         return 0;
     }
     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
@@ -172,28 +172,65 @@ void System_Init(){
     gpio_init(LED, General_output, Push_pull, no_pull, Low_speed);
 
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
-    gpio_init(UART2_TX, PA2_USART2_TX, Push_pull, pull_up, High_speed);
+    gpio_init(EN_SD, General_output, Push_pull, no_pull, Low_speed);
+    gpio_init(EN_LORA, General_output, Push_pull, no_pull, Low_speed);
+    gpio_init(UART3_TX, PB10_USART3_TX, Push_pull, pull_up, High_speed);
 
     tBuzzer buzzer = Buzzer(TIM15, PWM_CH2, BUZZ, PA3_TIM15_CH2);
-    if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
-        RCC->CSR |= RCC_CSR_RMVF;
-        buzzer.down(&buzzer, 400, 100, 30, 30, 3);
-    }
-    IWDG_init(WATCHDOG_PERIOD_MS);
+    // if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
+    //     RCC->CSR |= RCC_CSR_RMVF;
+    //     buzzer.down(&buzzer, 400, 100, 30, 30, 3);
+    // }
+    // IWDG_init(WATCHDOG_PERIOD_MS);
 
     volatile uint8_t init_status = RTC_Init();
 
-    ow = (OneWire){.uart=USART2};
+    ow = (OneWire){.uart=USART3};
 
     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
         sensors[i] = (DS18B20){0};
         sensors[i].ow = &ow;
     }
-    if(init_status) {  // first power on
-        buzzer.mario(&buzzer);
-    }
+    // if(init_status) {  // first power on
+    //     buzzer.mario(&buzzer);
+    // }
 
     gpio_state(EN_PERIPH, HIGH);
+    // gpio_state(EN_SD, HIGH);
+    // gpio_state(EN_LORA, HIGH);
+    // SX126x SX1268;
+    // SX1268 = (SX126x){
+    //     .gpio = {
+    //         .MOSI_pin = LoRa_MOSI,
+    //         .MISO_pin = LoRa_MISO,
+    //         .SCK_pin = LoRa_SCK,
+    //         .busy_pin = LoRa_BUSY,
+    //         .CS_pin = LoRa_NSS,
+    //         .DIO1_pin = LoRa_DIO1,
+    //         .reset_pin = EN_LORA,
+    //         .__MOSI_AF_pin = PB5_SPI1_MOSI,
+    //         .__MISO_AF_pin = PB4_SPI1_MISO,
+    //         .__SCK_AF_pin = PB3_SPI1_SCK
+    //     },
+    //     .spi = SPI1,
+    //     .self_addr = SELF_ID,
+    //     .bandWidth = SX126X_BW_250,
+    //     .crcRate = SX126X_CR_4_5,
+    //     .frequency = 436000000,
+    //     .spredingFactor = 8, // x = SFx
+    //     .preamble_len = 8,
+    //     .power_dbm = 0x0E,
+    //     .low_data_rate_optim = 0,
+    //     .ramping_time = SX126X_RAMP_80U,
+    //     .packet_type = SX126X_PACKET_TYPE_LORA,
+    //     .header_type = SX126X_HEADER_TYPE_VARIABLE_LENGTH,
+    //     .crc_on_off = SX126X_CRC_ON,
+    //     .iq_polarity = SX126X_STANDARD_IQ,
+    //     .overCurrentProtection = 0x38,
+    //     .sync_word = 0x1424 //0x1424
+    // };
+    // SX126x_Init(&SX1268);
+    // SX126x_SendData(&SX1268, "hello", 5);
 
     FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
     if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
@@ -203,20 +240,20 @@ void System_Init(){
         }
     }
 
-    adc = (ADC){
-        .ADCx = ADC1,
-        .clk_devider = ADC_ClockDevider_1,
-        .internal_channels = {
-            .temp = false,
-            .vbat = false,
-            .vref = true
-        },
-        .resolution = ADC_12bit,
-        .mode = ADC_SINGLE_MODE,
-        .trigger.polarity = ADC_Software_trigger,
-        .ovrsmpl_ratio = OVRSMPL_32x
-    };
-    ADC_Init(&adc);
+    // adc = (ADC){
+    //     .ADCx = ADC1,
+    //     .clk_devider = ADC_ClockDevider_1,
+    //     .internal_channels = {
+    //         .temp = false,
+    //         .vbat = false,
+    //         .vref = true
+    //     },
+    //     .resolution = ADC_12bit,
+    //     .mode = ADC_SINGLE_MODE,
+    //     .trigger.polarity = ADC_Software_trigger,
+    //     .ovrsmpl_ratio = OVRSMPL_32x
+    // };
+    // ADC_Init(&adc);
     /*
                     6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
                     (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
@@ -224,29 +261,29 @@ void System_Init(){
                     NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
                     (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
     */
-    ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
-    ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
-    ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
-    ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
-    ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
-    ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
-    // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
-    ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
-    ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
-    ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
-    ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
-    ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
-    ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
-    // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
-    // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
-    ADC_Enable(&adc);
+    // ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
+    // ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
+    // ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
+    // ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
+    // ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
+    // ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
+    // // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
+    // ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
+    // ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
+    // ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
+    // ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
+    // ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
+    // ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
+    // // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
+    // // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
+    // ADC_Enable(&adc);
     RTC_get_time(&current_rtc);
-    ADC_Start(&adc);
+    // ADC_Start(&adc);
     TemperatureSensorsMeasure(sensors, TEMP_SENSOR_AMOUNT, 1);
-    ADC_WaitMeasures(&adc, 1000000);
+    // ADC_WaitMeasures(&adc, 1000000);
 
-    uint32_t vdda = adc.vdda_mvolt;
-    float internal_temp = ADC_internal_temp(adc.reg_channel_queue[13].result);
+    // uint32_t vdda = adc.vdda_mvolt;
+    // float internal_temp = ADC_internal_temp(adc.reg_channel_queue[13].result);
 
     char str[BUFFER_SIZE] = {0};
 
@@ -263,24 +300,27 @@ void System_Init(){
     if(fat32.last_status == OK){
         file = fat32.open(&fat32, "text1.txt");
         if(file.status == OK){
-            uint16_t counter = RTC_string_datetime(&current_rtc, str);
-            counter += DS18B20_array_to_str(sensors, TEMP_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
-            counter += ADC_array_to_str(&adc, MOISTURE_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
-            wrote_count = file.append(&file, str, strlen(str));
+            wrote_count = file.append(&file, "hello", 5);
+            // uint16_t counter = RTC_string_datetime(&current_rtc, str);
+            // counter += DS18B20_array_to_str(sensors, TEMP_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
+            // counter += ADC_array_to_str(&adc, MOISTURE_SENSOR_AMOUNT, str, BUFFER_SIZE, counter);
+            // wrote_count = file.append(&file, str, strlen(str));
         }
         else {
             buzzer.down(&buzzer, 900, 500, 30, 30, 3);
             buzzer.beep_repeat(&buzzer, 800, 100, 200, 3);
         }
     }
-    else {
-        buzzer.down(&buzzer, 1500, 1000, 30, 30, 3);
-    }
+    // else {
+    //     buzzer.down(&buzzer, 1500, 1000, 30, 30, 3);
+    // }
     // buzzer.beep_repeat(&buzzer, 1500, 100, 100, 2);
     gpio_state(EN_PERIPH, LOW);
+    gpio_state(EN_SD, LOW);
+
     RCC->CRRCR &= ~RCC_CRRCR_HSI48ON;
     // Delay(3000);
-    stop_cortex();
+    // stop_cortex();
 
 }
 

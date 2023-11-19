@@ -14,7 +14,7 @@ void SX126x_Init(SX126x *driver){
     gpio_init(driver->gpio.SCK_pin, driver->gpio.__SCK_AF_pin,  Push_pull, no_pull, Very_high_speed);
     gpio_init(driver->gpio.MISO_pin, driver->gpio.__MISO_AF_pin,  Open_drain, no_pull, Input);
     gpio_init(driver->gpio.MOSI_pin, driver->gpio.__MOSI_AF_pin,  Push_pull, no_pull, Very_high_speed);
-    gpio_init(driver->gpio.reset_pin, General_output, Push_pull, pull_up, High_speed);
+    // gpio_init(driver->gpio.reset_pin, General_output, Push_pull, pull_up, High_speed);
     gpio_init(driver->gpio.busy_pin, Input_mode, Open_drain, no_pull, Input);
     // gpio_init(driver->gpio.DIO1_pin, Input_mode, Open_drain, no_pull, Input);
     gpio_exti_init(driver->gpio.DIO1_pin, 0);

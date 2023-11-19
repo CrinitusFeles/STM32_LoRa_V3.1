@@ -56,9 +56,10 @@
             "string_utils.h": "c",
             "cli.h": "c",
             "system.h": "c",
-            "functional": "c"
+            "functional": "c",
+            "spi.h": "c"
         },
-        "cortex-debug.variableUseNaturalFormat": true,
+        "cortex-debug.variableUseNaturalFormat": false,
         "cortex-debug.registerUseNaturalFormat": true
 	}
 }
