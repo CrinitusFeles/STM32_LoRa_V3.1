@@ -1,4 +1,9 @@
 #include "tim.h"
+#include "System.h"
+
+#define MILLISEC        1000
+#define MICROSEC        1000000
+#define TIMER_PRESC     F_CPU / (2 * MICROSEC) - 1
 
 void TIM_init(TIM_TypeDef *TIMx, uint32_t delay, uint8_t loop_mode){
 
@@ -16,7 +21,7 @@ void TIM_init(TIM_TypeDef *TIMx, uint32_t delay, uint8_t loop_mode){
     }
 
     // (PSC + 1) * ARR = (AHB_freq / 1000) (for 1 milli)    (AHB_freq = 80MHz)
-    TIMx->PSC = 39999;
+    TIMx->PSC = TIMER_PRESC;
     TIMx->ARR = 2 * delay;
 
     if(!loop_mode){

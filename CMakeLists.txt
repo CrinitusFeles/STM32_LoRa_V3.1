@@ -40,10 +40,15 @@ file(GLOB_RECURSE SOURCES
         "Middleware/src/*.c"
         "Periph/src/*.c"
         "CMSIS_L431/Startup/startup_stm32l431rbtx.s"
+        "console/src/*.c"
+        "FreeRTOS/src/*.c"
+        "XModem/*.c"
+        "BootLib/*.c"
         )
+
 set(include_path_DIRS ${CMAKE_SOURCE_DIR}Main/inc)
 
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/STM32L431RBTX_FLASH.ld)
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_801.ld)
 
 set(EXECUTABLE ${PROJECT_NAME}.out)
 
@@ -57,6 +62,10 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Middleware/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/Periph/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/Cortex/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/console/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/XModem
+        ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)
@@ -70,7 +79,9 @@ target_link_options(${EXECUTABLE} PRIVATE
     -Wl,--no-warn-rwx-segments
     -Wl,--gc-sections
     -Wl,--print-memory-usage
-    -Wl,--allow-multiple-definition
+    -Wl,-u,vfprintf;
+    -Wl,-u,_printf_float;
+    -Wl,-u,_scanf_float;
 )
 
 target_compile_options(${EXECUTABLE} PRIVATE
@@ -78,11 +89,10 @@ target_compile_options(${EXECUTABLE} PRIVATE
     -Wall
     -Wextra
     -Wpedantic
-    -Wno-unused-parameter
+    # -Wno-unused-parameter
     # Full debug configuration
     -fstack-usage
-    -Wno-unused-variable -Wno-tautological-compare -Wformat=0
-
+    -Wformat=0
     -O0 -g -ggdb
 )
 

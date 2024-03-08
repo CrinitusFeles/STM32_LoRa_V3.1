@@ -119,4 +119,6 @@ int LoRa_getRSSI(LoRa* _LoRa);
 
 uint16_t LoRa_init(LoRa* _LoRa);
 
+extern LoRa sx127x;
+
 #endif /* INC_SX1278_H_ */

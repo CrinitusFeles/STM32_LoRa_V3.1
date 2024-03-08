@@ -27,6 +27,7 @@ typedef struct s_RTC_struct_brief {
 	uint8_t hours;
 	uint8_t minutes;
 	uint8_t seconds;
+    uint16_t sub_seconds;
 } RTC_struct_brief;
 
 
@@ -39,7 +40,7 @@ void RTC_get_time(RTC_struct_brief *br_data);
 void RTC_data_update(RTC_struct_brief *br_data);
 void RTC_set_date(uint32_t date_reg);
 void RTC_set_time(uint32_t time_reg);
-uint16_t RTC_string_datetime(RTC_struct_brief *rtc_data, char *str);
+uint16_t RTC_string_datetime(char *str);
 uint32_t RTC_struct_brief_time_converter(RTC_struct_brief *br_data);
 uint32_t RTC_struct_brief_date_converter(RTC_struct_brief *br_data);
 uint8_t RTC_Init();

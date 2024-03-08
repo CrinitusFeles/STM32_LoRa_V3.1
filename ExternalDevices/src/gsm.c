@@ -194,7 +194,7 @@ void GSM_CloseConnections(GSM *driver){
 }
 uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms){
     uint16_t timeout = timeout_ms;
-    while(!sim7000g.status.tcp_server_answer && timeout > 0) {
+    while(!driver->status.tcp_server_answer && timeout > 0) {
         Delay(1);
         timeout--;
     }
@@ -203,7 +203,7 @@ uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms){
 }
 uint8_t GSM_WaitTCPServerConnection(GSM *driver, uint16_t timeout_ms){
     uint16_t timeout = timeout_ms;
-    while(!sim7000g.status.tcp_server_connected && timeout > 0) {
+    while(!driver->status.tcp_server_connected && timeout > 0) {
         Delay(1);
         timeout--;
     }
@@ -261,7 +261,7 @@ void GSM_CheckMode(GSM *driver){
 
 void GSM_AnswerParser(){
     sim7000g.status.waiting_for_answer = 0;
-    uint8_t parsed_flag = 0;
+    // uint8_t parsed_flag = 0;
     if(strstr(sim7000g.rx_buf, "\nOK\r") != 0){
         sim7000g.status.last_answer = 0;
     }
@@ -380,7 +380,7 @@ void GSM_RX_Handler(){
                             // тогда не нужно будет тупить десятки тысяч циклов в самом начале парсера
     }
 	if(sim7000g.uart->ISR & USART_ISR_ORE){
-        char data = sim7000g.uart->RDR;
+        (void)sim7000g.uart->RDR;
         sim7000g.overrun_counter++;
 		sim7000g.uart->ICR |= USART_ICR_ORECF;
 		// UART_tx_array(USART1, "USART3 OVERRUN ERROR!\r\n");

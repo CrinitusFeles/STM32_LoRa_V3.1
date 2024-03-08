@@ -88,30 +88,30 @@ void CMD_Parser(SX126x *driver, CommandStruct *pkt){
                 }
             }
             break;
-        case MY_PERIODIC_DATA:  // rtc[7], measured_data[48], signal_params[3]
-            RTC_get_time(&current_rtc);
-            uint8_t *gs_buffer_ptr;
-            uint16_t *buffer_counter_ptr;
-            if(pkt->sender_id == 2) {
-                gs_buffer_ptr = gs2_buffer;
-                buffer_counter_ptr = (uint16_t*)(&gs2_buf_ptr);
-            } else if(pkt->sender_id == 3) {
-                gs_buffer_ptr = gs3_buffer;
-                buffer_counter_ptr = (uint16_t*)(&gs3_buf_ptr);
-            } else break;
-            if((*buffer_counter_ptr) + sizeof(current_rtc) + pkt->arg_len + 3 < sizeof(data_buffer)){
-                memcpy(gs_buffer_ptr + (*buffer_counter_ptr), &current_rtc, sizeof(current_rtc));
-                (*buffer_counter_ptr) += sizeof(current_rtc);
-                memcpy(gs_buffer_ptr + (*buffer_counter_ptr), pkt->args, pkt->arg_len);
-                (*buffer_counter_ptr) += pkt->arg_len;
-                uint8_t signal[3] = {SX1268.signal_rssi, SX1268.snr, SX1268.rssi};
-                memcpy(gs_buffer_ptr + (*buffer_counter_ptr), signal, 3);
-                (*buffer_counter_ptr) += 3;
-            }
-            uint32_t time_stamp = (current_rtc.hours << 16) | (current_rtc.minutes << 8 ) | current_rtc.seconds;
-            write_single_bkp_reg(pkt->sender_id, time_stamp);
-            // write_single_bkp_reg()
-            break;
+        // case MY_PERIODIC_DATA:  // rtc[7], measured_data[48], signal_params[3]
+        //     RTC_get_time(&current_rtc);
+        //     uint8_t *gs_buffer_ptr;
+        //     uint16_t *buffer_counter_ptr;
+        //     if(pkt->sender_id == 2) {
+        //         gs_buffer_ptr = gs2_buffer;
+        //         buffer_counter_ptr = (uint16_t*)(&gs2_buf_ptr);
+        //     } else if(pkt->sender_id == 3) {
+        //         gs_buffer_ptr = gs3_buffer;
+        //         buffer_counter_ptr = (uint16_t*)(&gs3_buf_ptr);
+        //     } else break;
+        //     if((*buffer_counter_ptr) + sizeof(current_rtc) + pkt->arg_len + 3 < sizeof(data_buffer)){
+        //         memcpy(gs_buffer_ptr + (*buffer_counter_ptr), &current_rtc, sizeof(current_rtc));
+        //         (*buffer_counter_ptr) += sizeof(current_rtc);
+        //         memcpy(gs_buffer_ptr + (*buffer_counter_ptr), pkt->args, pkt->arg_len);
+        //         (*buffer_counter_ptr) += pkt->arg_len;
+        //         uint8_t signal[3] = {SX1268.signal_rssi, SX1268.snr, SX1268.rssi};
+        //         memcpy(gs_buffer_ptr + (*buffer_counter_ptr), signal, 3);
+        //         (*buffer_counter_ptr) += 3;
+        //     }
+        //     uint32_t time_stamp = (current_rtc.hours << 16) | (current_rtc.minutes << 8 ) | current_rtc.seconds;
+        //     write_single_bkp_reg(pkt->sender_id, time_stamp);
+        //     // write_single_bkp_reg()
+        //     break;
         default:
             break;
     }

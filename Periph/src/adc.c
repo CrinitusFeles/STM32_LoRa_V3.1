@@ -4,6 +4,8 @@
 #include "delay.h"
 #include "stdio.h"
 
+ADC adc;
+
 void ADC_reset_registers(ADC_TypeDef* ADCx){
     ADCx->CR = 0x20000000;
     ADCx->CFGR = 0x80000000;  // reset value
@@ -105,9 +107,9 @@ void ADC_Start(ADC *ADC_struct){
     ADC_struct->measure_process = 1;
 }
 
-void ADC_Disable(ADC *ADC_struct){
+// void ADC_Disable(ADC *ADC_struct){
 
-}
+// }
 // void ADC_StartConversion(ADC *ADC_struct){
 //     ADC_struct->ADCx->CR |= ADC_CR_ADSTART;
 // }

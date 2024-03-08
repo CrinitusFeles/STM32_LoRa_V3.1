@@ -5,16 +5,15 @@
 #define APB1_CLK 4000000
 // TODO: добавить в библиотеку rcc.h расчет тактовой частоты RCC_GetPCLK1Freq() RCC_GetPCLK2Freq()
 // путем вычитывания значений множителей регистров тактирования
+/* gpio init example
+gpio_init(USART1_RX, PA10_USART1_RX, Open_drain, no_pull, Input);
+gpio_init(USART1_TX, PA9_USART1_TX, Push_pull, no_pull, High_speed);
+*/
 void UART_init(USART_TypeDef *USARTx, uint32_t baudrate, uint8_t duplex_mode){
-	/* gpio init example
-	gpio_init(USART1_RX, PA10_USART1_RX, Open_drain, no_pull, Input);
-	gpio_init(USART1_TX, PA9_USART1_TX, Push_pull, no_pull, High_speed);
-	*/
 	USARTx->CR1 = 0;
 	USARTx->CR2 = 0;
 	USARTx->CR3 = 0;
     USARTx->ICR = 0xFFFF;
-
 
 	if(USARTx == USART1){
 		RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
@@ -57,7 +56,7 @@ void UART_init(USART_TypeDef *USARTx, uint32_t baudrate, uint8_t duplex_mode){
 		USARTx->CR3 |= duplex_mode << USART_CR3_HDSEL_Pos;
 	}
 	else{
-		USARTx->CR1 |= USART_CR1_RXNEIE; // RXNE interrupt ON
+		USARTx->CR1 |= USART_CR1_RXNEIE; //| USART_CR1_IDLEIE; // RXNE interrupt ON
 	}
     USARTx->CR1 |= USART_CR1_TE | USART_CR1_RE;
 	USARTx->CR1 |= USART_CR1_UE; // enable USART
@@ -74,4 +73,5 @@ void UART_tx_string(USART_TypeDef *USARTx, char *array){
 		UART_tx(USARTx, array[i]);
 	}
 }
+
 

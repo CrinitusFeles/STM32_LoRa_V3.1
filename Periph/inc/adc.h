@@ -173,10 +173,10 @@ typedef struct ADC{
 void ADC_Init(ADC *ADC_struct);
 void ADC_Enable(ADC *ADC_struct);
 void ADC_Start(ADC *ADC_struct);
-void ADC_Disable(ADC *ADC_struct);
+// void ADC_Disable(ADC *ADC_struct);
 uint8_t ADC_WaitMeasures(ADC *adc, uint32_t timeout);
 void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, ADC_CH_SMP_Time smp_time);
-void adc_single_conversion( ADC_TypeDef* ADCx, uint16_t* adc_data_arr );
+// void adc_single_conversion( ADC_TypeDef* ADCx, uint16_t* adc_data_arr );
 float ADC_internal_temp(uint16_t adc_data);
 void ADC_Handler();
 uint16_t ADC_array_to_str(ADC *adc, size_t length, char *buf, size_t buf_size, uint16_t offset);

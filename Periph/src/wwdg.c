@@ -12,9 +12,9 @@ uint16_t WWDG_init(uint8_t timer_base, uint8_t window_value){
     return period_ms;
 }
 
-void WWDG_refresh(uint8_t window_value){
+// void WWDG_refresh(uint8_t window_value){
 
-}
+// }
 
 void WWDG_disable_in_debug(){
     DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_WWDG_STOP;

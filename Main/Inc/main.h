@@ -1,8 +1,10 @@
 #ifndef INC_MAIN_H_
 #define INC_MAIN_H_
 #include "stm32l4xx.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #include <stdio.h>
-// #include "formating_output.h"
+#include "formating_output.h"
 #include "delay.h"
 #include "gpio.h"
 #include "rcc.h"
@@ -30,11 +32,14 @@
 #include "buzzer.h"
 #include "low_power.h"
 #include "iwdg.h"
+#include "microrl.h"
 
 // #define SCREEN_PLUGGED
 // #define SENSORS_PLUGGED
 
-#define V3_3
+#define V3_4
+
+#define USART_PRINT USART1
 
 #ifdef V3_1
 #define LED 		PC13
@@ -68,6 +73,9 @@
 
 #define UART3_RX	PB11
 #define UART3_TX	PB10
+
+#define UART1_RX	PB7
+#define UART1_TX	PB6
 
 #define I2C1_SDA	PB9
 #define I2C1_SCL	PB8
@@ -123,6 +131,29 @@
 
 #define UART3_TX	PB10
 
+
+#define LoRa_SPI          SPI1
+#define LoRa_BUSY         PA3
+#define LoRa_SCK          PB3
+#define LoRa_MISO         PB4
+#define LoRa_MOSI         PB5
+#define LoRa_NSS          PC13
+#define LoRa_DIO1         PA2
+#define LoRa_DIO0         PA6
+#endif
+
+#ifdef V3_4
+#define LED 		PC6
+#define EN_PERIPH   PB13
+#define EN_SD       PB12
+#define EN_LORA     PH1
+
+#define BUZZ        PB15
+
+#define UART3_TX	PB10
+#define UART1_RX	PB7
+#define UART1_TX	PB6
+#define _X_UART     USART1
 
 #define LoRa_SPI          SPI1
 #define LoRa_BUSY         PA3

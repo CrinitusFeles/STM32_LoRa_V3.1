@@ -13,18 +13,18 @@
 #define SPI_MISO	PA6
 #define SPI_MOSI	PA7
 
-enum spi_mode{
+typedef enum spi_mode{
 	Mode_0, Mode_1, Mode_2, Mode_3
-};
-enum spi_data_legth{
-	data_8_bit, data_16_bit
-};
-enum spi_first_bit_mode{
+} spi_mode;
+typedef enum spi_data_legth{
+	data_8_bit=8, data_16_bit=16
+} spi_data_legth;
+typedef enum spi_first_bit_mode{
 	MSB, LSB
-};
-enum spi_speed_divider {
+} spi_first_bit_mode;
+typedef enum spi_speed_divider {
 	div_2, div_4, div_8, div_16, div_32, div_64, div_128, div_256
-};
+} spi_speed_divider;
 
 void spi_send8(SPI_TypeDef *SPIx, uint8_t data);
 uint8_t spi_recieve8(SPI_TypeDef *SPIx);
@@ -35,6 +35,7 @@ void spi_send_array(SPI_TypeDef *SPIx, uint8_t *data, uint8_t size);
 void spi_send16(SPI_TypeDef *SPIx, uint16_t data);
 uint8_t spi_waiting_read8(SPI_TypeDef *SPIx);
 uint8_t spi_request_read8(SPI_TypeDef *SPIx);
-void spi_init(SPI_TypeDef *SPIx, int speed_div_, int mode_, int data_length_, int first_bit_);
+void spi_init(SPI_TypeDef *SPIx, spi_speed_divider speed_div_, spi_mode mode_,
+              spi_data_legth data_length_, spi_first_bit_mode first_bit_);
 
 #endif /* INC_SPI_H_ */

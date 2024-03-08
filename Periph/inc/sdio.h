@@ -340,7 +340,7 @@ SDResult SD_StopTransfer(void);
 SDResult SD_ReadBlock(uint32_t addr, uint32_t *pBuf, uint32_t len);
 SDResult SD_WriteBlock(uint32_t addr, uint32_t *pBuf, uint32_t length);
 
-SDResult sd_last_result;
+extern SDResult sd_last_result;
 
 #if (SDIO_USE_DMA)
 void SD_Configure_DMA(uint32_t *pBuf, uint32_t length, uint8_t direction);

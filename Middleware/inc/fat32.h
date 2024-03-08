@@ -40,7 +40,7 @@ typedef struct FAT32_BiosPartBlock{
 } FAT32_BiosPartBlock;
 
 
-uint8_t sd_read_buf[BytesPerSector];
+extern uint8_t sd_read_buf[BytesPerSector];
 
 typedef enum DIR_Attr_type{
     ATTR_READ_ONLY = 0x01,

@@ -77,7 +77,7 @@ void LoRa_writeRegister(LoRa* _LoRa, uint8_t address, volatile uint8_t data){
 	// spi_send8(_LoRa->LoRaSPI, data);
 	Delay(1);
 	spi_txrx(_LoRa->LoRaSPI, address);
-	volatile uint8_t output = spi_txrx(_LoRa->LoRaSPI, data);
+	(void)spi_txrx(_LoRa->LoRaSPI, data);
 	Delay(1);
 	gpio_state(_LoRa->CS_pin, HIGH);
 	Delay(2);
@@ -172,7 +172,7 @@ void LoRa_setTOMsb_setCRCon(LoRa* _LoRa){
 
 uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length, uint16_t timeout){
 	volatile uint8_t read;
-	int mode = _LoRa->current_mode;
+	// int mode = _LoRa->current_mode;
 	LoRa_gotoMode(_LoRa, STNBY_MODE);
 	LoRa_writeRegister(_LoRa, RegIrqFlags, 0xFF);
 	read = LoRa_readRegister(_LoRa, RegOpMode);

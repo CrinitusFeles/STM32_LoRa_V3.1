@@ -9,7 +9,7 @@
 #define CEIL(x, y) ((uint16_t)((x + y - 1) / x))
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
-
+SDResult sd_last_result;
 /*
 Если при записи данные не помещаются в один кластер, то необходимо найти следующий пустой кластер и обновить таблицу FAT.
 В таблице необходимо текущий "последний" кластер заменить на следующий свободный, а его уже указать как "последний"
@@ -25,7 +25,6 @@ SDResult update_file_fat(FAT32_File *file, uint32_t new_last_cluster){
     uint8_t in_FAT_sector_offset = (uint8_t)MOD(file->last_cluster, (file->__parent->BPB.BytesPerSec >> 2));
     uint8_t new_in_FAT_sector_offset = (uint8_t)MOD(new_last_cluster, (file->__parent->BPB.BytesPerSec >> 2));
     SDResult result;
-    uint32_t addr;
 
     if(approx_table_num == new_approx_table_num){
         file->__parent->table.content[in_FAT_sector_offset] = new_last_cluster;

@@ -1,6 +1,4 @@
-#include "stm32l431xx.h"
 #include "pwm.h"
-#include "gpio.h"
 #include "System.h"
 
 

@@ -1,10 +1,18 @@
 #include "formating_output.h"
+#include "main.h"
 
-int _write(int file, char *ptr, int len)
-{
-	for(int i = 0 ; i < len ; i++)
+
+// setvbuf(stdout, NULL, _IONBF, 0);  - for disabling bufferization or you need
+// to '/n' at every printf()
+
+int _write(int file, char *ptr, int len){
+	for(int i = 0; i < len; i++){
+#ifndef USART_PRINT
 		ITM_SendChar((*ptr++));
-//		UART_tx((*ptr++));
+#else
+		UART_tx(USART1, (ptr[i]));
+#endif
+    }
 	return len;
 }
 

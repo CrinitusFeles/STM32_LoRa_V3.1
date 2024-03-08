@@ -77,7 +77,7 @@ void I2C_HandleTransfer(I2C_TypeDef *I2Cx, uint32_t SlaveAddr, uint32_t SlaveAdd
 
 ErrorStatus I2C_check_flag(uint8_t checked_flag, uint8_t flag_state){
 	volatile int32_t counter = I2C_TIMEOUT;
-	while(checked_flag == flag_state && (counter--) >= 0);
+	while((checked_flag == flag_state) && (counter--) >= 0);
 	if(counter == 0){
 		return ERROR;
 	}
@@ -91,10 +91,10 @@ void I2C_Clear_Error_Flags(I2C_TypeDef *I2Cx){
 	I2Cx->ICR |= I2C_ICR_BERRCF;
 	I2Cx->ICR |= I2C_ICR_STOPCF;
 
-	if((I2Cx->ISR & I2C_ISR_ARLO) == 1){
+	if((I2Cx->ISR & I2C_ISR_ARLO)){
 		I2Cx->ISR |= I2C_ISR_ARLO;
 	}
-	if((I2Cx->ISR & I2C_ISR_BUSY) == 1){
+	if((I2Cx->ISR & I2C_ISR_BUSY)){
 		I2Cx->CR1 &= ~I2C_CR1_PE;
 		I2Cx->CR1 |= I2C_CR1_PE;
 	}
@@ -129,7 +129,7 @@ ErrorStatus I2C_Read_byte_St_ReSt(I2C_TypeDef *I2Cx, uint8_t SlaveAddr, uint8_t 
 	I2C_Clear_Error_Flags(I2Cx);
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)SlaveAddr1, I2C_ADDRSLAVE_7BIT, (uint32_t)size_reg_addr, I2C_MODE_SOFTEND, I2C_GENERATE_START_WRITE);
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -138,20 +138,20 @@ ErrorStatus I2C_Read_byte_St_ReSt(I2C_TypeDef *I2Cx, uint8_t SlaveAddr, uint8_t 
 
 		I2Cx->TXDR = (uint8_t)(reg_addr >> (j*8));
 
-		while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+		while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 		if(timeout <= 0){
 			return ERROR;
 		}
 	}
 
-	while(((I2Cx->ISR & I2C_ISR_TC) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TC)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)SlaveAddr1, I2C_ADDRSLAVE_7BIT, (uint32_t)1, I2C_MODE_AUTOEND, I2C_GENERATE_START_READ);
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -159,7 +159,7 @@ ErrorStatus I2C_Read_byte_St_ReSt(I2C_TypeDef *I2Cx, uint8_t SlaveAddr, uint8_t 
 	receive_data = I2Cx->RXDR & 0xFF;
 
 	//LL_I2C_GenerateStopCondition(I2Cx);
-	while(((I2Cx->ISR & I2C_ISR_STOPF) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_STOPF)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -201,13 +201,13 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 	// if(I2C_check_flag((I2Cx->ISR & I2C_ISR_BUSY) >> I2C_ISR_BUSY_Pos, SET) != SUCCESS){
 	// 	return ERROR;
 	// }
-	while(((I2Cx->ISR & I2C_ISR_BUSY) == SET) && (timeout--) >= 0);
+	while(((I2Cx->ISR & I2C_ISR_BUSY)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)size_reg_addr, I2C_MODE_SOFTEND, I2C_GENERATE_START_WRITE);
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -220,7 +220,7 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 
 		I2Cx->TXDR = (uint8_t)(reg_addr >> (j*8));
 
-		while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+		while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 		if(timeout <= 0){
 			return ERROR;
 		}
@@ -229,7 +229,7 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 		// }
 	}
 
-	while(((I2Cx->ISR & I2C_ISR_TC) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TC) ) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -239,7 +239,7 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)2, I2C_MODE_AUTOEND, I2C_GENERATE_RESTART_7BIT_READ); //LL_I2C_MODE_SOFTEND
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -250,7 +250,7 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 	//LL_I2C_AcknowledgeNextData(I2Cx, LL_I2C_ACK);
 	high_byte = I2Cx->RXDR & 0xFF;
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -260,7 +260,7 @@ ErrorStatus I2C_Read_word_u16_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 	// LL_I2C_AcknowledgeNextData(I2Cx, LL_I2C_ACK);
 	low_byte = I2Cx->RXDR & 0xFF;
 
-	while(((I2Cx->ISR & I2C_ISR_STOPF) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_STOPF)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -299,13 +299,13 @@ ErrorStatus I2C_Read_word_u24_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 	// if(I2C_check_flag((I2Cx->ISR & I2C_ISR_BUSY) >> I2C_ISR_BUSY_Pos, SET) != SUCCESS){
 	// 	return ERROR;
 	// }
-	while(((I2Cx->ISR & I2C_ISR_BUSY) == SET) && ((timeout--) >= 0));
+	while(((I2Cx->ISR & I2C_ISR_BUSY)) && ((timeout--) >= 0));
 	if(timeout <= 0){
 		return ERROR;
 	}
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)size_reg_addr, I2C_MODE_SOFTEND, I2C_GENERATE_START_WRITE);
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && ((timeout--) >= 0));
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && ((timeout--) >= 0));
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -318,7 +318,7 @@ ErrorStatus I2C_Read_word_u24_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 
 		I2Cx->TXDR = (uint8_t)(reg_addr >> (j*8));
 
-		while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && ((timeout--) >= 0));
+		while((!(I2Cx->ISR & I2C_ISR_TXE)) && ((timeout--) >= 0));
 		if(timeout <= 0){
 			return ERROR;
 		}
@@ -327,7 +327,7 @@ ErrorStatus I2C_Read_word_u24_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 		// }
 	}
 
-	while(((I2Cx->ISR & I2C_ISR_TC) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TC)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -337,7 +337,7 @@ ErrorStatus I2C_Read_word_u24_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)3, I2C_MODE_AUTOEND, I2C_GENERATE_RESTART_7BIT_READ); //LL_I2C_MODE_SOFTEND
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -348,19 +348,19 @@ ErrorStatus I2C_Read_word_u24_St_ReSt(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8
 	//LL_I2C_AcknowledgeNextData(I2Cx, LL_I2C_ACK);
 	high_byte = I2Cx->RXDR & 0xFF;
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
 	mid_byte = I2Cx->RXDR & 0xFF;
 
-	while(((I2Cx->ISR & I2C_ISR_RXNE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_RXNE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
 	low_byte = I2Cx->RXDR & 0xFF;
 
-	while(((I2Cx->ISR & I2C_ISR_STOPF) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_STOPF)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -403,7 +403,7 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 
 	//Clear flags if the previous attempt to exchange was not successful.
 	I2C_Clear_Error_Flags(I2Cx);
-	while(((I2Cx->ISR & I2C_ISR_BUSY) == SET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_BUSY)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -413,7 +413,7 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)(size_reg_addr+2), I2C_MODE_AUTOEND , I2C_GENERATE_START_WRITE); ////LL_I2C_MODE_SOFTEND
 
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -425,7 +425,7 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 
 		I2Cx->TXDR = (uint8_t)(reg_addr >> (j*8));
 
-		while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+		while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 		if(timeout <= 0){
 			return ERROR;
 		}
@@ -435,7 +435,7 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 	}
 
 	I2Cx->TXDR = high_byte;
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -444,11 +444,11 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 	// }
 
 	I2Cx->TXDR = low_byte;
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -462,7 +462,7 @@ ErrorStatus I2C_Write_word_u16_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t s
 	// }
 
 	//LL_I2C_GenerateStopCondition(I2Cx);
-	while(((I2Cx->ISR & I2C_ISR_STOPF) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_STOPF)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -488,7 +488,7 @@ ErrorStatus I2C_Write_byte_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t size_
 
 	//Clear flags if the previous attempt to exchange was not successful.
 	I2C_Clear_Error_Flags(I2Cx);
-	while(((I2Cx->ISR & I2C_ISR_BUSY) == SET) && (timeout--) >= 0);
+	while(((I2Cx->ISR & I2C_ISR_BUSY)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}
@@ -498,7 +498,7 @@ ErrorStatus I2C_Write_byte_St(I2C_TypeDef *I2Cx, uint8_t dev_addr, uint8_t size_
 
 	I2C_HandleTransfer(I2Cx, (uint32_t)dev_addr, I2C_ADDRSLAVE_7BIT, (uint32_t)(size_reg_addr+2), I2C_MODE_AUTOEND , I2C_GENERATE_START_WRITE); ////LL_I2C_MODE_SOFTEND
 
-	while(((I2Cx->ISR & I2C_ISR_TXE) == RESET) && (timeout--) >= 0);
+	while((!(I2Cx->ISR & I2C_ISR_TXE)) && (timeout--) >= 0);
 	if(timeout <= 0){
 		return ERROR;
 	}

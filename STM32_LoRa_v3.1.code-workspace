@@ -57,9 +57,21 @@
             "cli.h": "c",
             "system.h": "c",
             "functional": "c",
-            "spi.h": "c"
+            "spi.h": "c",
+            "microrl.h": "c",
+            "logging.h": "c",
+            "stdarg.h": "c",
+            "adc.h": "c",
+            "freertos.h": "c",
+            "buzzer.h": "c",
+            "monitor_task.h": "c",
+            "tim.h": "c",
+            "xmodem.h": "c",
+            "system_select.h": "c",
+            "flash.h": "c",
+            "sx127x.h": "c"
         },
-        "cortex-debug.variableUseNaturalFormat": true,
+        "cortex-debug.variableUseNaturalFormat": false,
         "cortex-debug.registerUseNaturalFormat": true
 	}
 }

@@ -87,20 +87,40 @@ uint32_t RTC_struct_brief_time_converter(RTC_struct_brief *br_data){
     return time_value;
 }
 
-uint16_t RTC_string_datetime(RTC_struct_brief *rtc_data, char *buf){
+uint16_t RTC_string_datetime(char *buf){
     // fills first 20 bytes
-    snprintf(buf + 0, 5, "%04d", 2000 + rtc_data->years);
-    buf[4] = '-';
-    snprintf(buf + 5, 3, "%02d", rtc_data->months == 0 ? 1 : rtc_data->months);
-    buf[7] = '-';
-    snprintf(buf + 8, 3, "%02d", rtc_data->date == 0 ? 1 : rtc_data->date);
-    buf[10] = ' ';
-    snprintf(buf + 11, 3, "%02d", rtc_data->hours);
-    buf[13] = ':';
-    snprintf(buf + 14, 3, "%02d", rtc_data->minutes);
-    buf[16] = ':';
-    snprintf(buf + 17, 4, "%02d\t", rtc_data->seconds);
-    return 20;
+    while (!(RTC->ISR & RTC_ISR_RSF)){};	//  Calendar shadow registers synchronized
+
+	uint32_t TR_buf = 0, DR_buf = 0;
+    uint16_t prediv_s = RTC->PRER & 0x7FFF;
+
+	TR_buf = (RTC->TR);
+	DR_buf = (RTC->DR);
+
+	uint8_t months = ((((DR_buf & RTC_DR_MT) >> RTC_DR_MT_Pos) * 10) + ((DR_buf & RTC_DR_MU) >> RTC_DR_MU_Pos));
+	uint8_t date = ((((DR_buf & RTC_DR_DT) >> RTC_DR_DT_Pos) * 10) + ((DR_buf & RTC_DR_DU) >> RTC_DR_DU_Pos));
+
+    uint16_t y = 2000 + ((((DR_buf & RTC_DR_YT) >> RTC_DR_YT_Pos) * 10) + ((DR_buf & RTC_DR_YU) >> RTC_DR_YU_Pos));
+    uint8_t m = months == 0 ? 1 : months;
+    uint8_t d = date == 0 ? 1 : date;
+    uint8_t h = ((((TR_buf & RTC_TR_HT) >> RTC_TR_HT_Pos) * 10) + ((TR_buf & RTC_TR_HU) >> RTC_TR_HU_Pos));
+    uint8_t mm = ((((TR_buf & RTC_TR_MNT) >> RTC_TR_MNT_Pos) * 10) + ((TR_buf & RTC_TR_MNU) >> RTC_TR_MNU_Pos));
+    uint8_t s = ((((TR_buf & RTC_TR_ST) >> RTC_TR_ST_Pos) * 10) + ((TR_buf & RTC_TR_SU) >> RTC_TR_SU_Pos));
+    uint32_t ss = (prediv_s - RTC->SSR) * 1000 / (prediv_s + 1);
+    if(RTC->SSR > prediv_s){
+        if(s > 0) s--;
+        else {
+            s = 59;
+            if(mm > 0) m--;
+            else{
+                mm = 59;
+                if(h > 0) h--;
+                else h = 23;
+            }
+        }
+    }
+    snprintf(buf, 25, "%04d-%02d-%02d %02d:%02d:%02d.%03d", y, m, d, h, mm, s, ss);
+    return 25;
 }
 
 uint32_t RTC_struct_brief_date_converter(RTC_struct_brief *br_data){
@@ -250,6 +270,7 @@ uint32_t RTC_EncodeDateTime(RTC_struct_brief *dt)
         return (dt->date - 1 + day_offset[m] + y * 365 + y / 4 - y / 100 + y / 400) * 86400 +
                (int)dt->hours * 3600 + (int)dt->minutes * 60 + dt->seconds;
 }
+
 void RTC_get_time(RTC_struct_brief *br_data)
 {
 	// we need to clear less bits: (RTC->DR & RTC_DR_DT)
@@ -264,6 +285,7 @@ void RTC_get_time(RTC_struct_brief *br_data)
 	br_data->hours = ((((TR_buf & RTC_TR_HT) >> RTC_TR_HT_Pos) * 10) + ((TR_buf & RTC_TR_HU) >> RTC_TR_HU_Pos));
 	br_data->minutes = ((((TR_buf & RTC_TR_MNT) >> RTC_TR_MNT_Pos) * 10) + ((TR_buf & RTC_TR_MNU) >> RTC_TR_MNU_Pos));
 	br_data->seconds = ((((TR_buf & RTC_TR_ST) >> RTC_TR_ST_Pos) * 10) + ((TR_buf & RTC_TR_SU) >> RTC_TR_SU_Pos));
+    br_data->sub_seconds = RTC->TSSSR;
 
 	DR_buf = (RTC->DR);
 

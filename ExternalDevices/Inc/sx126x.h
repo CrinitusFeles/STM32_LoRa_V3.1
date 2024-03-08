@@ -237,6 +237,6 @@ void SX126x_SetDIO2AsRfSwitchCtr(SX126x *driver, uint8_t enable);
 void SX126x_SetDioIrqParams(SX126x *driver, uint16_t irq_mask, uint16_t dio1_mask, uint16_t dio2_mask, uint16_t dio3_mask);
 
 
-SX126x SX1268;
+extern SX126x SX1268;
 
 #endif  // INC_SX126X_H_

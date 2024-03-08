@@ -10,8 +10,8 @@ uint8_t DS18B20_StartTempMeas(OneWire *ow){
     OneWire_Write(ow, DS18B20_SKIP_ROM);
     // OneWire_MatchRom(ow, rom);
     OneWire_Write(ow, DS18B20_CONVERT_TEMP);
-    uint8_t answer = 0;
-    uint8_t timeout_ms_counter = 0;
+    // uint8_t answer = 0;
+    // uint8_t timeout_ms_counter = 0;
     // while(answer == 0 && timeout_ms_counter < DS18B20_CONVERTION_TIMEOUT_MS){
     //     answer = OneWire_SendBit(ow, 0);
     //     timeout_ms_counter = GetMili();

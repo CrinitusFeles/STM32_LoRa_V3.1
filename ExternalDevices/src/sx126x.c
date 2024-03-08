@@ -72,7 +72,7 @@ void SX126x_SendOpcode(SX126x *driver, uint8_t opcode, uint8_t *parameters, uint
         spi_txrx(driver->spi, 0);
     if(param_len > 0){
         for(uint8_t i = 0; i < param_len; i++){
-            uint8_t data = parameters[i];
+            // uint8_t data = parameters[i];
             spi_txrx(driver->spi, parameters[i]);
         }
     }
@@ -110,7 +110,7 @@ void SX126x_ReadBuffer(SX126x *driver, uint8_t offset, uint8_t *data, uint8_t le
 void SX126x_SetRfFrequency(SX126x *driver, uint32_t freq_hz){
     uint32_t RF_Freq = (uint32_t)((float)(freq_hz / 32000000.0) * (1 << 25) );  // 0x1b100000
     uint8_t data[4] = {RF_Freq >> 24, (RF_Freq >> 16) & 0xFF, (RF_Freq >> 8) & 0xFF, RF_Freq & 0xFF};  // [0x1b, 0x10, 0, 0]
-    uint8_t *reversed_data = (uint8_t *)(&RF_Freq);  // big endian [0, 0, 0x10, 0x1b]
+    // uint8_t *reversed_data = (uint8_t *)(&RF_Freq);  // big endian [0, 0, 0x10, 0x1b]
     SX126x_SendOpcode(driver, OPCODE_SET_RF_FREQUENCY, data, 4, DUMMY_PTR, 0);
 }
 

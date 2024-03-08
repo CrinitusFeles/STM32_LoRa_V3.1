@@ -10,7 +10,7 @@ void init_global_variables(){
 	// ===================================== //
 
 	// --------- ADC -----------//
-	battary_voltage = 0;
+	// battary_voltage = 0;
 	//===========================//
 
 	// RTC_struct rtc = {20, 2, 1, 3, 18, 23, 0};

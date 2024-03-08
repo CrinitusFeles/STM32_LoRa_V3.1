@@ -1,11 +1,45 @@
 #include "periph_handlers.h"
-// #include "main.h"
+#include "uart.h"
 #include "adc.h"
+#include "fifo.h"
 // #include "gsm.h"
+#include <stdio.h>
+#include <string.h>
+#include "../../console/inc/microrl.h"
 #include "global_variables.h"
 
+// char buffer[100] = {0};
+// uint8_t buffer_size = 0;
+// uint8_t processed_symbols = 0;
+volatile unsigned long ulHighFrequencyTimerTicks = 0;
 
 
+void USART1_IRQHandler(void) {
+    while (USART1->ISR & USART_ISR_RXNE) {
+        FIFO_PUSH(fifo, USART1->RDR);
+	}
+    if(USART1->ISR & USART_ISR_IDLE){
+        USART1->ICR |= USART_ICR_IDLECF;
+    //     for(; processed_symbols < buffer_size; processed_symbols++){
+    //         if(USART1->ISR & USART_ISR_RXNE){
+    //             return;
+    //         }
+    //         microrl_insert_char(prl, (int)(buffer[processed_symbols]));
+    //     }
+    //     memset(buffer, 0, buffer_size);
+    //     buffer_size = 0;
+    //     processed_symbols = 0;
+    }
+	if(USART1->ISR & USART_ISR_ORE){
+        (void)(USART1->RDR);
+		USART1->ICR |= USART_ICR_ORECF;
+		UART_tx_string(USART1, "\n\rOVERRUN ERROR!\r\n");
+	}
+    if(USART1->ISR & USART_ISR_FE){
+        USART1->ICR |= USART_ICR_FECF;
+        UART_tx_string(USART1, "\n\rFRAMING ERROR!\r\n");
+    }
+}
 // void USART3_IRQHandler(void) {
 //     GSM_RX_Handler();
 // }

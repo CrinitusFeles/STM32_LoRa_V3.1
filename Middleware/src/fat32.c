@@ -10,8 +10,11 @@
 #define has_MBR(content) ((content[0x1C7] != 0 || content[0x1C6] != 0) && content[0x1FE] == 0x55 && content[0x1FF] == 0xAA)
 #define boot_signature(content)(__builtin_bswap32(*(uint32_t *)content) == 0xEB58904D)
 
+uint8_t sd_read_buf[BytesPerSector];
+
 SDResult ReadBiosPartBlock(uint32_t boot_address, FAT32_BiosPartBlock* BPB){
-    sd_last_result = SD_ReadBlock(boot_address * SDCard.BlockSize, (uint32_t *)sd_read_buf, 512);
+    sd_last_result = SD_ReadBlock(boot_address * SDCard.BlockSize,
+                                  (uint32_t *)sd_read_buf, 512);
     BPB->BytesPerSec = *(uint16_t*)(sd_read_buf + BPB_BytsPerSec_offset);
     BPB->SecPerClus = sd_read_buf[BPB_SecPerClus_offset];
     BPB->RsvdSecCnt = *(uint16_t*)(sd_read_buf + BPB_RsvdSecCnt_offset);
@@ -25,7 +28,8 @@ SDResult ReadBiosPartBlock(uint32_t boot_address, FAT32_BiosPartBlock* BPB){
 
 
 int8_t ReadFSInfoSector(FAT32t *fat32){
-    sd_last_result = SD_ReadBlock(fat32->FSI.sector_address * fat32->BPB.BytesPerSec, (uint32_t *)sd_read_buf, 512);
+    sd_last_result = SD_ReadBlock(fat32->FSI.sector_address * fat32->BPB.BytesPerSec,
+                                  (uint32_t *)sd_read_buf, 512);
     if(*(uint32_t*)(sd_read_buf) != FSI_Signature) return -1;
     fat32->FSI.FreeCount = *(uint32_t*)(sd_read_buf + FSI_FreeCount_offset);
     fat32->FSI.NextFree = *(uint32_t*)(sd_read_buf + FSI_NextFree_offset);
@@ -62,20 +66,23 @@ FAT32_Status FAT32_init(FAT32t *fat32){
 
 SDResult read_data_cluster(FAT32t *this, uint32_t cluster_num, uint8_t *buffer){
     uint32_t first_data_sector = (cluster_num - FIRST_ROOT_CLUSTER) * this->BPB.SecPerClus + this->root_sector;
-    return SD_ReadBlock(first_data_sector * this->BPB.BytesPerSec, (uint32_t *)buffer, this->BPB.BytesPerSec);
+    return SD_ReadBlock(first_data_sector * this->BPB.BytesPerSec,
+                        (uint32_t *)buffer, this->BPB.BytesPerSec);
 }
 
 
 SDResult write_data_cluster(FAT32t *this, uint32_t cluster_num, uint8_t *buffer){
     uint32_t first_data_sector = (cluster_num - FIRST_ROOT_CLUSTER) * this->BPB.SecPerClus + this->root_sector;
-    return SD_WriteBlock(first_data_sector * this->BPB.BytesPerSec, (uint32_t *)buffer, this->BPB.BytesPerSec);
+    return SD_WriteBlock(first_data_sector * this->BPB.BytesPerSec,
+                         (uint32_t *)buffer, this->BPB.BytesPerSec);
 }
 
 
 SDResult read_FAT_sector(FAT32t *this, uint32_t sector_num){
     if(sector_num != this->table.sector_num){  // читаем только те сектора, что не находятся сейчас в буфере
         this->table.sector_num = sector_num;
-        return SD_ReadBlock((this->FAT1_sector + sector_num) * this->BPB.BytesPerSec, this->table.content, this->BPB.BytesPerSec);
+        return SD_ReadBlock((this->FAT1_sector + sector_num) * this->BPB.BytesPerSec,
+                            this->table.content, this->BPB.BytesPerSec);
     }
     return SDR_Success;
 }
@@ -120,14 +127,16 @@ FAT32_Status UpdateFSInfo(FAT32t *this, uint8_t decrement, uint32_t next_free_cl
     if(next_free == 0)
         return NO_FREE_CLUSTER;
     this->FSI.NextFree = next_free_cluster == next_free ? next_free_cluster : next_free;
-    sd_last_result = SD_ReadBlock(this->FSI.sector_address * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
+    sd_last_result = SD_ReadBlock(this->FSI.sector_address * this->BPB.BytesPerSec,
+                                  (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
     if(sd_last_result != SDR_Success)
         return SD_READ_ERROR;
     if(*(uint32_t*)(sd_read_buf) != FSI_Signature)
         return FSI_SIGNATURE_ERROR;
     *(uint32_t*)(sd_read_buf + FSI_FreeCount_offset) = this->FSI.FreeCount;
     *(uint32_t*)(sd_read_buf + FSI_NextFree_offset) = next_free_cluster;
-    sd_last_result = SD_WriteBlock(this->FSI.sector_address * this->BPB.BytesPerSec, (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
+    sd_last_result = SD_WriteBlock(this->FSI.sector_address * this->BPB.BytesPerSec,
+                                   (uint32_t *)sd_read_buf, this->BPB.BytesPerSec);
     if(sd_last_result != SDR_Success)
         return SD_WRITE_ERROR;
     return OK;
@@ -152,9 +161,10 @@ FAT32_File open_file(struct FAT32s* fat32, char *filename){
 }
 
 /*
-Для создания файла необходимо сначала найти свободную область в корневой директории и свободный сектор для файла в
-таблице FAT. В свободный сектор корневой директории записать структуру файла, в которой первым кластером указывается
-ранее найденный свободный кластер в пространстве данных.
+Для создания файла необходимо сначала найти свободную область в корневой
+директории и свободный сектор для файла в таблице FAT. В свободный сектор
+корневой директории записать структуру файла, в которой первым кластером
+указывается ранее найденный свободный кластер в пространстве данных.
 */
 FAT32_Status create_file(FAT32t *this, char* filename){
     uint32_t next_free = 0;

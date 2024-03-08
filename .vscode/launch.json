@@ -1,20 +1,57 @@
 {
 	"configurations": [
+        {
+            "name": "Debug-Main&Reserve",
+            "cwd": "${workspaceRoot}",
+            "executable": "./bin/executable.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+			"configFiles": [
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
+			],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none"
+        },
+        {
+            "name": "Debug-RESERVE_0x8010000",
+            "cwd": "${workspaceRoot}",
+            "executable": "./bin/executable.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+			"configFiles": [
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
+				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
+			],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none"
+        },
 		{
-			"name": "ARM-Debug",
+			"name": "Debug-MAIN_0x8000000",
 			"cwd": "${workspaceRoot}",
 			"executable": "${command:cmake.launchTargetPath}",
 			"svdFile": "${execPath}/../../stm32_utils/svd/STM32L4X1.svd",
 			"request": "launch",
 			"type": "cortex-debug",
 			"servertype": "openocd",
+            // "loadFiles": ["${workspaceFolder}/build/Debug/STM32_LoRa_v3.1.hex"],
+            "loadFiles": [],
+            "symbolFiles": [
+                {"file": "${command:cmake.launchTargetPath}"}
+            ],
+            // "overrideLaunchCommands": ["enable breakpoint", "monitor reset halt"],
+            // "overrideResetCommands": ["enable breakpoints", "monitor reset halt"],
 			"device": "cortex-m4",
 			"interface": "swd",
+            "showDevDebugOutput": "raw",
 			"runToEntryPoint": "main",
 			"configFiles": [
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
 			],
+            // "rtos": "FreeRTOS"
             // "liveWatch": {
             //     "enabled": true,
             //     "samplesPerSecond": 2

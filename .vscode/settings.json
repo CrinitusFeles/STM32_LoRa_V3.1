@@ -17,7 +17,9 @@
     "C_Cpp.default.intelliSenseMode": "gcc-arm",
     "C_Cpp.dimInactiveRegions": true,
     "files.associations": {
-        "stm32l4xx.h": "c"
+        "stm32l4xx.h": "c",
+        "formating_output.h": "c",
+        "main.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": false
 }

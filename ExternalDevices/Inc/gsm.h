@@ -109,7 +109,7 @@ uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms);
 uint8_t GSM_WaitTCPServerConnection(GSM *driver, uint16_t timeout_ms);
 
 
-GSM sim7000g;
+extern GSM sim7000g;
 
 
 

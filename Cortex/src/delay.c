@@ -4,15 +4,17 @@ static volatile uint32_t count = 0;
 static volatile uint32_t delay_count = 0;
 volatile uint32_t iwdg_reset = 0;
 
-void SysTick_Handler(){
-	delay_count++;
-    count++;
-    IWDG_refresh();
-    // if(delay_count - iwdg_reset > 100){
+// #ifndef INC_FREERTOS_H
+// void SysTick_Handler(){
+// 	delay_count++;
+//     count++;
+//     IWDG_refresh();
+//     // if(delay_count - iwdg_reset > 100){
 
-    //     iwdg_reset = delay_count;
-    // }
-}
+//     //     iwdg_reset = delay_count;
+//     // }
+// }
+// #endif
 void Delay(uint32_t milli){
 	delay_count = 0;
 	while(delay_count < milli);

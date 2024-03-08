@@ -1,6 +1,20 @@
 {
 	"version": "2.0.0",
 	"tasks": [
+        {
+            "label": "Configure",
+			"type": "shell",
+			"command": "cmake .. --preset=Debug",
+			"options": {
+				"cwd": "${workspaceFolder}/build",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+        },
 		{
 			"label": "Build",
 			"type": "shell",
@@ -29,9 +43,9 @@
 		{
 			"label": "Clean",
 			"type": "shell",
-			"command": "make -s clean",
+			"command": "cmake --build . --target clean",
 			"options": {
-				"cwd": "${workspaceRoot}",
+				"cwd": "${workspaceRoot}/build/Debug",
 				"shell": {
 					"executable": "cmd.exe",
 					"args": [
@@ -51,7 +65,31 @@
 		{
 			"label": "Write",
 			"type": "shell",
-            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.hex; reset; exit\" & echo. & echo Done",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"program ./build/Debug/STM32_LoRa_v3.1.bin 0x08000000 verify reset exit;\" & echo. & echo Done",
+            // "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.bin 0x08000000 bin; reset; exit\" & echo. & echo Done",
+			"options": {
+				"cwd": "${workspaceRoot}",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+			"presentation": {
+				"clear": true
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Write2",
+			"type": "shell",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; program ./build/Debug/STM32_LoRa_v3.1.bin 0x08010000 verify reset exit; reset; exit\" & echo. & echo Done",
+            // "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.bin 0x08010000 bin; reset; exit\" & echo. & echo Done",
 			"options": {
 				"cwd": "${workspaceRoot}",
 				"shell": {
