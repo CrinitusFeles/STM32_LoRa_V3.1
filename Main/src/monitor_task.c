@@ -22,11 +22,11 @@ void show_monitor(){
     char status_buffer[10];
     task_count = uxTaskGetSystemState(_buffer, task_count, &_total_runtime);
     _total_runtime /= 100;
-    printf("NAME\tSTATUS\tPRIORITY\tSTACK REMAINING\tRUNNING TIME, ms\tLOAD\n\r");
+    printf("NAME\t\tSTATUS\t\tPRIORITY\t\tSTACK REMAINING\t\tRUNNING TIME, ms\t\tLOAD\n\r");
     for (uint8_t task = 0; task < task_count; task++)
     {
         _task_state_to_char(_buffer[task].eCurrentState, status_buffer);
-        printf("%s\t%s\t%u\t%u\t%u\t%u%%\n\r",
+        printf("%s\t\t%s\t\t%u\t\t%u\t\t%u\t\t%u%%\n\r",
             _buffer[task].pcTaskName,
             status_buffer,
             _buffer[task].uxCurrentPriority,

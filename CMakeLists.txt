@@ -48,8 +48,15 @@ file(GLOB_RECURSE SOURCES
 
 set(include_path_DIRS ${CMAKE_SOURCE_DIR}Main/inc)
 
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_801.ld)
-
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
+    message(STATUS "Linking RESERVE firmware 0x8010000")
+    set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_800.ld)
+elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_801")
+    message(STATUS "Linking MAIN firmware 0x8000000")
+    set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_801.ld)
+else ()
+    message(STATUS "INCORRECT CMAKE_BUILD_TYPE")
+endif ()
 set(EXECUTABLE ${PROJECT_NAME}.out)
 
 add_executable(${EXECUTABLE} ${SOURCES})

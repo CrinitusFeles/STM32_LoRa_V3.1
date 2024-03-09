@@ -81,13 +81,13 @@ FLASH_status FLASH_write_addr(uint32_t *addr, uint64_t *data, uint16_t word_leng
          __enable_irq();
         return FLASH_LOCKED; // FLASH is LOCKED
     }
-#ifndef FLASH_BIT_ACCESS
-    if(*(uint64_t *)(addr) != 0xFFFFFFFFFFFFFFFF){  // area is empty
-        FLASH_soft_lock();
-         __enable_irq();
-        return FLASH_ADDRESS_NOT_EMPTY;
-    }
-#endif
+// #ifndef FLASH_BIT_ACCESS
+//     if(*(uint64_t *)(addr) != 0xFFFFFFFFFFFFFFFF){  // area is empty
+//         FLASH_soft_lock();
+//          __enable_irq();
+//         return FLASH_ADDRESS_NOT_EMPTY;
+//     }
+// #endif
 
     FLASH->SR |= FLASH_PGERR;  // Reset Error Flags
     FLASH->CR = 0;             // reset CR
@@ -126,13 +126,13 @@ void FLASH_read(uint8_t page_num, uint16_t offset, uint64_t *buffer, uint16_t le
 
 FLASH_status FLASH_erase_page(uint8_t page_num){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
-    if(!FLASH_UNLOCK())
+    if(FLASH_UNLOCK() != FLASH_OK)
         return FLASH_LOCKED; // the FLASH is LOCKED
     FLASH->CR &= !(FLASH_CR_PNB | FLASH_CR_MER1);  // clear page number selection and mass erase bit
     FLASH->CR |= (page_num << FLASH_CR_PNB_Pos) | FLASH_CR_PER;
     FLASH->CR |= FLASH_CR_STRT;
 
-    while((!(FLASH->SR & FLASH_SR_EOP)) && (timeout > 0)) timeout--;
+    while((FLASH->SR & FLASH_SR_BSY) && (timeout > 0)) timeout--;
 	FLASH->SR = FLASH_SR_EOP;
 
     FLASH_soft_lock();
@@ -141,7 +141,7 @@ FLASH_status FLASH_erase_page(uint8_t page_num){
 
 FLASH_status FLASH_mass_erase(){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
-    if(!FLASH_UNLOCK())
+    if(FLASH_UNLOCK() != FLASH_OK)
         return FLASH_LOCKED; // FLASH is LOCKED
     FLASH->CR &= !(FLASH_CR_PNB | FLASH_CR_PER);
     FLASH->CR |= FLASH_CR_MER1;
@@ -168,35 +168,31 @@ void FLASH_jump_to_app(uint32_t *addr)
   jump_to_app();
 }
 
-uint8_t SetPrefferedBlockNum(uint8_t block_num){
+FLASH_status SetPrefferedBlockNum(uint8_t block_num){
     uint32_t addr;
-    uint64_t tmp64;
-    uint16_t n;
     uint8_t pref2 = (block_num & 1) ? 1 : 0;
+    FLASH_status status;
+    uint64_t val = 1;
+    uint64_t val0 = 0;
     if ((HavePrefFlashBlockNum() ^ pref2) & 1) {
         /*ищем единичный бит*/
-        for (addr = PREF_REC_ADDR_START; addr < PREF_REC_ADDR_END; addr += 4) {
-            tmp64 = 1;
+        for (addr = PREF_REC_ADDR_START; addr < PREF_REC_ADDR_END; addr += OFFSET_ALIGN_BYTES) {
             if (M64(addr) != 0) {
-                for (n = 0; n < 64; n++) {
-                    if (M64(addr) & tmp64) break;
-                    tmp64 = tmp64 << 1;
-                }
                 break;
             }
         }
         if (addr < PREF_REC_ADDR_END) {
             /*зануляем единичный бит*/
-            tmp64 = M64(addr) & ~(1 << n);
-            if (FLASH_write_addr((uint32_t *)addr, &tmp64, 1) != FLASH_OK) {
-                // Flash_Status |= FLASH_STAT_MASK_ERR;
-                return 1;
+            if (M64(addr) == 1){
+                status = FLASH_write_addr((uint32_t *)addr, (uint64_t *)(&val0), 1);
+            } else {
+                status = FLASH_write_addr((uint32_t *)addr, (uint64_t *)(&val), 1);
             }
+            return status;
         } else {
             /*ресурс исчерпан*/
-            // Flash_Status |= FLASH_STAT_MASK_ERR;
-            return 1;
+            return FLASH_ERROR;
         }
     }
-    return 0;
+    return FLASH_OK;
 }

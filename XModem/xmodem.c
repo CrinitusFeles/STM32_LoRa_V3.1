@@ -7,6 +7,7 @@
 #include "task.h"
 #include "string.h"
 #include "System.h"
+#include "system_select.h"
 
 /* Global variables. */
 static uint8_t xmodem_packet_number = 1;         /**< Packet number counter. */
@@ -171,14 +172,28 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
         status |= X_ERROR_UART;
         return status;
     }
-    // /* If it is the first packet, then erase the memory. */
-    // if ((X_OK == status) && (false == x_first_packet_received)) {
-    //     if (FLASH_OK == FLASH_erase(FLASH_APP_START_ADDRESS)) {
-    //         x_first_packet_received = true;
-    //     } else {
-    //         status |= X_ERROR_FLASH;
-    //     }
-    // }
+    /* If it is the first packet, then erase the memory. */
+    if ((X_OK == status) && (false == x_first_packet_received)) {
+        uint8_t curr_block = HaveRunFlashBlockNum();
+        if(curr_block){
+            for(uint8_t sec_num = 0; sec_num < 31; sec_num++){
+                if(FLASH_erase_page(sec_num) != FLASH_OK) {
+                    status |= X_ERROR_FLASH;
+                    break;
+                }
+            }
+        } else {
+            for(uint8_t sec_num = 32; sec_num < 63; sec_num++){
+                if(FLASH_erase_page(sec_num) != FLASH_OK) {
+                    status |= X_ERROR_FLASH;
+                    break;
+                }
+            }
+        }
+        if(status == X_OK) {
+            x_first_packet_received = true;
+        }
+    }
 
     /* Error handling and flashing. */
     if (X_OK == status) {
@@ -198,13 +213,11 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
         }
     }
 
-    // /* Do the actual flashing (if there weren't any errors). */
-    // if ((X_OK == status) && (FLASH_OK != FLASH_write(xmodem_actual_flash_address, (uint32_t
-    // *)&received_packet_data[0u],
-    //                                                  (uint32_t)size / 4))) {
-    //     /* Flashing error. */
-    //     status |= X_ERROR_FLASH;
-    // }
+    /* Do the actual flashing (if there weren't any errors). */
+    if ((X_OK == status) && (FLASH_OK != FLASH_write_addr((uint32_t *)xmodem_actual_flash_address, (uint64_t*)&received_packet_data[0], (uint32_t)size / 8))) {
+        /* Flashing error. */
+        status |= X_ERROR_FLASH;
+    }
 
     /* Raise the packet number and the address counters (if there weren't any errors). */
     if (X_OK == status) {
@@ -232,6 +245,7 @@ static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_err
         /* Graceful abort. */
         printf("%c", X_CAN);
         printf("%c", X_CAN);
+        printf("\n\rXModem uploading failed\n\r");
         status = X_ERROR;
     }
     /* Otherwise send a NAK for a repeat. */

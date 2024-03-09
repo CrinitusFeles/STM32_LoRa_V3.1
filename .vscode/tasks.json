@@ -2,9 +2,23 @@
 	"version": "2.0.0",
 	"tasks": [
         {
-            "label": "Configure",
+            "label": "Configure 0x800",
 			"type": "shell",
-			"command": "cmake .. --preset=Debug",
+			"command": "cmake .. --preset=Debug_800",
+			"options": {
+				"cwd": "${workspaceFolder}/build",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
+			},
+        },
+        {
+            "label": "Configure 0x801",
+			"type": "shell",
+			"command": "cmake .. --preset=Debug_801",
 			"options": {
 				"cwd": "${workspaceFolder}/build",
 				"shell": {
@@ -16,11 +30,11 @@
 			},
         },
 		{
-			"label": "Build",
+			"label": "Build 0x800",
 			"type": "shell",
-			"command": "cmake --build .",
+			"command": "cmake --build . & ${workspaceFolder}/Hex2Bin_wCRC.exe ./${workspaceFolderBasename}.hex",
 			"options": {
-				"cwd": "${workspaceFolder}/build/Debug",
+				"cwd": "${workspaceFolder}/build/Debug_800",
 				"shell": {
 					"executable": "cmd.exe",
 					"args": [
@@ -28,24 +42,27 @@
 					]
 				}
 			},
-			"presentation": {
-				"clear": true
+		},
+        {
+			"label": "Build 0x801",
+			"type": "shell",
+			"command": "cmake --build . & ${workspaceFolder}/Hex2Bin_wCRC.exe ./${workspaceFolderBasename}.hex",
+			"options": {
+				"cwd": "${workspaceFolder}/build/Debug_801",
+				"shell": {
+					"executable": "cmd.exe",
+					"args": [
+						"/C"
+					]
+				}
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"problemMatcher": {
-                "base": "$gcc",
-                "fileLocation": ["relative", "${workspaceFolder}/build/Debug/Debug"]
-            }
 		},
 		{
 			"label": "Clean",
 			"type": "shell",
 			"command": "cmake --build . --target clean",
 			"options": {
-				"cwd": "${workspaceRoot}/build/Debug",
+				"cwd": "${workspaceRoot}/build/Debug_800",
 				"shell": {
 					"executable": "cmd.exe",
 					"args": [
@@ -63,10 +80,9 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Write",
+			"label": "Write 0x800",
 			"type": "shell",
-            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"program ./build/Debug/STM32_LoRa_v3.1.bin 0x08000000 verify reset exit;\" & echo. & echo Done",
-            // "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.bin 0x08000000 bin; reset; exit\" & echo. & echo Done",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"program ./build/Debug_800/STM32_LoRa_v3.1.bin 0x08000000 verify reset exit;\" & echo. & echo Done",
 			"options": {
 				"cwd": "${workspaceRoot}",
 				"shell": {
@@ -76,20 +92,11 @@
 					]
 				}
 			},
-			"presentation": {
-				"clear": true
-			},
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"problemMatcher": []
 		},
 		{
-			"label": "Write2",
+			"label": "Write 0x801",
 			"type": "shell",
-            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; program ./build/Debug/STM32_LoRa_v3.1.bin 0x08010000 verify reset exit; reset; exit\" & echo. & echo Done",
-            // "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; flash write_image erase ./build/Debug/STM32_LoRa_v3.1.bin 0x08010000 bin; reset; exit\" & echo. & echo Done",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; program ./build/Debug_801/STM32_LoRa_v3.1.bin 0x08010000 verify reset exit; reset; exit\" & echo. & echo Done",
 			"options": {
 				"cwd": "${workspaceRoot}",
 				"shell": {
@@ -98,15 +105,7 @@
 						"/C"
 					]
 				}
-			},
-			"presentation": {
-				"clear": true
-			},
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"problemMatcher": []
+			}
 		},
 		{
 			"label": "Erase",
@@ -120,15 +119,7 @@
 						"/C"
 					]
 				}
-			},
-			"presentation": {
-				"clear": true
-			},
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"problemMatcher": []
+			}
 		},
 		{
 			"label": "Reset",
@@ -142,15 +133,7 @@
 						"/C"
 					]
 				}
-			},
-			"presentation": {
-				"clear": true
-			},
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"problemMatcher": []
+			}
 		},
 		{
 			"label": "dbg",
@@ -165,11 +148,6 @@
 				"Write",
 				"dbg"
 			],
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"problemMatcher": []
 		}
 	]
 }

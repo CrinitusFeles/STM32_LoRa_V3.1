@@ -3,30 +3,39 @@
         {
             "name": "Debug-Main&Reserve",
             "cwd": "${workspaceRoot}",
-            "executable": "./bin/executable.elf",
+            // "executable": "./bin/executable.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "loadFiles": [],
+            "symbolFiles": [
+                {"file": "${workspaceFolder}/build/Debug_800/${workspaceFolderBasename}.out.elf"},
+                {"file": "${workspaceFolder}/build/Debug_801/${workspaceFolderBasename}.out.elf"}
+            ],
 			"configFiles": [
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
 			],
             "runToEntryPoint": "main",
-            "showDevDebugOutput": "none"
+            "showDevDebugOutput": "raw"
         },
         {
             "name": "Debug-RESERVE_0x8010000",
             "cwd": "${workspaceRoot}",
-            "executable": "./bin/executable.elf",
+            // "executable": "./bin/executable.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "loadFiles": [],
+            "symbolFiles": [
+                {"file": "${command:cmake.launchTargetPath}"}
+            ],
 			"configFiles": [
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg",
 				"${execPath}\\..\\..\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg"
 			],
             "runToEntryPoint": "main",
-            "showDevDebugOutput": "none"
+            "showDevDebugOutput": "raw"
         },
 		{
 			"name": "Debug-MAIN_0x8000000",
@@ -39,7 +48,7 @@
             // "loadFiles": ["${workspaceFolder}/build/Debug/STM32_LoRa_v3.1.hex"],
             "loadFiles": [],
             "symbolFiles": [
-                {"file": "${command:cmake.launchTargetPath}"}
+                {"file": "${workspaceFolder}/build/Debug_800/${workspaceFolderBasename}.out.elf"}
             ],
             // "overrideLaunchCommands": ["enable breakpoint", "monitor reset halt"],
             // "overrideResetCommands": ["enable breakpoints", "monitor reset halt"],

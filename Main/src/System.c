@@ -10,6 +10,7 @@
 #include "sx127x.h"
 #include "spi.h"
 
+
 #define BUFFER_SIZE             256
 #define TEMP_SENSOR_AMOUNT      12
 #define MOISTURE_SENSOR_AMOUNT  11

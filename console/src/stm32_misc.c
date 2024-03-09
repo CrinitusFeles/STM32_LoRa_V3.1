@@ -33,6 +33,7 @@
 #define _CMD_MAKE_MEASURE           "make_measure"      // 17
 #define _CMD_SLEEP                  "sleep"             // 18
 #define _CMD_GET_TIME               "get_time"          // 19
+#define _CMD_ERASE_SECTOR           "erase_sector"      // 20
 
 
 #define _NUM_OF_CMD 19
@@ -44,7 +45,7 @@ char *keyworld[] = {_CMD_HELP, _CMD_CLEAR, _CMD_ECHO, _CMD_SET, _CMD_CLR,
                     _CMD_SET_PREF_BLOCK, _CMD_GET_PREF_BLOCK, _CMD_GET_CURR_BLOCK,
                     _CMD_SET_TIME, _CMD_ERASE_FIRMWARE, _CMD_CHECK_CRC,
                     _CMD_SEND_RADIO, _CMD_MAKE_MEASURE, _CMD_SLEEP,
-                    _CMD_GET_TIME};
+                    _CMD_GET_TIME, _CMD_ERASE_SECTOR};
 // 'set/clear' command argements
 
 // array for comletion
@@ -75,6 +76,7 @@ void print_help(void) {
     print("  send_radio [sf] [bw] [*data]   - send LoRa package \n\r");
     print("  set_time [year] [month] [day] [hours] [mins] [seconds] - sets MCU RTC\n\r");
     print("  get_time                       - MCU RTC timestring\n\r");
+    print("  erase_sector                   - erase sector with preffered boot block number\n\r");
     print("  beep [freq] [duration]         - make beep signal certain frequency and duration\n\r");
     print("  sleep [sleep_sec]              - go to sleep mode\n\r");
     print("  set_port [port] [pin]          - set 1 port[pin] value, support only 'port_b' and 'port_d'\n\r");
@@ -236,7 +238,8 @@ int execute(int argc, const char *const *argv) {
             }
         } else if(strcmp(argv[i], _CMD_XMODEM) == 0){
             if(argc == 1){
-                xmodem_receive(0);
+                uint32_t write_addr = HaveRunFlashBlockNum() == 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
+                xmodem_receive(write_addr);
                 break;
             } else {
                 print("xmodem cmd does not accept any arguments\n\r");

@@ -27,6 +27,6 @@ FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint
 FLASH_status FLASH_write_addr(uint32_t *addr, uint64_t *data, uint16_t word_length);
 void FLASH_read(uint8_t page_num, uint16_t offset, uint64_t *buffer, uint16_t length);
 void FLASH_jump_to_app(uint32_t *addr);
-uint8_t SetPrefferedBlockNum(uint8_t block_num);
+FLASH_status SetPrefferedBlockNum(uint8_t block_num);
 
 #endif

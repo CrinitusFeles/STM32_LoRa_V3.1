@@ -13,19 +13,16 @@ void SystemSelect() __attribute__((section("!!!!my_system_init_sect")));
 
 uint8_t HavePrefFlashBlockNum() {  // return: 0 - 1-й блок,  1 - 2-й блок
     register uint32_t *addr;
-    register uint8_t bit_sum, n;
-    register uint32_t word;
-    bit_sum = 0;
+    register uint64_t word;
+    uint8_t num = 0;
     for (addr = (uint32_t *)PREF_REC_ADDR_START; addr < (uint32_t *)PREF_REC_ADDR_END; addr++) {
         word = *addr;
-        if (word != 0xFFFFFFFF) {
-            for (n = 0; n < 32; n++) {
-                bit_sum = bit_sum + word;
-                word = word >> 1;
-            }
+        if (word == 0xFFFFFFFFFFFFFFFF) {
+            break;
         }
+        num += (word == 1) ? 1 : 0;
     }
-    return (bit_sum & 1);
+    return (num & 1);
 }
 
 uint8_t HaveRunFlashBlockNum() {

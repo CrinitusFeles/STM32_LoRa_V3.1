@@ -12,10 +12,19 @@
             }
         },
         {
-            "name": "Debug",
+            "name": "Debug_800",
             "inherits": "default",
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug_800"
+            }
+        },
+        {
+            "name": "Debug_801",
+            "inherits": "default",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug_801"
             }
         },
         {
