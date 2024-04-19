@@ -3,7 +3,7 @@
 #include "stm32l4xx.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include <stdio.h>
+// #include <stdio.h>
 #include "formating_output.h"
 #include "delay.h"
 #include "gpio.h"

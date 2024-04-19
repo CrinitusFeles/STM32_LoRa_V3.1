@@ -44,15 +44,14 @@ file(GLOB_RECURSE SOURCES
         "FreeRTOS/src/*.c"
         "XModem/*.c"
         "BootLib/*.c"
+        "FAT_FS/*.c"
         )
 
-set(include_path_DIRS ${CMAKE_SOURCE_DIR}Main/inc)
-
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
-    message(STATUS "Linking RESERVE firmware 0x8010000")
+    message(STATUS "Linking RESERVE firmware 0x8000000")
     set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_800.ld)
 elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_801")
-    message(STATUS "Linking MAIN firmware 0x8000000")
+    message(STATUS "Linking MAIN firmware 0x8010000")
     set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/CMSIS_L431/Startup/Linker_801.ld)
 else ()
     message(STATUS "INCORRECT CMAKE_BUILD_TYPE")
@@ -73,6 +72,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/FreeRTOS/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/XModem
         ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
+        ${CMAKE_CURRENT_SOURCE_DIR}/FAT_FS
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)
@@ -86,9 +86,9 @@ target_link_options(${EXECUTABLE} PRIVATE
     -Wl,--no-warn-rwx-segments
     -Wl,--gc-sections
     -Wl,--print-memory-usage
-    -Wl,-u,vfprintf;
-    -Wl,-u,_printf_float;
-    -Wl,-u,_scanf_float;
+    # -Wl,-u,vfprintf;
+    # -Wl,-u,_printf_float;
+    # -Wl,-u,_scanf_float;
 )
 
 target_compile_options(${EXECUTABLE} PRIVATE

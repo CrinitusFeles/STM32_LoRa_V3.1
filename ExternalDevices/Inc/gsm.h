@@ -82,6 +82,8 @@ typedef struct GSM {
     uint8_t sms_counter;
     uint8_t call_counter;
     uint8_t timeout_sec;
+    void(*delay_ms)(uint32_t);
+    void (*ll_send)(char *);
 } GSM;
 
 void GSM_RX_Handler();

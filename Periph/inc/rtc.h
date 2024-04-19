@@ -44,4 +44,6 @@ uint16_t RTC_string_datetime(char *str);
 uint32_t RTC_struct_brief_time_converter(RTC_struct_brief *br_data);
 uint32_t RTC_struct_brief_date_converter(RTC_struct_brief *br_data);
 uint8_t RTC_Init();
+
+extern RTC_struct_brief current_rtc;
 #endif /* CODE_HEADER_RTC_H_ */

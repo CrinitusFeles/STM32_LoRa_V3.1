@@ -255,15 +255,15 @@ uint32_t append(FAT32_File *file, char *data, uint16_t length){
     return wr_count;
 }
 
-void read(FAT32_File *file, uint32_t start_cluster, char *result_buffer){
+// void read(FAT32_File *file, uint32_t start_cluster, char *result_buffer){
 
-}
+// }
 
 FAT32_File FILE_INIT(struct FAT32s *fat32){
     FAT32_File file;
     file.__parent = fat32;
     file.append = append;
-    file.read = read;
+    // file.read = read;
     return file;
 }
 

@@ -3,8 +3,8 @@
 #include "adc.h"
 #include "fifo.h"
 // #include "gsm.h"
-#include <stdio.h>
 #include <string.h>
+#include "sx127x.h"
 #include "../../console/inc/microrl.h"
 #include "global_variables.h"
 
@@ -43,11 +43,10 @@ void USART1_IRQHandler(void) {
 // void USART3_IRQHandler(void) {
 //     GSM_RX_Handler();
 // }
-// void EXTI9_5_IRQHandler(void){
-//     EXTI->PR1 |= EXTI_PR1_PIF6;
-//     SX126x_RxHandler(&SX1268);
-
-// }
+void EXTI9_5_IRQHandler(void){
+    EXTI->PR1 |= EXTI_PR1_PIF6;
+    sx127x.got_new_packet = 1;
+}
 void ADC1_IRQHandler(void){
     ADC_Handler();
 }

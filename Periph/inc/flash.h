@@ -24,7 +24,7 @@ typedef enum {
 FLASH_status FLASH_mass_erase();
 FLASH_status FLASH_erase_page(uint8_t page_num);
 FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint16_t length);
-FLASH_status FLASH_write_addr(uint32_t *addr, uint64_t *data, uint16_t word_length);
+FLASH_status FLASH_write_addr(uint32_t addr, uint64_t *data, uint16_t word_length);
 void FLASH_read(uint8_t page_num, uint16_t offset, uint64_t *buffer, uint16_t length);
 void FLASH_jump_to_app(uint32_t *addr);
 FLASH_status SetPrefferedBlockNum(uint8_t block_num);

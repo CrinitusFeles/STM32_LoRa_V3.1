@@ -1,14 +1,14 @@
 /*
  * formating_output.h
  *
- *  Created on: 20 мар. 2020 г.
+ *  Created on: 20 пїЅпїЅпїЅ. 2020 пїЅ.
  *      Author: BreakingBad
  */
 
 #ifndef CODE_HEADER_FORMATING_OUTPUT_H_
 #define CODE_HEADER_FORMATING_OUTPUT_H_
 #include "stm32l4xx.h"
-#include <stdio.h>
+// #include <stdio.h>
 //#include "uart.h"
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)  \

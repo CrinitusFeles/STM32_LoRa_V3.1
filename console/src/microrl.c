@@ -8,11 +8,9 @@ BUGS and TODO:
 #include "microrl.h"
 
 #include <ctype.h>
-#include <stdlib.h>
 #include <string.h>
-#ifdef _USE_LIBC_STDIO
-#include <stdio.h>
-#endif
+#include "xprintf.h"
+
 
 // #define DBG(...) fprintf(stderr, "\033[33m");fprintf(stderr,__VA_ARGS__);fprintf(stderr,"\033[0m");
 
@@ -212,68 +210,23 @@ inline static void terminal_newline(microrl_t *pThis) {
     pThis->print("\n\r");
 }
 
-#ifndef _USE_LIBC_STDIO
-//*****************************************************************************
-// convert 16 bit value to string
-// 0 value not supported!!! just make empty string
-// Returns pointer to a buffer tail
-static char *u16bit_to_str(unsigned int nmb, char *buf) {
-    char tmp_str[6] = {
-        0,
-    };
-    int i = 0, j;
-    if (nmb <= 0xFFFF) {
-        while (nmb > 0) {
-            tmp_str[i++] = (nmb % 10) + '0';
-            nmb /= 10;
-        }
-        for (j = 0; j < i; ++j) *(buf++) = tmp_str[i - j - 1];
-    }
-    *buf = '\0';
-    return buf;
-}
-#endif
-
 //*****************************************************************************
 // set cursor at position from begin cmdline (after prompt) + offset
 static void terminal_move_cursor(microrl_t *pThis, int offset) {
     char str[16] = {0};
-#ifdef _USE_LIBC_STDIO
+
     if (offset > 0) {
-        snprintf(str, 16, "\033[%dC", offset);
+        xsprintf(str, "\033[%dC", offset);
     } else if (offset < 0) {
-        snprintf(str, 16, "\033[%dD", -(offset));
+        xsprintf(str, "\033[%dD", -(offset));
     }
-#else
-    char *endstr;
-    strcpy(str, "\033[");
-    if (offset > 0) {
-        endstr = u16bit_to_str(offset, str + 2);
-        strcpy(endstr, "C");
-    } else if (offset < 0) {
-        endstr = u16bit_to_str(-(offset), str + 2);
-        strcpy(endstr, "D");
-    } else
-        return;
-#endif
     pThis->print(str);
 }
 
 //*****************************************************************************
 static void terminal_reset_cursor(microrl_t *pThis) {
-    char str[16];
-#ifdef _USE_LIBC_STDIO
-    snprintf(str, 16, "\033[%dD\033[%dC", _COMMAND_LINE_LEN + _PROMPT_LEN + 2, _PROMPT_LEN);
-
-#else
-    char *endstr;
-    strcpy(str, "\033[");
-    endstr = u16bit_to_str(_COMMAND_LINE_LEN + _PROMPT_LEN + 2, str + 2);
-    strcpy(endstr, "D\033[");
-    endstr += 3;
-    endstr = u16bit_to_str(_PROMPT_LEN, endstr);
-    strcpy(endstr, "C");
-#endif
+    char str[128];
+    xsprintf(str, "\033[%dD\033[%dC", _COMMAND_LINE_LEN + pThis->prompt_len + 2, pThis->prompt_len);
     pThis->print(str);
 }
 
@@ -313,6 +266,7 @@ void microrl_init(microrl_t *pThis, void (*print)(const char *)) {
     pThis->sigint = NULL;
 #endif
     pThis->prompt_str = prompt_default;
+    pThis->prompt_len = _PROMPT_LEN;
     pThis->print = print;
 #ifdef _ENABLE_INIT_PROMPT
     print_prompt(pThis);

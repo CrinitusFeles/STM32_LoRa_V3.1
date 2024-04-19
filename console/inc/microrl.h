@@ -77,6 +77,7 @@ typedef struct {
 	ring_history_t ring_hist;          // history object
 #endif
 	char * prompt_str;                 // pointer to prompt string
+    int prompt_len;
 	char cmdline [_COMMAND_LINE_LEN];  // cmdline buffer
 	int cmdlen;                        // last position in command line
 	int cursor;                        // input cursor

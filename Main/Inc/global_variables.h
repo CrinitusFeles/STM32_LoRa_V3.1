@@ -24,11 +24,10 @@ extern uint32_t SYSTEM_I2C_error_counter;
 extern ADC adc;
 extern DS18B20 sensors[12];
 extern OneWire ow;
-extern RTC_struct_brief current_rtc;
 extern logging_init_t logger;
 extern volatile unsigned long ulHighFrequencyTimerTicks;
 extern microrl_t rl;
-extern microrl_t *prl;
+// extern microrl_t *prl;
 
 extern uint16_t WAKEUP_PERIOD_SEC;
 

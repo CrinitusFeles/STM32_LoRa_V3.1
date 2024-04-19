@@ -5,8 +5,7 @@
  *      Author: BreakingBad
  */
 #include "rtc.h"
-#include "stdio.h"
-
+#include "xprintf.h"
 
 /*
  * 						Effect of low-power modes on RTC
@@ -119,7 +118,7 @@ uint16_t RTC_string_datetime(char *buf){
             }
         }
     }
-    snprintf(buf, 25, "%04d-%02d-%02d %02d:%02d:%02d.%03d", y, m, d, h, mm, s, ss);
+    xsprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d.%03d", y, m, d, h, mm, s, ss);
     return 25;
 }
 

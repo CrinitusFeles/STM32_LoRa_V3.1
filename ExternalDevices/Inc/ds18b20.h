@@ -104,11 +104,10 @@ typedef struct DS18B20{
 void DS18B20_ReadROM(DS18B20 *sensor);
 uint8_t DS18B20_Init(DS18B20 *sensor, OneWire *ow);
 uint8_t DS18B20_ReadScratchpad(DS18B20 *sensor);
-uint8_t DS18B20_ReadTemp(DS18B20 *sensor);
 uint8_t DS18B20_StartTempMeas(OneWire *ow);
 uint16_t DS18B20_ReadTemperature(DS18B20 *sensor);
-uint16_t DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t buf_size, uint16_t offset);
+// void DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t buf_size);
 
-void DS18B20_copy_temperature_list(DS18B20 *sensors, float *buffer, uint8_t size);
-void DS18B20_copy_ids_list(DS18B20 *sensors, uint64_t *buffer, uint8_t size);
+// void DS18B20_copy_temperature_list(DS18B20 *sensors, float *buffer, uint8_t size);
+// void DS18B20_copy_ids_list(DS18B20 *sensors, uint64_t *buffer, uint8_t size);
 #endif  //INC_DS18B20_H_

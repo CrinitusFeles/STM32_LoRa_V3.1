@@ -1,8 +1,7 @@
 // #include "main.h"
 #include "global_variables.h"
 #include "adc.h"
-#include "delay.h"
-#include "stdio.h"
+#include "xprintf.h"
 
 ADC adc;
 
@@ -36,7 +35,7 @@ void ADC_Init(ADC *ADC_struct){
 
 	ADC_struct->ADCx->CR &= ~ADC_CR_DEEPPWD;  // Bring the ADC out of 'deep power-down' mode.
 	ADC_struct->ADCx->CR |= ADC_CR_ADVREGEN;  // Enable the ADC voltage regulator.
-	Delay(30);  // Delay for a handful of microseconds.
+	ADC_struct->delay_ms(30);  // Delay for a handful of microseconds.
 	ADC_struct->ADCx->CR |= ADC_CR_ADCAL;  // Calibrate the ADC.
 	while (ADC_struct->ADCx->CR & ADC_CR_ADCAL);
 
@@ -140,7 +139,7 @@ void ADC_Handler(){
     }
 }
 
-uint16_t ADC_array_to_str(ADC *adc, size_t length, char *buf, size_t buf_size, uint16_t offset){
+uint16_t ADC_array_to_str(ADC *adc, uint32_t length, char *buf, uint32_t buf_size, uint16_t offset){
     uint16_t b_end = offset;
     for(uint16_t i = 0; i < buf_size; i++){
         if(buf[i + offset] == 0){
@@ -151,11 +150,13 @@ uint16_t ADC_array_to_str(ADC *adc, size_t length, char *buf, size_t buf_size, u
     uint16_t wrote_count = 0;
     uint8_t w_size = 0;
     for(uint8_t i = 0; i < length; i++){
-        w_size = snprintf(buf + b_end + wrote_count, 10, "%d\t", adc->reg_channel_queue[i].result);
+        xsprintf(buf + b_end + wrote_count, "%d\t", adc->reg_channel_queue[i].result);
+        w_size = strlen(buf);
         if(w_size > 0)
             wrote_count += w_size;
     }
-    w_size = snprintf(buf + b_end + wrote_count, 10, "%d\r\n", adc->vdda_mvolt);
+    xsprintf(buf + b_end + wrote_count, "%d\r\n", adc->vdda_mvolt);
+    w_size = strlen(buf);
     if(w_size > 0)
         wrote_count += w_size;
     return wrote_count;

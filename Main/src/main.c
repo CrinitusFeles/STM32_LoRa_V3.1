@@ -5,9 +5,11 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "fifo.h"
+#include "sx127x.h"
 #include "monitor_task.h"
 
 FIFO fifo;
+#define UNUSED(x) (void)(x)
 
 void vConfigureTimerForRunTimeStats(void){
     RCC->APB1ENR1 |= RCC_APB1ENR1_TIM7EN;
@@ -27,6 +29,7 @@ unsigned long vGetTimerForRunTimeStats(void){
 
 
 void LED_BLINK(void *pvParameters){
+    UNUSED(pvParameters);
     for (;;) {
         gpio_toggle(LED);
         vTaskDelay(500);
@@ -35,32 +38,39 @@ void LED_BLINK(void *pvParameters){
 	// Delay(1000);
 }
 
-void PERIPH_TOGGLE(void *pvParameters){
+void RADIO_TASK(void *pvParameters){
+    UNUSED(pvParameters);
     for (;;) {
-        gpio_toggle(EN_SD);
-        vTaskDelay(1500);
+        if(sx127x.got_new_packet){
+            uint8_t rx_count = LoRa_receive(&sx127x, sx127x.rx_buffer, 255);
+            for(uint8_t i = 0; i < rx_count; i++){
+                FIFO_PUSH(fifo, sx127x.rx_buffer[i]);
+            }
+            sx127x.got_new_packet = 0;
+        }
+        vTaskDelay(15);
     }
     vTaskDelete( NULL );
-	// Delay(1000);
 }
 void CONSOLE_TASK(void *pvParameters){
+    UNUSED(pvParameters);
     for (;;) {
         if(!FIFO_IS_EMPTY(fifo)){
-            if(prl->last_index < 50){
-                prl->last_index += 1;
+            if(rl.last_index < 50){
+                rl.last_index += 1;
             } else {
-                prl->last_index = 0;
+                rl.last_index = 0;
             }
-            prl->buffer[prl->last_index] = FIFO_FRONT(fifo);
+            rl.buffer[rl.last_index] = FIFO_FRONT(fifo);
             FIFO_POP(fifo);
 
-            if(prl->last_index != prl->current_index){
-                if(prl->current_index < 50){
-                    prl->current_index += 1;
+            if(rl.last_index != rl.current_index){
+                if(rl.current_index < 50){
+                    rl.current_index += 1;
                 } else {
-                    prl->current_index = 0;
+                    rl.current_index = 0;
                 }
-                microrl_insert_char(prl, (int)(prl->buffer[prl->current_index]));
+                microrl_insert_char(&rl, (int)(rl.buffer[rl.current_index]));
             }
         }
         vTaskDelay(1);
@@ -73,15 +83,10 @@ int main(){
     System_Init();
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     xTaskCreate( LED_BLINK, "LED1", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 2, NULL, 2, ( xTaskHandle * ) NULL);
+    // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
+    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 4, NULL, 2, ( xTaskHandle * ) NULL);
+    xTaskCreate( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, ( xTaskHandle * ) NULL);
     vTaskStartScheduler();
-    // while(1){
-        // Delay(1000);
-        // delay_action(1000, 1, LED_BLINK);
-
-        // stop_cortex();
-    // }
 }
 
 

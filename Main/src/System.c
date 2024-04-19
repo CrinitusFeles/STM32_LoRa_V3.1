@@ -2,19 +2,20 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "string.h"
-#include "stdlib.h"
 #include "sx126x.h"
 #include "microrl.h"
 #include "stm32_misc.h"
 #include "buzzer.h"
 #include "sx127x.h"
+#include "xprintf.h"
 #include "spi.h"
+#include "ff.h"
+#include "ds18b20_bus.h"
 
 
 #define BUFFER_SIZE             256
 #define TEMP_SENSOR_AMOUNT      12
 #define MOISTURE_SENSOR_AMOUNT  11
-#define CALIBRATION_TEMP_DELTA  3
 #define FLASH_CONFIG_OFFSET     30
 #define FLASH_PAGE              63
 #define WATCHDOG_PERIOD_MS      5000
@@ -30,197 +31,78 @@ void _kill_r(void) {}
 
 // void _write_r(void) {}
 
-OneWireStatus TemperatureSensorsMeasure(DS18B20 *sensors, uint8_t sensors_count, uint8_t is_sorted){
-    OneWireStatus status;
-    DS18B20_StartTempMeas(sensors[0].ow);
-    for(uint8_t i = 0; i < sensors_count; i++){
-        if(is_sorted){
-            status = OneWire_MatchRom(sensors[i].ow, (RomCode*)(&DS18B20_SERIAL_NUMS[i]));
-        } else{
-            status = OneWire_MatchRom(sensors[i].ow, sensors[i].serialNumber);
-        }
-        if(status == ONE_WIRE_OK){
-            OneWire_Write(sensors[0].ow, DS18B20_READ_SCRATCHPAD);
-            OneWire_ReadArray(sensors[0].ow, (uint8_t *)(&(sensors[i].scratchpad)), 9);
-            sensors[i].temperature = (uint32_t)(sensors[i].scratchpad.temperature) * 0.0625;
-        } else {
-            Delay(1);
-        }
-    }
-    return status;
-}
-
-float max_temp_deviation(float *temperatures, uint8_t temp_amount){
-    float max_temp = temperatures[0];
-    float min_temp = temperatures[0];
-    for(uint8_t i = 0; i < temp_amount; i++){
-        if(temperatures[i] > max_temp)
-            max_temp = temperatures[i];
-        if(temperatures[i] < min_temp)
-            min_temp = temperatures[i];
-    }
-    return max_temp - min_temp;
-}
-
-uint8_t is_in_array(uint8_t value, uint8_t *array, uint8_t length){
-    for(uint8_t i = 0; i < length; i++){
-        if(array[i] == value)
-            return 1;
-    }
-    return 0;
-}
-
-void change_list_order(uint64_t *initial_array, uint8_t *order_list, uint8_t length){
-    uint64_t buffer = 0;
-    for(uint8_t i = 0; i < length; i++){
-        buffer = initial_array[i];
-        initial_array[i] = initial_array[order_list[i]];
-        initial_array[order_list[i]] = buffer;
-    }
-}
-
-uint8_t is_unic_set(uint8_t *array, uint8_t length){
-    uint16_t sum = 0;
-    for(uint8_t i = 0; i < length; i++){
-        sum += array[i];
-    }
-    uint16_t val = (uint16_t)((length - 1) / 2.0 * length);
-    if(sum != val)
-        return 0;
-    return 1;
-}
-
-/*
-Процесс распознавания температурных датчиков на трубе. После определения серийных номеров датчиков на шине неизвестно
-их расположение в трубе. Для этого необходимо последовательно сверху вниза програвать температурный датчик. Перед
-началом процедуры датчики записывают свою начальную температуру. При превыщении порога температуры записывается индекс
-датчика и в дальнейшем значение этого датчика не сравнивается с порогом.
-
-В итоге получим массив индексов, которые соответствуют порядку нагревания. Т.е. массив с индексами [5, 1, 0, 3, 2, 4]
-говорит о том, что сначала нагревался датчик с индексом 5, потом 1 и т.д. Далее потребуется просто отсортировать массив
-датчиков в соответствии с порядком нагревания.
-*/
-void RecognitionRoutine(DS18B20 *sensors, tBuzzer *buzzer, float *initial_temperatures, uint8_t *sorted_nums){
-    uint8_t founded_counter = 0;
-
-    for(uint8_t single_sensor_tries = 0; founded_counter < TEMP_SENSOR_AMOUNT; single_sensor_tries++){
-        TemperatureSensorsMeasure(sensors, TEMP_SENSOR_AMOUNT, 0);
-        for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-            if(is_in_array(i, sorted_nums, founded_counter))
-                continue;
-            if(sensors[i].temperature - initial_temperatures[i] > CALIBRATION_TEMP_DELTA){
-                sorted_nums[founded_counter] = i;
-                founded_counter++;
-                single_sensor_tries = 0;
-                BUZZ_up(buzzer, 300, 600, 30, 30, 1);
-                break;
-            }
-        }
-        Delay(3000);
-        if(single_sensor_tries > 15){
-            BUZZ_beep(buzzer, 1600, 100);
-            BUZZ_beep(buzzer, 800, 100);
-            Delay(300);
-            BUZZ_beep_repeat(buzzer, 500, 100, 400, founded_counter);
-            single_sensor_tries = 0;
-        }
-    }
-
-}
-
-void waiting_cooling_down(DS18B20 *sensors, tBuzzer *buzzer, float *initial_temps, uint8_t delta, uint8_t length){
-    float deviation = delta + 1;
-    while(deviation > delta){
-        TemperatureSensorsMeasure(sensors, length, 0);
-        DS18B20_copy_temperature_list(sensors, initial_temps, length);
-        deviation = max_temp_deviation(initial_temps, length);
-        if(deviation > delta){
-            BUZZ_down(buzzer, 600, 100, 30, 30, 2);
-            Delay(10000);
-        }
-    }
-}
-
-uint8_t Calibration_routine(DS18B20 *sensors, tBuzzer *buzzer, uint64_t *sorted_serials){
-    // OneWireStatus status;
-    uint64_t initial_serials[12] = {0};
-    uint8_t sorted_nums[TEMP_SENSOR_AMOUNT] = {0};
-    float initial_temperature[TEMP_SENSOR_AMOUNT] = {.0};
-
-    int sensors_amount = OneWire_SearchDevices(sensors[0].ow);
-    if(sensors_amount != TEMP_SENSOR_AMOUNT - 1){
-        for(uint8_t i = 0; i < 3; i++){
-            // buzzer->down(buzzer, 500, 300, 30, 30, 1);
-            // buzzer->up(buzzer, 300, 500, 30, 30, 1);
-            BUZZ_beep_repeat(buzzer, 300, 30, 50, 5);
-        }
-        return 0;
-    }
-    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-        initial_serials[i] = sensors[0].ow->ids[i].serial_code;
-        sensors[i].serialNumber = &sensors[0].ow->ids[i];
-    }
-
-    waiting_cooling_down(sensors, buzzer, initial_temperature, CALIBRATION_TEMP_DELTA, TEMP_SENSOR_AMOUNT);
-    BUZZ_beep(buzzer, 500, 100);
-    BUZZ_beep(buzzer, 1000, 100);
-    RecognitionRoutine(sensors, buzzer, initial_temperature, sorted_nums);
-    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-        sorted_serials[i] = initial_serials[sorted_nums[i]];
-    }
-    if(!is_unic_set(sorted_nums, TEMP_SENSOR_AMOUNT)){
-        BUZZ_underground(buzzer);
-        return 0;
-    }
-    BUZZ_tmnt(buzzer);
-    return 1;
-}
 
 tBuzzer buzzer;
-microrl_t *prl;
 microrl_t rl;
-RTC_struct_brief current_rtc;
 logging_init_t logger;
 LoRa sx127x;
+FILINFO Finfo;
+uint64_t sorted_serials[12];
+DS18B20 sensors[12];
+DS18B20_BUS sensors_bus;
+OneWire ow;
+uint64_t DS18B20_SERIAL_NUMS[12];
+
+void my_print(int data){
+    UART_tx(USART1, (uint8_t)(data));
+}
+
+void on_greetings(){
+    BUZZ_beep(&buzzer, 400, 30);
+    BUZZ_beep(&buzzer, 800, 30);
+}
+
+void on_registration_finished(){
+    BUZZ_tmnt(&buzzer);
+}
 
 void System_Init(){
+    xfunc_output = my_print;
     // uint64_t sorted_serials[12] = {0};
-    setvbuf(stdout, NULL, _IONBF, 0);
+    // setvbuf(stdout, NULL, _IONBF, 0);
     // SysTick_Config(millisec);
     // RCC_init_MSI();
     uint8_t is_first_init = RTC_Init();
-    // volatile uint8_t init_status = RTC_Init();
     // RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
+
     // IWDG_init(WATCHDOG_PERIOD_MS);
     // IWDG_disable_in_debug();
+    DWT_Init();
 
     gpio_init(LED, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(EN_SD, General_output, Push_pull, no_pull, Low_speed);
+    gpio_init(EN_LORA, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(UART1_TX, PB6_USART1_TX, Push_pull, pull_up, High_speed);
     gpio_init(UART1_RX, PB7_USART1_RX, Open_drain, no_pull, Input);
+    gpio_init(LoRa_MOSI, PB5_SPI1_MOSI, Push_pull, no_pull, High_speed);
+    gpio_init(LoRa_MISO, PB4_SPI1_MISO, Open_drain, no_pull, Input);
+    gpio_init(LoRa_SCK, PB3_SPI1_SCK, Push_pull, no_pull, High_speed);
+    gpio_init(LoRa_NSS, General_output, Push_pull, no_pull, High_speed);
+    gpio_init(LoRa_DIO0, Input_mode, Open_drain, no_pull, Input);
     gpio_init(BUZZ, PB15_TIM15_CH2, Push_pull, no_pull, Very_high_speed);
-    UART_init(USART1, 9600, FULL_DUPLEX);
-    // UART_tx_string(USART1, "hello!");
+    gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
+    gpio_init(UART3_TX, PB10_USART3_TX, Push_pull, pull_up, High_speed);
 
-    // gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
-    // gpio_init(EN_SD, General_output, Push_pull, no_pull, Low_speed);
-    // gpio_init(EN_LORA, General_output, Push_pull, no_pull, Low_speed);
-    // gpio_init(UART3_TX, PB10_USART3_TX, Push_pull, pull_up, High_speed);
-    // gpio_state(EN_PERIPH, LOW);
+    gpio_state(EN_SD, LOW);
+    gpio_state(EN_PERIPH, LOW);
+    gpio_state(EN_LORA, LOW);
+    gpio_state(LoRa_NSS, HIGH);
+
+    gpio_exti_init(LoRa_DIO0, 0);
+
+    UART_init(USART1, 9600, FULL_DUPLEX);
+
     buzzer = (tBuzzer){
         .channel = PWM_CH2,
         .TIMx = TIM15,
-        .delay = vTaskDelay
+        .delay = DWT_Delay_ms
     };
 
-    prl = &rl;
-    microrl_init(prl, print);
-    microrl_set_execute_callback (prl, execute);
-#ifdef _USE_COMPLETE
-	// set callback for completion
-	microrl_set_complete_callback (prl, complet);
-#endif
-    microrl_set_sigint_callback (prl, sigint);
+    microrl_init(&rl, print);
+    microrl_set_execute_callback (&rl, execute);
+	microrl_set_complete_callback (&rl, complet);
+    microrl_set_sigint_callback (&rl, sigint);
+
     RTC_get_time(&current_rtc);
     logger = (logging_init_t){
         .write_function=print,
@@ -230,94 +112,151 @@ void System_Init(){
     logging_init(&logger);
     uint8_t val = 2;
     if(is_first_init){
-        LOG_DEBUG("First initialization. You need to set MCU time.", val);
+        xprintf("First initialization. You need to set MCU time.", val);
     }
-    LOG_INFO("STARTED FROM 0x%X ADDRESS\r", SCB->VTOR);
-    LOG_DEBUG("debug message %d\r", val);
-    LOG_INFO("debug message %.2f\r", 2.423);
-    LOG_INFO("info message %d\r", val);
-    LOG_WARN("warning message %d\r", val);
-    LOG_ERROR("error message %d\r", val);
-    // spi_init(LoRa_SPI, div_4, Mode_0, data_8_bit, MSB);
-    // sx127x = (LoRa){
-    //     .LoRaSPI = LoRa_SPI,
-    //     .CS_pin = LoRa_NSS,
-    //     .DIO0_pin = LoRa_DIO0,
-    //     .bandWidth = BW_250KHz,
-    //     .frequency = 434,
-    //     .power = POWER_17db,
-    //     .preamble = 8,
-    //     .overCurrentProtection = 120,
-    //     .spredingFactor = SF_10,
-    // };
-    // FAT32t fat32;
-    // FAT32_File file;
-    // fat32 = FAT32();
+    xprintf("STARTED FROM 0x%X ADDRESS\r", SCB->VTOR);
+    // LOG_DEBUG("debug message %d\r", val);
+    // LOG_INFO("debug message %.2f\r", 2.423);
+    // LOG_INFO("info message %d\r", val);
+    // LOG_WARN("warning message %d\r", val);
+    // LOG_ERROR("error message %d\r", val);
+
+    if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
+        RCC->CSR |= RCC_CSR_RMVF;
+        LOG_ERROR("WATCHDOG \r");
+    }
+
+    spi_init(LoRa_SPI, div_4, Mode_0, data_8_bit, MSB);
+
+    sx127x = (LoRa){
+        .LoRaSPI = LoRa_SPI,
+        .reset_pin = EN_LORA,
+        .CS_pin = LoRa_NSS,
+        .DIO0_pin = LoRa_DIO0,
+        .bandWidth = BW_125KHz,
+        .freq_mhz = 435,
+        .power = POWER_11db,
+        .preamble = 8,
+        .codingRate = CR_4_5,
+        .overCurrentProtection = 120,
+        .spredingFactor = SF_10,
+        .ldro = 1,
+        .got_new_packet = 0,
+        .delay = DWT_Delay_ms,
+    };
+    LoRa_init(&sx127x);
+    LoRa_gotoMode(&sx127x, RXCONTIN_MODE);
+    sx127x.delay = vTaskDelay;
+
+    SDMMC_INIT();
+    SDResult result = SD_Init();
+    FATFS fs;
+    FIL file;
+    DIR dir;
+    FRESULT res;
+    FILINFO fno;
+
+
+    if(result == SDR_Success){
+        LOG_INFO("SD Card initialization completed");
+        if (f_mount(&fs, "", 1) == FR_OK) {
+            LOG_INFO("SD Card mounted");
+            res = f_opendir(&dir, "");
+            if (res == FR_OK){
+                res = f_readdir(&dir, &fno);
+            }
+            if (f_open(&file, "1stfile.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK) {
+                UINT written_count = 0;
+                char data[] = "First string in my file\n";
+                f_lseek(&file, file.obj.objsize);
+                if (f_write(&file, data, strlen(data), &written_count) > 0) {
+
+                }
+                f_close(&file);
+            }
+
+            //Unmount drive, don't forget this!
+            // f_mount(0, "", 1);
+        } else {
+            LOG_ERROR("SD Card not mounted");
+        }
+    } else {
+        LOG_ERROR("SD Card initialization failed");
+    }
 
     // buzzer.mario(&buzzer);
-//     if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
-//         RCC->CSR |= RCC_CSR_RMVF;
-//         buzzer.down(&buzzer, 400, 100, 30, 30, 3);
-//     }
+    ow = (OneWire){.uart=USART3};
 
-//     ow = (OneWire){.uart=USART3};
-
-//     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-//         sensors[i] = (DS18B20){0};
-//         sensors[i].ow = &ow;
-//     }
-//     if(init_status) {  // first power on
-//         buzzer.mario(&buzzer);
-//     }
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+        sensors[i] = (DS18B20){0};
+        sensors[i].ow = &ow;
+    }
+    sensors_bus = (DS18B20_BUS){
+        .amount = 12,
+        .delay_ms = vTaskDelay,
+        .ow = &ow,
+        .sensors = sensors,
+        .serials = sorted_serials,
+        .greetings = on_greetings,
+        .on_registration_finished = on_registration_finished,
+    };
+    uint8_t dev_num = OneWire_SearchDevices(sensors_bus.ow);
+    xprintf("devices: %d\n\r", dev_num);
+    for(uint8_t i = 0; i < sensors_bus.amount; i++){
+        // initial_serials[i] = sensors_bus.ow->ids[i].serial_code;
+        sensors_bus.sensors[i].serialNumber = &(sensors_bus.ow->ids[i]);
+    }
+    TemperatureSensorsMeasure(&sensors_bus, 0);
 
 //     gpio_state(EN_PERIPH, HIGH);
 
-//     FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
-//     if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
-//         if(Calibration_routine(sensors, &buzzer, sorted_serials)){
-//             FLASH_write(FLASH_PAGE, FLASH_CONFIG_OFFSET, sorted_serials, TEMP_SENSOR_AMOUNT);
-//             FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
-//         }
-//     }
-
-//     adc = (ADC){
-//         .ADCx = ADC1,
-//         .clk_devider = ADC_ClockDevider_1,
-//         .internal_channels = {
-//             .temp = false,
-//             .vbat = false,
-//             .vref = true
-//         },
-//         .resolution = ADC_12bit,
-//         .mode = ADC_SINGLE_MODE,
-//         .trigger.polarity = ADC_Software_trigger,
-//         .ovrsmpl_ratio = OVRSMPL_32x
-//     };
-//     ADC_Init(&adc);
-//     /*
-//                     6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
-//                     (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
-//     VCC GNS TMP_S
-//                     NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
-//                     (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
-//     */
-//     ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
-//     ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
-//     ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
-//     ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
-//     ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
-//     ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
-//     // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
-//     ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
-//     ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
-//     ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
-//     ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
-//     ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
-//     ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
+    // FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
+    // if(DS18B20_SERIAL_NUMS[0] == 0xFFFFFFFFFFFFFFFF){
+    //     if(Calibration_routine(sensors, &buzzer, sorted_serials)){
+    //         FLASH_write(FLASH_PAGE, FLASH_CONFIG_OFFSET, sorted_serials, TEMP_SENSOR_AMOUNT);
+    //         FLASH_read(FLASH_PAGE, FLASH_CONFIG_OFFSET, DS18B20_SERIAL_NUMS, TEMP_SENSOR_AMOUNT);
+    //     }
+    // }
+    buzzer.delay = vTaskDelay;
+    adc = (ADC){
+        .ADCx = ADC1,
+        .clk_devider = ADC_ClockDevider_1,
+        .internal_channels = {
+            .temp = false,
+            .vbat = false,
+            .vref = true
+        },
+        .resolution = ADC_12bit,
+        .mode = ADC_SINGLE_MODE,
+        .trigger.polarity = ADC_Software_trigger,
+        .ovrsmpl_ratio = OVRSMPL_32x,
+        .delay_ms = DWT_Delay_ms,
+    };
+    ADC_Init(&adc);
+    /*
+                    6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
+                    (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
+    VCC GNS TMP_S
+                    NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
+                    (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
+    */
+    ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
+    ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
+    ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
+    ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
+    ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
+    ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
+    // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
+    ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
+    ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
+    ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
+    ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
+    ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
+    ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
 //     // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
 //     // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
-//     ADC_Enable(&adc);
-//     ADC_Start(&adc);
+    ADC_Enable(&adc);
+    ADC_Start(&adc);
 //     TemperatureSensorsMeasure(sensors, TEMP_SENSOR_AMOUNT, 1);
 //     ADC_WaitMeasures(&adc, 1000000);
 //     gpio_state(EN_PERIPH, LOW);
@@ -333,15 +272,15 @@ void System_Init(){
 //     Delay(20);
 //     RCC->CRRCR |= RCC_CRRCR_HSI48ON;
 //     while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY));
-//     SDMMC_INIT();
-//     SDResult result = SD_Init();
+    // SDMMC_INIT();
+    // SDResult result = SD_Init();
 //     FAT32t fat32;
 //     FAT32_File file;
 //     uint32_t wrote_count = 0;
 //     char ser_num[20];
-//     char initail_string[] = "\nTimestamp\tT1(-5 cm)\tT2(0 cm)\tT3(10 cm)\tT4(20 cm)\tT5(30 cm)\tT6(40 cm)\tT7(50 cm)\t\
-// T8(60 cm)\tT9(70 cm)\tT10(80 cm)\tT11(90 cm)\tT12(100 cm)\tA1(0 cm)\tA2(10 cm)\tA3(20 cm)\tA4(30 cm)\tA5(40 cm)\t\
-// A6(50 cm)\tA7(60 cm)\tA8(70 cm)\tA9(80 cm)\tA10(90 cm)\tA11(100 cm)\tVref_mV\t\t\
+//     char initail_string[] = "\nTimestamp\tT1(-5 cm)\tT2(0 cm)\tT3(10 cm)\tT4(20 cm)\tT5(30 cm)\tT6(40 cm)\tT7(50 cm)\t
+// T8(60 cm)\tT9(70 cm)\tT10(80 cm)\tT11(90 cm)\tT12(100 cm)\tA1(0 cm)\tA2(10 cm)\tA3(20 cm)\tA4(30 cm)\tA5(40 cm)\t
+// A6(50 cm)\tA7(60 cm)\tA8(70 cm)\tA9(80 cm)\tA10(90 cm)\tA11(100 cm)\tVref_mV\t\t
 // (T1-T12 [degree]; A1-A11 [ADC quantum])\n";
 //     fat32 = FAT32();
 //     if(fat32.last_status == OK){

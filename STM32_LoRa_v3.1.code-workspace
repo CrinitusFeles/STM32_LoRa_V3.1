@@ -69,9 +69,13 @@
             "xmodem.h": "c",
             "system_select.h": "c",
             "flash.h": "c",
-            "sx127x.h": "c"
+            "sx127x.h": "c",
+            "task.h": "c",
+            "xprintf.h": "c",
+            "math.h": "c",
+            "ff.h": "c"
         },
-        "cortex-debug.variableUseNaturalFormat": false,
+        "cortex-debug.variableUseNaturalFormat": true,
         "cortex-debug.registerUseNaturalFormat": true
 	}
 }

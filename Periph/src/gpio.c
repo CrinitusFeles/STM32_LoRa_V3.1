@@ -79,7 +79,11 @@ void gpio_init(GPIO_Pin gpio, GPIO_Mode mode, GPIO_Config config, GPIO_Pull pull
 		gpio_struct.port->MODER |= 2 << (gpio_struct.pin * 2);
 
 		gpio_struct.port->AFR[gpio_struct.pin/8] &= ~(0x0F << (gpio_struct.pin * 4));
-		gpio_struct.pin/8 == 0 ? (gpio_struct.port->AFR[gpio_struct.pin/8] |= ((mode-4) << (gpio_struct.pin * 4))) : (gpio_struct.port->AFR[gpio_struct.pin/8] |= ((mode-4) << ((gpio_struct.pin-8) * 4)));
+        if(gpio_struct.pin/8 == 0){
+            gpio_struct.port->AFR[gpio_struct.pin/8] |= ((mode-4) << (gpio_struct.pin * 4));
+        } else {
+		    gpio_struct.port->AFR[gpio_struct.pin/8] |= ((mode-4) << ((gpio_struct.pin-8) * 4));
+        }
 	}
 	else{
 		gpio_struct.port->MODER &= ~(3 << (gpio_struct.pin * 2));

@@ -71,9 +71,9 @@ FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint
 
 }
 
-FLASH_status FLASH_write_addr(uint32_t *addr, uint64_t *data, uint16_t word_length){
+FLASH_status FLASH_write_addr(uint32_t addr, uint64_t *data, uint16_t word_length){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
-    if(*addr < 0x800000 && *addr >= 0x800000 + FLASH_MAX_SIZE){
+    if(addr < 0x800000 && addr >= 0x800000 + FLASH_MAX_SIZE){
         return FLASH_INCORRECT_ADDRESS;
     }
     __disable_irq();
@@ -91,17 +91,17 @@ FLASH_status FLASH_write_addr(uint32_t *addr, uint64_t *data, uint16_t word_leng
 
     FLASH->SR |= FLASH_PGERR;  // Reset Error Flags
     FLASH->CR = 0;             // reset CR
-    for(uint16_t i = 0; i < word_length; i += OFFSET_ALIGN_BYTES){
+    for(uint16_t i = 0; i < word_length; i++){
         IWDG->KR = 0xAAAA;
         if(FLASH->SR & FLASH_PGERR){
             __enable_irq();
             return FLASH_ERROR_WRITE;
         }
-        if (*(uint64_t *)(addr) != data[i]) {
+        if (*(uint64_t *)(addr + i * OFFSET_ALIGN_BYTES) != data[i]) {
             uint16_t page = (uint32_t)(addr - 0x8000000) >> FLASH_PAGE_2_POW;
             FLASH->CR &= ~(0xFF << FLASH_CR_PNB_Pos);
             FLASH->CR |= (page << FLASH_CR_PNB_Pos) | FLASH_CR_PG;
-            *(uint64_t *)(addr + i) = data[i];
+            *(uint64_t *)(addr + i * OFFSET_ALIGN_BYTES) = data[i];
         }
         while((FLASH->SR & FLASH_SR_BSY) && (timeout > 0)) timeout--;
         FLASH->CR = 0;
@@ -184,9 +184,9 @@ FLASH_status SetPrefferedBlockNum(uint8_t block_num){
         if (addr < PREF_REC_ADDR_END) {
             /*зануляем единичный бит*/
             if (M64(addr) == 1){
-                status = FLASH_write_addr((uint32_t *)addr, (uint64_t *)(&val0), 1);
+                status = FLASH_write_addr(addr, (uint64_t *)(&val0), 1);
             } else {
-                status = FLASH_write_addr((uint32_t *)addr, (uint64_t *)(&val), 1);
+                status = FLASH_write_addr(addr, (uint64_t *)(&val), 1);
             }
             return status;
         } else {

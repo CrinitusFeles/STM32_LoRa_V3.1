@@ -1,9 +1,11 @@
 #include "sdio.h"
-#include "delay.h"
 
 SDCard_TypeDef SDCard;                 // SD card parameters
 
 void SDMMC_INIT(){
+    RCC->CRRCR |= RCC_CRRCR_HSI48ON;
+    while(!(RCC->CRRCR & RCC_CRRCR_HSI48RDY)){};
+
 	gpio_init(PC8, PC8_SDMMC1_D0, Push_pull, no_pull, High_speed);
 	gpio_init(PC9, PC9_SDMMC1_D1, Push_pull, no_pull, High_speed);
 	gpio_init(PC10, PC10_SDMMC1_D2, Push_pull, no_pull, High_speed);
@@ -338,7 +340,6 @@ SDResult SD_Init(void) {
 	// CMD0
 	wait = SD_CMD_TIMEOUT;
 	SD_Cmd(SD_CMD_GO_IDLE_STATE, 0x00, SD_RESP_NONE);
-    Delay(10);
 	while (!(SDMMC1->STA & (SDMMC_STA_CTIMEOUT | SDMMC_STA_CMDSENT)) && --wait);
 	if ((SDMMC1->STA & SDMMC_STA_CTIMEOUT) || !wait) {
 		return SDR_Timeout;

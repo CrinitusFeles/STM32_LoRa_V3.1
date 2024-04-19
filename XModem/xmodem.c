@@ -3,9 +3,9 @@
 #include "FreeRTOS.h"
 #include "fifo.h"
 #include "flash.h"
-#include "stdio.h"
 #include "task.h"
 #include "string.h"
+#include "xprintf.h"
 #include "System.h"
 #include "system_select.h"
 
@@ -43,7 +43,7 @@ void xmodem_receive(uint32_t write_addr) {
     xmodem_actual_flash_address = write_addr;
 
     /* Loop until there isn't any error (or until we jump to the user application). */
-    printf(
+    xprintf(
         "\n\rStarting XModem flashing procedure.\n\r"
         "Open ExtraPutty or Minicom terminal with XModem mode to send binary "
         "file to MCU.\n\rPress CTRL-C to abort procedure\n\r");
@@ -55,7 +55,7 @@ void xmodem_receive(uint32_t write_addr) {
 
         /* Spam the host (until we receive something) with ACSII "C", to notify it, we want to use CRC-16. */
         if ((0 != comm_status) && (false == x_first_packet_received)) {
-            printf("%c", X_C);
+            xprintf("%c", X_C);
         }
         /* Uart timeout or any other errors. */
         else if ((0 != comm_status) && (true == x_first_packet_received)) {
@@ -73,7 +73,7 @@ void xmodem_receive(uint32_t write_addr) {
                 /* If the handling was successful, then send an ACK. */
                 packet_status = xmodem_handle_packet(header);
                 if (X_OK == packet_status) {
-                    printf("%c", X_ACK);
+                    xprintf("%c", X_ACK);
                 }
                 /* If the error was flash related, then immediately set the error counter to max (graceful abort). */
                 else if (X_ERROR_FLASH == packet_status) {
@@ -88,10 +88,10 @@ void xmodem_receive(uint32_t write_addr) {
             /* End of Transmission. */
             case X_EOT:
                 /* ACK, feedback to user (as a text), then jump to user application. */
-                printf("%c", X_ACK);
+                xprintf("%c", X_ACK);
                 delay(10);
-                printf("\n\rFirmware updated!\n\r");
-                printf("Jumping to user application...\n\r");
+                xprintf("\n\rFirmware updated!\n\r");
+                xprintf("Jumping to user application...\n\r");
                 // FLASH_jump_to_app();
                 return;
             /* Abort from host. */
@@ -99,7 +99,7 @@ void xmodem_receive(uint32_t write_addr) {
                 status = X_ERROR;
                 break;
             case CTRL_C:
-                printf("\n\rXModem aborted\n\r");
+                xprintf("\n\rXModem aborted\n\r");
                 return;
             default:
                 /* Wrong header. */
@@ -214,7 +214,9 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     }
 
     /* Do the actual flashing (if there weren't any errors). */
-    if ((X_OK == status) && (FLASH_OK != FLASH_write_addr((uint32_t *)xmodem_actual_flash_address, (uint64_t*)&received_packet_data[0], (uint32_t)size / 8))) {
+    if ((X_OK == status) && (FLASH_OK != FLASH_write_addr(xmodem_actual_flash_address,
+                                                          (uint64_t*)&received_packet_data[0],
+                                                          (uint32_t)size / 8))) {
         /* Flashing error. */
         status |= X_ERROR_FLASH;
     }
@@ -243,14 +245,14 @@ static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_err
     /* If the counter reached the max value, then abort. */
     if ((*error_number) >= max_error_number) {
         /* Graceful abort. */
-        printf("%c", X_CAN);
-        printf("%c", X_CAN);
-        printf("\n\rXModem uploading failed\n\r");
+        xprintf("%c", X_CAN);
+        xprintf("%c", X_CAN);
+        xprintf("\n\rXModem uploading failed\n\r");
         status = X_ERROR;
     }
     /* Otherwise send a NAK for a repeat. */
     else {
-        printf("%c", X_NAK);
+        xprintf("%c", X_NAK);
         status = X_OK;
     }
     return status;

@@ -7,11 +7,18 @@
 #define RECEIVE_TIMEOUT		2000
 
 //--------- MODES ---------//
-#define SLEEP_MODE				0
-#define	STNBY_MODE				1
-#define TRANSMIT_MODE			3
-#define RXCONTIN_MODE			5
-#define RXSINGLE_MODE			6
+#define SLEEP_MODE				0x00
+#define	STNBY_MODE				0x01
+#define	FSTX_MODE				0x02
+#define TRANSMIT_MODE			0x03
+#define FSRX_MODE			    0x04
+#define RXCONTIN_MODE			0x05
+#define RXSINGLE_MODE			0x06
+#define CAD_MODE			    0x07
+
+#define LORA_MODE               0x80
+#define FSK_MODE                0x00
+#define LOW_FREQ_MODE           0x08
 
 //------- BANDWIDTH -------//
 #define BW_7_8KHz					0
@@ -68,11 +75,22 @@
 #define RegPreambleMsb				0x20
 #define RegPreambleLsb				0x21
 #define RegPayloadLength			0x22
+#define RegModemConfig3				0x26
 #define RegDioMapping1				0x40
 #define RegDioMapping2				0x41
 #define RegVersion					0x42
 
 #define RegSyncWord					0x39
+
+// --------------- IRQ FLAGS ---------------
+#define LORA_IRQ_RX_TIMEOUT         0x80
+#define LORA_IRQ_RX_DONE            0x40
+#define LORA_IRQ_PAYLOAD_CRC_ERR    0x20
+#define LORA_IRQ_VALID_HEADER       0x10
+#define LORA_IRQ_TX_DONE            0x08
+#define LORA_IRQ_CAD_DONE           0x04
+#define LORA_IRQ_FHSS_CHANGE_CH     0x02
+#define LORA_IRQ_CAD_DETECTED       0x01
 
 //------ LORA STATUS ------//
 #define LORA_OK						200
@@ -89,30 +107,31 @@ typedef struct LoRa_setting{
 	SPI_TypeDef* LoRaSPI;
 
 	// Module settings:
-	int				current_mode;
-	uint32_t 		frequency;
+	uint8_t			current_mode;
+	uint32_t 		freq_mhz;
 	uint8_t			spredingFactor;
 	uint8_t			bandWidth;
-	uint8_t			crcRate;
+	uint8_t			codingRate;
 	uint16_t		preamble;
 	uint8_t			power;
 	uint8_t			overCurrentProtection;
+    uint8_t         ldro;
 
+    uint8_t         got_new_packet;
+    uint8_t         rx_buffer[255];
+    void (*delay)(uint32_t milli);
 } LoRa;
 
-LoRa newLoRa(void);
-void LoRa_reset(LoRa* _LoRa);
-uint8_t LoRa_readRegister(LoRa* _LoRa, uint8_t address);
-void LoRa_writeRegister(LoRa* _LoRa, uint8_t address, uint8_t data);
-void LoRa_writeRegisters(LoRa* _LoRa, uint8_t address, uint8_t* values, uint8_t w_length);
-void LoRa_gotoMode(LoRa* _LoRa, int mode);
 
-void LoRa_setFrequency(LoRa* _LoRa, int freq);
-void LoRa_setSpreadingFactor(LoRa* _LoRa, int SP);
+void LoRa_gotoMode(LoRa* _LoRa, uint8_t mode);
+
+void LoRa_setFrequency(LoRa* _LoRa, uint16_t freq_mhz);
+void LoRa_setSpreadingFactor(LoRa* _LoRa, uint8_t SP);
 void LoRa_setPower(LoRa* _LoRa, uint8_t power);
 void LoRa_setOCP(LoRa* _LoRa, uint8_t current);
+void LoRa_set_LDRO(LoRa* _LoRa, uint8_t ldro);
 void LoRa_setTOMsb_setCRCon(LoRa* _LoRa);
-uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length, uint16_t timeout);
+uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length);
 void LoRa_startReceiving(LoRa* _LoRa);
 uint8_t LoRa_receive(LoRa* _LoRa, uint8_t* data, uint8_t length);
 int LoRa_getRSSI(LoRa* _LoRa);

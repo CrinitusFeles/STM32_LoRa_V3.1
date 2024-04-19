@@ -1,34 +1,34 @@
 #include "main.h"
 #include "gsm.h"
 #include "global_variables.h"
-#include "delay.h"
 #include "string.h"
 #include "stdlib.h"
 #include "sx126x.h"
-#include "cli.h"
+#include "xprintf.h"
+
 
 uint8_t GSM_Init(GSM *driver){
-    gpio_init(driver->gpio.tx, driver->gpio.__tx_af_pin, Push_pull, no_pull, Very_high_speed);
-    gpio_init(driver->gpio.rx, driver->gpio.__rx_af_pin, Open_drain, no_pull, Input);
-    gpio_init(driver->gpio.pwr, General_output, Push_pull, pull_up, Low_speed);
+    // gpio_init(driver->gpio.tx, driver->gpio.__tx_af_pin, Push_pull, no_pull, Very_high_speed);
+    // gpio_init(driver->gpio.rx, driver->gpio.__rx_af_pin, Open_drain, no_pull, Input);
+    // gpio_init(driver->gpio.pwr, General_output, Push_pull, pull_up, Low_speed);
+    // UART_init(driver->uart, 9600, FULL_DUPLEX);
 
-    UART_init(driver->uart, 9600, FULL_DUPLEX);
     driver->uart->CR1 |= USART_CR1_IDLEIE;
-    Delay(100);
+    driver->delay_ms(100);
     if(sim7000g.frame_error_counter > 0)
         GSM_TogglePower(&sim7000g);
-    Delay(10000);
+    driver->delay_ms(10000);
     memset(sim7000g.rx_buf, 0, sizeof(sim7000g.rx_buf));
     if(GSM_isAlive(driver) != 0){
-        Delay(1000);
+        driver->delay_ms(1000);
         GSM_isAlive(driver);
     }
     if(driver->status.pwr_status){
-        Delay(500);
+        driver->delay_ms(500);
         GSM_CheckSIM(driver);
-        Delay(500);
+        driver->delay_ms(500);
         GSM_CheckGSM(driver);
-        Delay(200);
+        driver->delay_ms(200);
         GSM_DisableEcho(driver);
         if(driver->status.gsm_reg_status && driver->status.sim_status)
             return 0;
@@ -37,7 +37,7 @@ uint8_t GSM_Init(GSM *driver){
 }
 void GSM_wait_for_answer(GSM *driver, int32_t timeout_ms){
     while((timeout_ms--) && (driver->status.waiting_for_answer))
-        Delay(1);
+        driver->delay_ms(1);
     if(timeout_ms == 0) driver->status.timeout_event = 1;
 }
 
@@ -87,9 +87,9 @@ uint8_t GSM_isAlive(GSM *driver){
 }
 void GSM_TogglePower(GSM *driver){
     gpio_state(driver->gpio.pwr, LOW);
-    Delay(900);
+    driver->delay_ms(900);
     gpio_state(driver->gpio.pwr, HIGH);
-    Delay(5000);
+    driver->delay_ms(5000);
 }
 void GSM_PowerOFF(GSM *driver){
     GSM_SendCMD(driver, "AT+CPOWD=1");
@@ -100,15 +100,15 @@ uint8_t GSM_InitGPRS(GSM *driver){
         GSM_CheckIPstatus(driver);
         if(driver->ip_status == GPRS_INITIAL){
             GSM_SetAPN(driver, "internet.tele2.ru");
-            Delay(500);
+            driver->delay_ms(500);
             GSM_CheckIPstatus(driver);
             if(driver->ip_status == GPRS_START){
                 GSM_SendCMD(driver, "AT+CIICR");
-                Delay(600);
+                driver->delay_ms(600);
                 GSM_CheckIPstatus(driver);
                 if(driver->ip_status == GPRS_GPRSACT){
                     GSM_SendCMD(driver, "AT+CIFSR");
-                    Delay(500);
+                    driver->delay_ms(500);
                     GSM_CheckIPstatus(driver);
                     if(driver->ip_status == GPRS_STATUS){
                         return 0;  // можно открывать TCP соединение
@@ -159,7 +159,7 @@ void GSM_OpenConnection(GSM *driver, char *ip, char *port){
         driver->status.waiting_for_answer = 1;
         driver->status.tcp_server_answer = 0;
         GSM_wait_for_answer(driver, 2000);
-        Delay(250);
+        driver->delay_ms(250);
         GSM_CheckIPstatus(driver);
     }
 }
@@ -167,7 +167,7 @@ void GSM_OpenConnection(GSM *driver, char *ip, char *port){
 void GSM_SendTCP(GSM *driver, char *data, uint16_t data_len){
     UART_tx_string(driver->uart, "AT+CIPSEND");
     UART_tx(driver->uart, '\r');
-    Delay(500);
+    driver->delay_ms(500);
     for(uint16_t i = 0; i < data_len; i++){
         UART_tx(driver->uart, data[i]);
     }
@@ -182,7 +182,7 @@ void GSM_SetDNS(GSM *driver){
 
 void GSM_CloseConnections(GSM *driver){
     GSM_SendCMD(driver, "AT+CIPCLOSE");
-    Delay(50);
+    driver->delay_ms(50);
     GSM_CheckIPstatus(driver);
     if(driver->ip_status == GPRS_CLOSED){
         GSM_SendCMD(driver, "AT+CIPSHUT");
@@ -195,7 +195,7 @@ void GSM_CloseConnections(GSM *driver){
 uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms){
     uint16_t timeout = timeout_ms;
     while(!driver->status.tcp_server_answer && timeout > 0) {
-        Delay(1);
+        driver->delay_ms(1);
         timeout--;
     }
     if(timeout == 0) return 1;
@@ -204,7 +204,7 @@ uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms){
 uint8_t GSM_WaitTCPServerConnection(GSM *driver, uint16_t timeout_ms){
     uint16_t timeout = timeout_ms;
     while(!driver->status.tcp_server_connected && timeout > 0) {
-        Delay(1);
+        driver->delay_ms(1);
         timeout--;
     }
     if(timeout == 0) return 1;
@@ -230,13 +230,13 @@ void GSM_CheckGSM(GSM *driver){
 
 void GSM_CheckGPRS(GSM *driver){
     GSM_SendCMD(driver, "AT+CGREG?");
-    Delay(300);
+    driver->delay_ms(300);
     GSM_SendCMD(driver, "AT+CGATT?");
     if(!driver->status.gprs_connected){
         GSM_SendCMD(driver, "AT+CGATT=1");
-        Delay(500);
+        driver->delay_ms(500);
         GSM_SendCMD(driver, "AT+CGATT?");
-        Delay(200);
+        driver->delay_ms(200);
     }
 }
 
@@ -300,8 +300,8 @@ void GSM_AnswerParser(){
         sim7000g.status.tcp_server_answer = 1;
         char *cmd_ptr = strstr(sim7000g.rx_buf, "#");
         if(cmd_ptr != 0){
-            CommandStruct *pkt = (CommandStruct *)(cmd_ptr + 1);
-            CMD_Parser(&SX1268, pkt);
+            // CommandStruct *pkt = (CommandStruct *)(cmd_ptr + 1);
+            // CMD_Parser(&SX1268, pkt);
         }
         // gpio_toggle(LED);
     }
@@ -342,7 +342,7 @@ void GSM_AnswerParser(){
     }
     else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
         uint32_t bit_error = 0;
-        sscanf(sim7000g.rx_buf, "\r\n+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
+        xsprintf(sim7000g.rx_buf, "\r\n+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
     }
     else if(strstr(sim7000g.rx_buf, "CLOSE OK") != 0){
         sim7000g.ip_status = GPRS_INITIAL;
@@ -355,7 +355,7 @@ void GSM_AnswerParser(){
         uint32_t charger_status = 0;
         uint32_t percent = 0;
         uint32_t vbat = 0;
-        sscanf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
+        xsprintf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
         sim7000g.vbat = (uint16_t)vbat;
     }
     sim7000g.rx_counter = 0;

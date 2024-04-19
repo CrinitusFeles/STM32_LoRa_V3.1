@@ -4,7 +4,6 @@
 #include "stm32l4xx.h"
 #include "gpio.h"
 #include "stdbool.h"
-#include "stdio.h"
 
 #define VREFINT  0x1FFF75AA
 #define TS_CAL1  0x1FFF75A8
@@ -167,6 +166,7 @@ typedef struct ADC{
     // uint8_t __ch_counter;
     uint16_t vdda_mvolt;
     uint8_t measure_process;
+    void (*delay_ms)(uint32_t);
 } ADC;
 
 // void ADC_InitGPIO(*ADC);
@@ -179,6 +179,6 @@ void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, A
 // void adc_single_conversion( ADC_TypeDef* ADCx, uint16_t* adc_data_arr );
 float ADC_internal_temp(uint16_t adc_data);
 void ADC_Handler();
-uint16_t ADC_array_to_str(ADC *adc, size_t length, char *buf, size_t buf_size, uint16_t offset);
+uint16_t ADC_array_to_str(ADC *adc, uint32_t length, char *buf, uint32_t buf_size, uint16_t offset);
 
 #endif /* INC_ADC_H_ */

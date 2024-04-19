@@ -7,6 +7,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "svdFile": "${execPath}/../../stm32_utils/svd/STM32L4X1.svd",
             "loadFiles": [],
             "symbolFiles": [
                 {"file": "${workspaceFolder}/build/Debug_800/${workspaceFolderBasename}.out.elf"},
@@ -26,6 +27,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "svdFile": "${execPath}/../../stm32_utils/svd/STM32L4X1.svd",
             "loadFiles": [],
             "symbolFiles": [
                 {"file": "${command:cmake.launchTargetPath}"}
@@ -40,7 +42,7 @@
 		{
 			"name": "Debug-MAIN_0x8000000",
 			"cwd": "${workspaceRoot}",
-			"executable": "${command:cmake.launchTargetPath}",
+			// "executable": "${command:cmake.launchTargetPath}",
 			"svdFile": "${execPath}/../../stm32_utils/svd/STM32L4X1.svd",
 			"request": "launch",
 			"type": "cortex-debug",

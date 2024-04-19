@@ -4,6 +4,7 @@
 // #include <inttypes.h>
 #include "stm32l4xx.h"
 #include <stdbool.h>
+#include "xprintf.h"
 
 #ifdef __cplusplus
 extern "C" {

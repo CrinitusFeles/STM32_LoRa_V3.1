@@ -1,8 +1,7 @@
 #include "ds18b20.h"
 #include "delay.h"
-#include "stdio.h"
-#include "math.h"
-// #include "xprintf.h"
+#include "xprintf.h"
+#include "dwt.h"
 
 
 uint8_t DS18B20_StartTempMeas(OneWire *ow){
@@ -18,7 +17,7 @@ uint8_t DS18B20_StartTempMeas(OneWire *ow){
     // }
 
     // if(answer > 0) return 0;
-    Delay(300);
+    DWT_Delay_ms(300);
     return 0;
     // return 1;
 }
@@ -65,43 +64,20 @@ uint16_t DS18B20_ReadTemperature(DS18B20 *sensor){
     return (uint16_t)(sensor->scratchpad.temperature);
 }
 
-int float_to_str(char *buff, float value){
-    char *tmpSign = (value < 0) ? "-" : "";
-    float tmpVal = (value < 0) ? -value : value;
-    int tmpInt1 = tmpVal;                  // Get the integer
-    float tmpFrac = tmpVal - tmpInt1;      // Get fraction
-    int tmpInt2 = trunc(tmpFrac * 100);
-    return sprintf(buff, "%s%d.%02d\t", tmpSign, tmpInt1, tmpInt2);
-}
+// uint16_t DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t buf_size){
+//     for(uint8_t i = 0; i < length; i++){
+//         xsprintf(buf + strlen(buf), "%.2f\t", sensors[i].temperature);
+//     }
+// }
 
-uint16_t DS18B20_array_to_str(DS18B20 *sensors, size_t length, char *buf, size_t buf_size, uint16_t offset){
-    uint16_t b_end = offset;
-    for(uint16_t i = 0; i < buf_size; i++){
-        if(buf[i + offset] == 0){
-            b_end += i;
-            break;
-        }
-    }
-    uint16_t wrote_count = 0;
-    for(uint8_t i = 0; i < length; i++){
-        // xsprintf(buf + b_end + wrote_count, "%.2f\t", sensors[i].temperature);
-        int size = float_to_str(buf + b_end + wrote_count, sensors[i].temperature);
-        if(size > 0)
-            wrote_count += size;
-        else
-            Delay(10000);
-    }
-    return wrote_count;
-}
+// void DS18B20_copy_temperature_list(DS18B20 *sensors, float *buffer, uint8_t size){
+//     for(uint8_t i = 0; i < size; i++){
+//         buffer[i] = sensors[i].temperature;
+//     }
+// }
 
-void DS18B20_copy_temperature_list(DS18B20 *sensors, float *buffer, uint8_t size){
-    for(uint8_t i = 0; i < size; i++){
-        buffer[i] = sensors[i].temperature;
-    }
-}
-
-void DS18B20_copy_ids_list(DS18B20 *sensors, uint64_t *buffer, uint8_t size){
-    for(uint8_t i = 0; i < size; i++){
-        buffer[i] = sensors[i].serialNumber->serial_code;
-    }
-}
+// void DS18B20_copy_ids_list(DS18B20 *sensors, uint64_t *buffer, uint8_t size){
+//     for(uint8_t i = 0; i < size; i++){
+//         buffer[i] = sensors[i].serialNumber->serial_code;
+//     }
+// }
