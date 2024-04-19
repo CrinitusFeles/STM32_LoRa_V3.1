@@ -44,9 +44,9 @@ void xmodem_receive(uint32_t write_addr) {
 
     /* Loop until there isn't any error (or until we jump to the user application). */
     xprintf(
-        "\n\rStarting XModem flashing procedure.\n\r"
+        "\nStarting XModem flashing procedure.\n"
         "Open ExtraPutty or Minicom terminal with XModem mode to send binary "
-        "file to MCU.\n\rPress CTRL-C to abort procedure\n\r");
+        "file to MCU.\nrPress CTRL-C to abort procedure\n");
     while (X_OK == status) {
         uint8_t header = 0x00;
 
@@ -90,8 +90,8 @@ void xmodem_receive(uint32_t write_addr) {
                 /* ACK, feedback to user (as a text), then jump to user application. */
                 xprintf("%c", X_ACK);
                 delay(10);
-                xprintf("\n\rFirmware updated!\n\r");
-                xprintf("Jumping to user application...\n\r");
+                xprintf("\nFirmware updated!\n");
+                xprintf("Jumping to user application...\n");
                 // FLASH_jump_to_app();
                 return;
             /* Abort from host. */
@@ -99,7 +99,7 @@ void xmodem_receive(uint32_t write_addr) {
                 status = X_ERROR;
                 break;
             case CTRL_C:
-                xprintf("\n\rXModem aborted\n\r");
+                xprintf("\nXModem aborted\n");
                 return;
             default:
                 /* Wrong header. */
@@ -247,7 +247,7 @@ static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_err
         /* Graceful abort. */
         xprintf("%c", X_CAN);
         xprintf("%c", X_CAN);
-        xprintf("\n\rXModem uploading failed\n\r");
+        xprintf("\nXModem uploading failed\n");
         status = X_ERROR;
     }
     /* Otherwise send a NAK for a repeat. */

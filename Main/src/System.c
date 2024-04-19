@@ -201,7 +201,7 @@ void System_Init(){
         .on_registration_finished = on_registration_finished,
     };
     uint8_t dev_num = OneWire_SearchDevices(sensors_bus.ow);
-    xprintf("devices: %d\n\r", dev_num);
+    xprintf("devices: %d\n", dev_num);
     for(uint8_t i = 0; i < sensors_bus.amount; i++){
         // initial_serials[i] = sensors_bus.ow->ids[i].serial_code;
         sensors_bus.sensors[i].serialNumber = &(sensors_bus.ow->ids[i]);

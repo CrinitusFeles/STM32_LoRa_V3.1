@@ -155,7 +155,7 @@ uint16_t ADC_array_to_str(ADC *adc, uint32_t length, char *buf, uint32_t buf_siz
         if(w_size > 0)
             wrote_count += w_size;
     }
-    xsprintf(buf + b_end + wrote_count, "%d\r\n", adc->vdda_mvolt);
+    xsprintf(buf + b_end + wrote_count, "%d\n", adc->vdda_mvolt);
     w_size = strlen(buf);
     if(w_size > 0)
         wrote_count += w_size;

@@ -91,10 +91,10 @@ void logging_log_impl(logging_logger_t* logger,
     va_start(args, fmt);
     xsnprintf(&m_write_buffer[strlen(m_write_buffer)], fmt, args);
     va_end(args);
-    xsprintf(&m_write_buffer[strlen(m_write_buffer)], "\033[0m\n\r");
+    xsprintf(&m_write_buffer[strlen(m_write_buffer)], "\033[0m\n");
 
     // newline
-    xsprintf(&m_write_buffer[strlen(m_write_buffer)], "\n\r");
+    xsprintf(&m_write_buffer[strlen(m_write_buffer)], "\n");
 
     if (m_init.write_function) {
         m_init.write_function(m_write_buffer);

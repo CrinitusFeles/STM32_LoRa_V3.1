@@ -22,11 +22,11 @@ void show_monitor(){
     char status_buffer[10];
     task_count = uxTaskGetSystemState(_buffer, task_count, &_total_runtime);
     _total_runtime /= 100;
-    xprintf("|    NAME     |   STATUS  | PRIORITY | STACK REMAINING | RUNNING TIME, ms |  LOAD  |\n\r");
+    xprintf("|    NAME     |   STATUS  | PRIORITY | STACK REMAINING | RUNNING TIME, ms |  LOAD  |\n");
     for (uint8_t task = 0; task < task_count; task++)
     {
         _task_state_to_char(_buffer[task].eCurrentState, status_buffer);
-        xprintf("|%12s |%10s |%9u |%16u |%17u |%6u%% |\n\r",
+        xprintf("|%12s |%10s |%9u |%16u |%17u |%6u%% |\n",
             _buffer[task].pcTaskName,
             status_buffer,
             _buffer[task].uxCurrentPriority,
@@ -35,8 +35,8 @@ void show_monitor(){
             _buffer[task].ulRunTimeCounter / _total_runtime
         );
     }
-        xprintf("Current Heap Free Size: %u\n\r", xPortGetFreeHeapSize());
-        xprintf("Minimal Heap Free Size: %u\n\r", xPortGetMinimumEverFreeHeapSize());
-        xprintf("Total RunTime:  %u ms\n\r", _total_runtime / 10);
-        xprintf("System Uptime:  %u ms\n\r",  xTaskGetTickCount() * portTICK_PERIOD_MS);
+        xprintf("Current Heap Free Size: %u\n", xPortGetFreeHeapSize());
+        xprintf("Minimal Heap Free Size: %u\n", xPortGetMinimumEverFreeHeapSize());
+        xprintf("Total RunTime:  %u ms\n", _total_runtime / 10);
+        xprintf("System Uptime:  %u ms\n",  xTaskGetTickCount() * portTICK_PERIOD_MS);
 }
