@@ -1,6 +1,5 @@
 #include "main.h"
 #include "gsm.h"
-#include "global_variables.h"
 #include "string.h"
 #include "stdlib.h"
 #include "sx126x.h"

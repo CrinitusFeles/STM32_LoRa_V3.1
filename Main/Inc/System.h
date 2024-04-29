@@ -12,4 +12,7 @@
 void System_Init();
 void SetupRunTimeStatsTimer();
 uint32_t GetRunTimeCounterValue();
+
+
+
 #endif //SYSTEM_H

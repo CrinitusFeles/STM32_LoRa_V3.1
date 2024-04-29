@@ -179,6 +179,8 @@ void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, A
 // void adc_single_conversion( ADC_TypeDef* ADCx, uint16_t* adc_data_arr );
 float ADC_internal_temp(uint16_t adc_data);
 void ADC_Handler();
-uint16_t ADC_array_to_str(ADC *adc, uint32_t length, char *buf, uint32_t buf_size, uint16_t offset);
+
+extern ADC adc;
+
 
 #endif /* INC_ADC_H_ */

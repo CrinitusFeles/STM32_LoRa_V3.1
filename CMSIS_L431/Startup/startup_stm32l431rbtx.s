@@ -105,15 +105,6 @@ LoopFillZerobss:
 LoopForever:
     b LoopForever
 
-        .type	start_808, %function
-        .global start_808
-start_808:
-        ldr     r1, =0x8010000
-        ldr     r0, [r1, #0]
-        mov     sp, r0
-        ldr     r0, [r1, #4]
-        push    {r0}
-        pop     {pc}
 
 .size	Reset_Handler, .-Reset_Handler
 

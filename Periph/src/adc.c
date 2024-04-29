@@ -1,7 +1,5 @@
 // #include "main.h"
-#include "global_variables.h"
 #include "adc.h"
-#include "xprintf.h"
 
 ADC adc;
 
@@ -137,29 +135,6 @@ void ADC_Handler(){
     if(adc.ADCx->ISR & ADC_ISR_JEOS){  // After the injected sequence is complete
         adc.ADCx->ISR |= ADC_ISR_JEOS;
     }
-}
-
-uint16_t ADC_array_to_str(ADC *adc, uint32_t length, char *buf, uint32_t buf_size, uint16_t offset){
-    uint16_t b_end = offset;
-    for(uint16_t i = 0; i < buf_size; i++){
-        if(buf[i + offset] == 0){
-            b_end += i;
-            break;
-        }
-    }
-    uint16_t wrote_count = 0;
-    uint8_t w_size = 0;
-    for(uint8_t i = 0; i < length; i++){
-        xsprintf(buf + b_end + wrote_count, "%d\t", adc->reg_channel_queue[i].result);
-        w_size = strlen(buf);
-        if(w_size > 0)
-            wrote_count += w_size;
-    }
-    xsprintf(buf + b_end + wrote_count, "%d\n", adc->vdda_mvolt);
-    w_size = strlen(buf);
-    if(w_size > 0)
-        wrote_count += w_size;
-    return wrote_count;
 }
 
 void ADC_Enable(ADC *adc){

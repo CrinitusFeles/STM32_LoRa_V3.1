@@ -46,5 +46,6 @@ typedef struct FIFO {
     }
 
 extern FIFO fifo;
+extern FIFO lora_fifo;
 
 #endif /* INC_FIFO_H_ */

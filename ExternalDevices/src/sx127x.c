@@ -1,6 +1,18 @@
 #include "sx127x.h"
 #include "sx127x_misc.h"
+#include <math.h>
 
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
+uint16_t Calc_TOA(uint8_t payload_size, uint8_t preamble_size,
+                  uint8_t sf, float bw_kHz, uint8_t cr,
+                  uint8_t explicit_header, uint8_t crc, uint8_t ldro) {
+    float symbol_time_ms = (1 << sf) / bw_kHz;
+    float preamble_time_ms = (preamble_size + 4.25) * symbol_time_ms;
+    float tmp_poly = MAX(ceil(8 * payload_size - 4 * sf + 28 + 16 * crc - 20 * explicit_header), 0);
+    float payload_symbol_nb = 8 + (tmp_poly / (4 * (sf - 2 * ldro))) * (4 + cr);  // Сколько символов занимает основная часть в пакете.
+    return (uint16_t)(payload_symbol_nb * symbol_time_ms + preamble_time_ms);  // payload time + preamble_time
+}
 
 void LoRa_gotoMode(LoRa* _LoRa, uint8_t mode){
 	volatile uint8_t read;
@@ -32,11 +44,12 @@ void LoRa_gotoMode(LoRa* _LoRa, uint8_t mode){
 }
 
 
-
-void LoRa_setFrequency(LoRa* _LoRa, uint16_t freq_mhz){
+void LoRa_setFrequency(LoRa* _LoRa, uint32_t freq_hz){
 	volatile uint8_t  data;
 	volatile uint32_t F;
-	F = (uint32_t)(freq_mhz * 524288) >> 5;
+    float freq_step = 0.016384;
+	// F = (uint32_t)(freq_hz / 32000000 * 524288);
+	F = (uint32_t)(freq_hz * freq_step);
 
 	// write Msb:
 	data = (uint8_t) (F >> 16);
@@ -129,24 +142,10 @@ uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length){
 	LoRa_gotoMode(_LoRa, TRANSMIT_MODE);
 	// модуль ненадолго переходит в режим отправки, после чего возвращается в режим ожидания или приема.
 	// Поэтому нет смысла пытаться прочитать из регистра режим отправки.
+    uint16_t delay = Calc_TOA(length, 8, 10, 125, 1, 1, 1, 1);
+    LoRa_Delay(_LoRa, delay);
+    LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
 	return 1;
-	// read = LoRa_readRegister(_LoRa, RegOpMode);
-	// while(1){
-	// 	read = LoRa_readRegister(_LoRa, RegIrqFlags);
-	// 	if((read & 0x08)!=0){
-	// 		LoRa_writeRegister(_LoRa, RegIrqFlags, 0xFF);
-	// 		LoRa_gotoMode(_LoRa, mode);
-	// 		return 1;
-	// 	}
-	// 	else{
-	// 		if(--timeout==0){
-	// 			LoRa_gotoMode(_LoRa, mode);
-	// 			return 0;
-	// 		}
-	// 	}
-	// 	Delay(1);
-	// }
-
 }
 
 
@@ -219,9 +218,7 @@ uint16_t LoRa_init(LoRa* _LoRa){
 		LoRa_writeRegister(_LoRa, RegOpMode, 0x88);
 		read = LoRa_readRegister(_LoRa, RegOpMode);
 		if(read != 0x88){
-			while(1){
-				LoRa_Delay(_LoRa, 1);
-			}
+			return LORA_UNAVAILABLE;
 		}
 	}
 // set frequency:

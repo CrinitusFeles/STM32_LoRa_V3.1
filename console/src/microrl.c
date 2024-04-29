@@ -483,7 +483,9 @@ void new_line_handler(microrl_t *pThis) {
         pThis->print("ERROR:too many tokens");
         pThis->print(ENDL);
     }
-    if ((status > 0) && (pThis->execute != NULL)) pThis->execute(status, tkn_arr);
+    if ((status > 0) && (pThis->execute != NULL)) {
+        pThis->execute(status, tkn_arr);
+    }
     print_prompt(pThis);
     pThis->cmdlen = 0;
     pThis->cursor = 0;

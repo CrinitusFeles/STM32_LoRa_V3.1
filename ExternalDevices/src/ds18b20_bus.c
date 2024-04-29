@@ -2,20 +2,22 @@
 
 #define CALIBRATION_TEMP_DELTA  3
 
-OneWireStatus TemperatureSensorsMeasure(DS18B20_BUS *bus, uint8_t is_sorted){
-    OneWireStatus status;
-    DS18B20_StartTempMeas(bus->ow);
-    for(uint8_t i = 0; i < bus->amount; i++){
+OW_Status TemperatureSensorsMeasure(DS18B20_BUS *bus, uint8_t is_sorted){
+    OW_Status status = DS18B20_StartTempMeas(bus->ow);
+    if(status != OW_OK) return status;
+    for(uint8_t i = 0; i < bus->connected_amount; i++){
         if(is_sorted){
-            status = OneWire_MatchRom(bus->ow, (RomCode*)(&bus->serials[i]));
+            status = OW_MatchRom(bus->ow, (RomCode*)(&bus->serials[i]));
         } else{
-            status = OneWire_MatchRom(bus->ow, bus->sensors[i].serialNumber);
+            status = OW_MatchRom(bus->ow, bus->sensors[i].serialNumber);
+
         }
-        if(status == ONE_WIRE_OK){
-            OneWire_Write(bus->ow, DS18B20_READ_SCRATCHPAD);
-            OneWire_ReadArray(bus->ow, (uint8_t *)(&(bus->sensors[i].scratchpad)), 9);
-            bus->sensors[i].temperature = (uint32_t)(bus->sensors[i].scratchpad.temperature) * 0.0625;
-        }
+        if(status != OW_OK) return status;
+        status = OW_Write(bus->ow, DS18B20_READ_SCRATCHPAD);
+        if(status != OW_OK) return status;
+        status = OW_ReadArray(bus->ow, (uint8_t *)(&(bus->sensors[i].scratchpad)), 9);
+        if(status != OW_OK) return status;
+        bus->sensors[i].temperature = (uint32_t)(bus->sensors[i].scratchpad.temperature) * 0.0625;
     }
     return status;
 }
@@ -70,13 +72,15 @@ uint8_t is_unic_set(uint8_t *array, uint8_t length){
 говорит о том, что сначала нагревался датчик с индексом 5, потом 1 и т.д. Далее потребуется просто отсортировать массив
 датчиков в соответствии с порядком нагревания.
 */
-void RecognitionRoutine(DS18B20_BUS *bus, float *initial_temperatures,
-                        uint8_t *sorted_nums){
+OW_Status RecognitionRoutine(DS18B20_BUS *bus, float *initial_temperatures,
+                             uint8_t *sorted_nums){
     uint8_t founded_counter = 0;
     uint8_t single_sensor_tries = 0;
-    for(; founded_counter < bus->amount; single_sensor_tries++){
-        TemperatureSensorsMeasure(bus, 0);
-        for(uint8_t i = 0; i < bus->amount; i++){
+    OW_Status status = OW_OK;
+    for(; founded_counter < bus->connected_amount; single_sensor_tries++){
+        status = TemperatureSensorsMeasure(bus, 0);
+        if(status != OW_OK) return status;
+        for(uint8_t i = 0; i < bus->connected_amount; i++){
             if(is_in_array(i, sorted_nums, founded_counter))
                 continue;
             float delta = bus->sensors[i].temperature - initial_temperatures[i];
@@ -94,47 +98,55 @@ void RecognitionRoutine(DS18B20_BUS *bus, float *initial_temperatures,
             single_sensor_tries = 0;
         }
     }
+    return status;
 
 }
 
-void waiting_cooling_down(DS18B20_BUS *bus, float *initial_temps, uint8_t delta){
+OW_Status waiting_cooling_down(DS18B20_BUS *bus, float *initial_temps, uint8_t delta){
     float deviation = delta + 1;
+    OW_Status status = OW_OK;
     while(deviation > delta){
-        TemperatureSensorsMeasure(bus, 0);
-        for(uint8_t i = 0; i < bus->amount; i++){
+        status = TemperatureSensorsMeasure(bus, 0);
+        if(status != OW_OK) return status;
+        for(uint8_t i = 0; i < bus->connected_amount; i++){
             initial_temps[i] = bus->sensors[i].temperature;
         }
-        deviation = max_temp_deviation(initial_temps, bus->amount);
+        deviation = max_temp_deviation(initial_temps, bus->connected_amount);
         if(deviation > delta){
             bus->on_cooling_down();
         }
     }
+    return status;
 }
 
-uint8_t Calibration_routine(DS18B20_BUS *bus, uint64_t *sorted_serials){
-    // OneWireStatus status;
+DS18B20_BUS_Status Calibration_routine(DS18B20_BUS *bus){
+    // OW_Status status;
     uint64_t initial_serials[TEMP_SENSOR_AMOUNT] = {0};
     uint8_t sorted_nums[TEMP_SENSOR_AMOUNT] = {0};
     float initial_temperature[TEMP_SENSOR_AMOUNT] = {.0};
 
-    int sensors_amount = OneWire_SearchDevices(bus->ow);
-    if(sensors_amount != TEMP_SENSOR_AMOUNT - 1){
-        return 0;
+    OW_Status status = OW_SearchDevices(bus->ow, &(bus->found_amount));
+    if(status != OW_OK) return (DS18B20_BUS_Status)status;
+    if(bus->found_amount != TEMP_SENSOR_AMOUNT - 1){
+        return DS18B20_INCORRECT_SENSORS_AMOUNT;
     }
-    for(uint8_t i = 0; i < bus->amount; i++){
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
         initial_serials[i] = bus->ow->ids[i].serial_code;
         bus->sensors[i].serialNumber = &(bus->ow->ids[i]);
     }
 
-    waiting_cooling_down(bus, initial_temperature, CALIBRATION_TEMP_DELTA);
+    status = waiting_cooling_down(bus, initial_temperature, CALIBRATION_TEMP_DELTA);
+    if(status != OW_OK) return (DS18B20_BUS_Status)status;
     bus->greetings();
-    RecognitionRoutine(bus, initial_temperature, sorted_nums);
-    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-        sorted_serials[i] = initial_serials[sorted_nums[i]];
-    }
+    status = RecognitionRoutine(bus, initial_temperature, sorted_nums);
+    if(status != OW_OK) return (DS18B20_BUS_Status)status;
     if(!is_unic_set(sorted_nums, TEMP_SENSOR_AMOUNT)){
-        return 2;
+        return DS18B20_RECOGNITION_FAILED;
     }
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+        bus->serials[i] = initial_serials[sorted_nums[i]];
+    }
+    bus->is_calibrated = 1;
     bus->on_registration_finished();
-    return 1;
+    return (DS18B20_BUS_Status)OW_OK;
 }

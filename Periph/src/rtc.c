@@ -274,8 +274,8 @@ void RTC_get_time(RTC_struct_brief *br_data)
 {
 	// we need to clear less bits: (RTC->DR & RTC_DR_DT)
 	// and to shift right the part, which we want to --> to normal decimal
-
-	while (!(RTC->ISR & RTC_ISR_RSF));	//  Calendar shadow registers synchronized
+    uint32_t timeout = 10000;
+	while (!(RTC->ISR & RTC_ISR_RSF) && timeout--);	//  Calendar shadow registers synchronized
 
 	uint32_t TR_buf = 0, DR_buf = 0;
 

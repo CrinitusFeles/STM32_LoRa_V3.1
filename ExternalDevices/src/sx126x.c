@@ -5,7 +5,6 @@
 #include "main.h"
 #include "rtc.h"
 #include "low_power.h"
-#include "cli.h"
 
 uint8_t *DUMMY_PTR = 0;
 
@@ -239,12 +238,12 @@ void SX126x_ClearIrqStatus(SX126x *driver, uint16_t param){
 
 void SX126x_RxDataParse(SX126x *driver){
     if(driver->rx_pkt_len > 3 && driver->rx_data[0] == 0x55){
-        CommandStruct *pkt = (CommandStruct *)(driver->rx_data);
-        if(pkt->target_id == driver->self_addr || pkt->target_id  == 0xFF){
-            if(pkt->arg_len == driver->rx_pkt_len - 5){
-                CMD_Parser(driver, pkt);
-            }
-        }
+        // CommandStruct *pkt = (CommandStruct *)(driver->rx_data);
+        // if(pkt->target_id == driver->self_addr || pkt->target_id  == 0xFF){
+        //     if(pkt->arg_len == driver->rx_pkt_len - 5){
+        //         CMD_Parser(driver, pkt);
+        //     }
+        // }
     }
     driver->new_rx_data_flag = 0;
 }

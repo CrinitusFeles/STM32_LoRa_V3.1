@@ -9,61 +9,85 @@
 //     return 0;
 // }
 
-uint8_t OneWire_SendBit(OneWire *ow, uint8_t data){
+OW_Status OW_SendBit(OneWire *ow, uint8_t data, uint8_t *rx_data){
+    int16_t timeout = 1000;
     if(ow->uart->ISR & USART_ISR_ORE) ow->uart->ICR |= USART_ICR_ORECF;
     if(ow->uart->ISR & USART_ISR_FE) ow->uart->ICR |= USART_ICR_FECF;
     if(ow->uart->ISR & USART_ISR_NE) ow->uart->ICR |= USART_ICR_NECF;
-	while(!(ow->uart->ISR & USART_ISR_TC));
+	while(!(ow->uart->ISR & USART_ISR_TC) && --timeout);
+    if(timeout <= 0) return OW_TIMEOUT;
 	ow->uart->TDR = (data == 1) ? OneWire_bit_1 : data;
-	while(!(ow->uart->ISR & USART_ISR_TC));
-	while(!(ow->uart->ISR & USART_ISR_RXNE));
-	uint8_t rx_data = ow->uart->RDR;
-	return rx_data;
+	while(!(ow->uart->ISR & USART_ISR_TC) && --timeout);
+    if(timeout <= 0) return OW_TIMEOUT;
+	while(!(ow->uart->ISR & USART_ISR_RXNE) && --timeout);
+    if(timeout <= 0) return OW_TIMEOUT;
+	*rx_data = ow->uart->RDR;
+	return OW_OK;
 }
 
-uint8_t OneWire_ReadBit(OneWire *ow){
-    return OneWire_SendBit(ow, OneWire_read_bit) == OneWire_bit_1 ? 1 : 0;
+OW_Status ReadBit(OneWire *ow, uint8_t *rx_data){
+    OW_Status status = OW_SendBit(ow, OneWire_read_bit, rx_data);
+    if(status != OW_OK) return status;
+    *rx_data = (*rx_data == OneWire_bit_1) ? 1 : 0;
+    return status;
 }
 
-OneWireStatus OneWire_Reset(OneWire *ow){
+OW_Status OW_Reset(OneWire *ow){
     UART_init(ow->uart, 9600, HALF_DUPLEX);
-    uint8_t answer = OneWire_SendBit(ow, OneWire_reset_cmd);
+    uint8_t answer = 0;
+    OW_Status status = OW_SendBit(ow, OneWire_reset_cmd, &answer);
+    if(status != OW_OK) return status;
     UART_init(ow->uart, 115200, HALF_DUPLEX);
-    if(answer == OneWire_reset_cmd) return ONE_WIRE_EMPTY_BUS;
-    return ONE_WIRE_OK;
+    if(answer == OneWire_reset_cmd) return OW_EMPTY_BUS;
+    return OW_OK;
 }
 
-uint8_t OneWire_Read(OneWire *ow){
-    uint8_t buffer = 0;
+OW_Status OW_Read(OneWire *ow, uint8_t *rx_data){
+    uint8_t bit_result = 0;
+    OW_Status status = OW_OK;
+    *rx_data = 0;
     for(uint8_t i = 0; i < 8; i++){
-        buffer |= OneWire_ReadBit(ow) << i;
+        status = ReadBit(ow, &bit_result);
+        if(status != OW_OK) return status;
+        *rx_data |= bit_result << i;
     }
-    return buffer;
+    return status;
 }
 
-void OneWire_ReadArray(OneWire *ow, uint8_t *array, uint8_t length){
+OW_Status OW_ReadArray(OneWire *ow, uint8_t *array, uint8_t length){
+    OW_Status status = OW_OK;
+    uint8_t val = 0;
     for(uint8_t i = 0; i < length; i++){
-        array[i] = OneWire_Read(ow);
+        status = OW_Read(ow, &val);
+        array[i] = val;
+        if(status != OW_OK) return status;
     }
+    return status;
 }
 
-uint8_t OneWire_Write(OneWire *ow, uint8_t byte){
-    uint8_t buffer = 0;
+OW_Status OW_Write(OneWire *ow, uint8_t byte){
+    uint8_t rx_buffer = 0;
+    OW_Status status = OW_OK;
     for(uint8_t i = 0; i < 8; i++){
         // Полученное значение интерпретируем также: получили 0xFF - прочитали бит, равный 1.
         uint8_t next_bit = ((byte >> i) & 0x01);
-        buffer |= (OneWire_SendBit(ow, next_bit) == OneWire_bit_1 ? 1 : 0) << i;
+        status = OW_SendBit(ow, next_bit, &rx_buffer);
+        if(status != OW_OK) return status;
+        rx_buffer |= ((rx_buffer == OneWire_bit_1) ? 1 : 0) << i;
     }
-    return buffer;
+    return status;
 }
 
-void OneWire_WriteArray(OneWire *ow, uint8_t *array, uint8_t length){
+OW_Status OW_WriteArray(OneWire *ow, uint8_t *array, uint8_t length){
+    OW_Status status = OW_OK;
     for(uint8_t i = 0; i < length; i++){
-        OneWire_Write(ow, array[i]);
+        status = OW_Write(ow, array[i]);
+        if(status != OW_OK) return status;
     }
+    return status;
 }
 
-void OneWire_InitStruct(OneWire *ow) {
+void InitStruct(OneWire *ow) {
     for (uint8_t i = 0; i < MAXDEVICES_ON_THE_BUS; i++) {
         uint8_t *r = (uint8_t *)(&ow->ids[i]);
         for (uint8_t j = 0; j < 8; j++)
@@ -74,14 +98,13 @@ void OneWire_InitStruct(OneWire *ow) {
     ow->last_diff_bit_position = 64;
 
 }
-/*
- * return 1 if has got one more address
- * return 0 if hasn't
- * return -1 if error reading happened
- */
-int8_t hasNextRom(OneWire *ow, uint8_t *ROM) {
-    if (OneWire_Reset(ow) == ONE_WIRE_EMPTY_BUS) return 0;
-    OneWire_Write(ow, 0xF0);  // OneWire Search cmd
+
+
+OW_Status hasNextRom(OneWire *ow, uint8_t *ROM, uint8_t *is_go_next) {
+    OW_Status status = OW_Reset(ow);
+    if (status != OW_OK) return status;
+    status = OW_Write(ow, 0xF0);  // OneWire Search cmd
+    if (status != OW_OK) return status;
 
     uint8_t bitNum = 0;
     int8_t zeroFork = -1;
@@ -89,8 +112,10 @@ int8_t hasNextRom(OneWire *ow, uint8_t *ROM) {
         uint8_t byteNum = bitNum >> 3;
         uint8_t *current_byte_in_rom = (ROM) + byteNum;
         uint8_t cB, cmp_cB, searchDirection = 0;
-        cB = OneWire_ReadBit(ow);  // чтение прямого бита
-        cmp_cB = OneWire_ReadBit(ow);  // чтение комплементарного бита
+        status = ReadBit(ow, &cB);  // чтение прямого бита
+        if (status != OW_OK) return status;
+        status = ReadBit(ow, &cmp_cB);  // чтение комплементарного бита
+        if (status != OW_OK) return status;
         if (cB != cmp_cB) searchDirection = cB;
         else if (cB == cmp_cB && cB == 0) {  // коллизия
             // в прошлой итерации выбрали левую ветку, а теперь при повторном проходе выбираем правую ветку
@@ -105,20 +130,24 @@ int8_t hasNextRom(OneWire *ow, uint8_t *ROM) {
                 zeroFork = bitNum;
             // else повернули на развилке вправо
         }
-        else return -1;  // empty bus or algorythm issue  cB == cmp_cB && cB == 1
+        else return OW_ROM_FINDING_ERROR;  // empty bus or algorythm issue  cB == cmp_cB && cB == 1
 
         if (searchDirection)
             *(current_byte_in_rom) |= 1 << (bitNum & 0x07); // сохраняем бит
-        OneWire_SendBit(ow, searchDirection);
+        uint8_t _tmp = 0;
+        status = OW_SendBit(ow, searchDirection, &_tmp);
+        if (status != OW_OK) return status;
         bitNum++;
     }
     ow->last_diff_bit_position = zeroFork;
-    for (uint8_t i = 0; i < 7; i++)
+    for (uint8_t i = 0; i < 7; i++){
         ow->lastROM[i] = ROM[i];
-    return ow->last_diff_bit_position > 0;
+    }
+    *is_go_next = ow->last_diff_bit_position > 0;
+    return status;
 }
 
-uint8_t OneWire_CRC8_ROM(uint8_t *data, uint8_t length){
+uint8_t CRC8_ROM(uint8_t *data, uint8_t length){
     uint8_t checksum = 0;
     while (length--){
         uint8_t currentByte = *data++;
@@ -132,28 +161,29 @@ uint8_t OneWire_CRC8_ROM(uint8_t *data, uint8_t length){
     return checksum;
 }
 
-// Возвращает количество устройств на шине или код ошибки, если значение меньше 0
-int OneWire_SearchDevices(OneWire *ow) {
-    int8_t device_counter = 0, nextROM = 1;
-    OneWire_InitStruct(ow);
+
+OW_Status OW_SearchDevices(OneWire *ow, uint8_t *sensors_amount) {
+    OW_Status status = OW_OK;
+    uint8_t nextROM = 1;
+    uint8_t device_counter = *sensors_amount = 0;
+    InitStruct(ow);
     while (nextROM && device_counter < MAXDEVICES_ON_THE_BUS){
-        nextROM = hasNextRom(ow, (uint8_t *)(&ow->ids[device_counter]));
-        ow->crc_status[device_counter] = OneWire_CRC8_ROM((uint8_t *)(&ow->ids[device_counter]), 8);
-        if (nextROM < 0)
-            return -1;
+        status = hasNextRom(ow, (uint8_t *)(&ow->ids[device_counter]), &nextROM);
+        if (status != OW_OK) return status;
+        ow->crc_status[device_counter] = CRC8_ROM((uint8_t *)(&ow->ids[device_counter]), 8);
         if (nextROM != 0)
             device_counter++;
         if(nextROM == 0 && device_counter == 0)
-            return 0;
-
+            return OW_EMPTY_BUS;  // no devices
     }
-    return device_counter;
+    *sensors_amount = device_counter;
+    return status;
 }
 
-OneWireStatus OneWire_MatchRom(OneWire *ow, RomCode *rom){
-    OneWireStatus status = OneWire_Reset(ow);
-    if (status == ONE_WIRE_EMPTY_BUS) return status;
-    OneWire_Write(ow, 0x55);  // Match ROM cmd
-    OneWire_WriteArray(ow, (uint8_t *)(rom), 8);
-    return status;
+OW_Status OW_MatchRom(OneWire *ow, RomCode *rom){
+    OW_Status status = OW_Reset(ow);
+    if (status == OW_EMPTY_BUS) return status;
+    status = OW_Write(ow, 0x55);  // Match ROM cmd
+    if (status == OW_EMPTY_BUS) return status;
+    return OW_WriteArray(ow, (uint8_t *)(rom), 8);;
 }

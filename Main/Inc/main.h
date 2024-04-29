@@ -15,7 +15,6 @@
 // #include "i2c.h"
 // #include "tmp1075.h"
 #include "adc.h"
-#include "global_variables.h"
 #include "periph_handlers.h"
 #include "tim.h"
 #include "fifo.h"

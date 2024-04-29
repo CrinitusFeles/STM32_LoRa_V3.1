@@ -5,19 +5,16 @@
 // #include "gsm.h"
 #include <string.h>
 #include "sx127x.h"
-#include "../../console/inc/microrl.h"
-#include "global_variables.h"
-
-// char buffer[100] = {0};
-// uint8_t buffer_size = 0;
-// uint8_t processed_symbols = 0;
-volatile unsigned long ulHighFrequencyTimerTicks = 0;
+#include "microrl.h"
+#include "stm32_misc.h"
+#include "xprintf.h"
 
 
 void USART1_IRQHandler(void) {
     while (USART1->ISR & USART_ISR_RXNE) {
         FIFO_PUSH(fifo, USART1->RDR);
 	}
+    xdev_out(uart_print);
     if(USART1->ISR & USART_ISR_IDLE){
         USART1->ICR |= USART_ICR_IDLECF;
     //     for(; processed_symbols < buffer_size; processed_symbols++){

@@ -96,7 +96,7 @@
 		{
 			"label": "Write 0x801",
 			"type": "shell",
-            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; program ./build/Debug_801/STM32_LoRa_v3.1.bin 0x08010000 verify reset exit; reset; exit\" & echo. & echo Done",
+            "command": "openocd -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\interface\\stlink.cfg -f X:\\NextCloudStorage\\ImportantData\\VSCode\\openocd-20211118\\OpenOCD-20211118-0.11.0\\share\\openocd\\scripts\\target\\stm32l4x.cfg -c \"init; reset halt; program ./build/Debug_801/STM32_LoRa_v3.1.bin 0x08020000 verify reset exit; reset; exit\" & echo. & echo Done",
 			"options": {
 				"cwd": "${workspaceRoot}",
 				"shell": {

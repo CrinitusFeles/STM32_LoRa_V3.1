@@ -4,9 +4,6 @@
 
 #define KEY1                        0x45670123
 #define KEY2                        0xCDEF89AB
-#define FLASH_PAGE_SIZE             0x800
-#define FLASH_PAGE_2_POW            11
-#define FLASH_MAX_SIZE              0x40000
 #define FLASH_OPERATION_TIMEOUT     100000
 #define OFFSET_ALIGN_BYTES          8 // 64 bit word
 #define FLASH_PGERR       (FLASH_SR_PGSERR | FLASH_SR_PGAERR | FLASH_SR_WRPERR)
@@ -47,11 +44,11 @@ void FLASH_hard_lock(){
 }
 
 
-FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint16_t length){
+FLASH_status FLASH_write_page(uint8_t page_num, uint16_t offset, uint64_t *data, uint16_t length){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
     if(!FLASH_UNLOCK())
         return FLASH_LOCKED; // FLASH is LOCKED
-    uint64_t flash_data = (*(__IO uint64_t*)(EMBEDDED_FLASH_ADDRESS + page_num * FLASH_PAGE_SIZE + offset * OFFSET_ALIGN_BYTES));
+    uint64_t flash_data = (*(__IO uint64_t*)(FLASH_START_ADDR + page_num * FLASH_PAGE_SIZE + offset * OFFSET_ALIGN_BYTES));
     if(flash_data != 0xFFFFFFFFFFFFFFFF){  // area is empty
         FLASH_soft_lock();
         return FLASH_ADDRESS_NOT_EMPTY;
@@ -62,8 +59,8 @@ FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint
     for(uint16_t i = 0; i < length; i++){
         if(FLASH->SR & (FLASH_SR_PROGERR | FLASH_SR_PGAERR | FLASH_SR_PGSERR))
             return FLASH_ERROR_WRITE;
-        (*(__IO uint64_t*)(EMBEDDED_FLASH_ADDRESS + page_num * FLASH_PAGE_SIZE + (offset + i) * OFFSET_ALIGN_BYTES)) = data[i];
-        while((!(FLASH->SR & FLASH_SR_EOP)) && (timeout > 0)) timeout--;
+        (*(__IO uint64_t*)(FLASH_START_ADDR + page_num * FLASH_PAGE_SIZE + (offset + i) * OFFSET_ALIGN_BYTES)) = data[i];
+        while((!(FLASH->SR & FLASH_SR_EOP)) && timeout--) ;
         FLASH->SR = FLASH_SR_EOP;
     }
     FLASH_soft_lock();
@@ -71,9 +68,9 @@ FLASH_status FLASH_write(uint8_t page_num, uint16_t offset, uint64_t *data, uint
 
 }
 
-FLASH_status FLASH_write_addr(uint32_t addr, uint64_t *data, uint16_t word_length){
+FLASH_status FLASH_write(uint32_t addr, uint64_t *data, uint16_t word_length){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
-    if(addr < 0x800000 && addr >= 0x800000 + FLASH_MAX_SIZE){
+    if(addr < FLASH_START_ADDR && addr >= FLASH_START_ADDR + FLASH_MAX_SIZE){
         return FLASH_INCORRECT_ADDRESS;
     }
     __disable_irq();
@@ -97,13 +94,13 @@ FLASH_status FLASH_write_addr(uint32_t addr, uint64_t *data, uint16_t word_lengt
             __enable_irq();
             return FLASH_ERROR_WRITE;
         }
-        if (*(uint64_t *)(addr + i * OFFSET_ALIGN_BYTES) != data[i]) {
-            uint16_t page = (uint32_t)(addr - 0x8000000) >> FLASH_PAGE_2_POW;
+        if (M64(addr + i * OFFSET_ALIGN_BYTES) != data[i]) {
+            uint16_t page = (uint32_t)(addr - FLASH_START_ADDR) >> FLASH_PAGE_2_POW;
             FLASH->CR &= ~(0xFF << FLASH_CR_PNB_Pos);
             FLASH->CR |= (page << FLASH_CR_PNB_Pos) | FLASH_CR_PG;
-            *(uint64_t *)(addr + i * OFFSET_ALIGN_BYTES) = data[i];
+            M64(addr + i * OFFSET_ALIGN_BYTES) = data[i];
         }
-        while((FLASH->SR & FLASH_SR_BSY) && (timeout > 0)) timeout--;
+        while((FLASH->SR & FLASH_SR_BSY) && timeout--) ;
         FLASH->CR = 0;
         if(timeout == 0){
             __enable_irq();
@@ -111,16 +108,22 @@ FLASH_status FLASH_write_addr(uint32_t addr, uint64_t *data, uint16_t word_lengt
             return FLASH_TIMEOUT;
         }
         FLASH->SR = FLASH_SR_EOP;
+        if(FLASH->SR != 0){
+            break;
+        }
     }
     FLASH_soft_lock();
     __enable_irq();
+    if(FLASH->SR != 0){
+        return FLASH_ERROR_WRITE;
+    }
     return FLASH_OK;
 
 }
 
 void FLASH_read(uint8_t page_num, uint16_t offset, uint64_t *buffer, uint16_t length){
     for(uint16_t i = 0; i < length; i++){
-        buffer[i] = (*(__IO uint64_t*)(EMBEDDED_FLASH_ADDRESS + page_num * FLASH_PAGE_SIZE + (offset + i) * OFFSET_ALIGN_BYTES));
+        buffer[i] = (*(__IO uint64_t*)(FLASH_START_ADDR + page_num * FLASH_PAGE_SIZE + (offset + i) * OFFSET_ALIGN_BYTES));
     }
 }
 
@@ -157,14 +160,14 @@ FLASH_status FLASH_mass_erase(){
 
 typedef void (*fnc_ptr)(void);
 
-void FLASH_jump_to_app(uint32_t *addr)
+void FLASH_jump_to_app(uint32_t addr)
 {
   /* Function pointer to the address of the user application. */
   fnc_ptr jump_to_app;
-  jump_to_app = (fnc_ptr)(*(addr + 4));
+  jump_to_app = (fnc_ptr)(*(uint32_t *)(addr + 4));
 //   HAL_DeInit();
   /* Change the main stack pointer. */
-  __set_MSP(*addr);
+  __set_MSP(*(uint32_t*)addr);
   jump_to_app();
 }
 
@@ -177,22 +180,22 @@ FLASH_status SetPrefferedBlockNum(uint8_t block_num){
     if ((HavePrefFlashBlockNum() ^ pref2) & 1) {
         /*ищем единичный бит*/
         for (addr = PREF_REC_ADDR_START; addr < PREF_REC_ADDR_END; addr += OFFSET_ALIGN_BYTES) {
-            if (M64(addr) != 0) {
-                break;
+            if (M64(addr) > 0) {
+                status = FLASH_write(addr, M64(addr) == (uint64_t)(-1) ? &val : &val0, 1);
+                return status;
             }
         }
-        if (addr < PREF_REC_ADDR_END) {
-            /*зануляем единичный бит*/
-            if (M64(addr) == 1){
-                status = FLASH_write_addr(addr, (uint64_t *)(&val0), 1);
-            } else {
-                status = FLASH_write_addr(addr, (uint64_t *)(&val), 1);
-            }
-            return status;
-        } else {
-            /*ресурс исчерпан*/
-            return FLASH_ERROR;
-        }
+        return FLASH_FULL;
+    }
+    return FLASH_OK;
+}
+
+
+FLASH_status FLASH_erase_firmware(uint8_t current_block_num){
+    uint8_t page_amount = current_block_num == 0 ? FW_PAGES_AMOUNT : 0;
+    for (uint8_t i = 0; i < page_amount - 1; i++) {
+        FLASH_status status = FLASH_erase_page(page_amount + i);
+        if(status != FLASH_OK) return status;
     }
     return FLASH_OK;
 }

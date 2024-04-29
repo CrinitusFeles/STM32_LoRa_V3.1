@@ -1,4 +1,5 @@
 #include "main.h"
+#include <stdarg.h>
 #include "low_power.h"
 #include "string.h"
 #include "System.h"
@@ -7,9 +8,25 @@
 #include "fifo.h"
 #include "sx127x.h"
 #include "monitor_task.h"
+#include "xprintf.h"
+
 
 FIFO fifo;
+FIFO lora_fifo;
+uint8_t answer_over_radio = 0;
+uint8_t lora_tx_ptr = 0;
 #define UNUSED(x) (void)(x)
+
+
+void lora_set_tx_buff(uint8_t data){
+    sx127x.tx_buffer[lora_tx_ptr] = data;
+    lora_tx_ptr++;
+    if(data == '\n' || lora_tx_ptr >= 127){
+        LoRa_transmit(&sx127x, sx127x.tx_buffer, lora_tx_ptr);
+        lora_tx_ptr = 0;
+    }
+}
+
 
 void vConfigureTimerForRunTimeStats(void){
     RCC->APB1ENR1 |= RCC_APB1ENR1_TIM7EN;
@@ -20,6 +37,7 @@ void vConfigureTimerForRunTimeStats(void){
 unsigned long vGetTimerForRunTimeStats(void){
     // TIM7->SR &= ~TIM_SR_UIF;
     // TIM7->DIER &= ~TIM_DIER_UIE;
+    static volatile unsigned long ulHighFrequencyTimerTicks = 0;
     ulHighFrequencyTimerTicks += TIM7->CNT;
     TIM7->ARR = 0xFFFF;
     TIM7->CNT = 0;
@@ -46,7 +64,10 @@ void RADIO_TASK(void *pvParameters){
             for(uint8_t i = 0; i < rx_count; i++){
                 FIFO_PUSH(fifo, sx127x.rx_buffer[i]);
             }
+            // xprintf("\nGot msg: %s\n", sx127x.rx_buffer);
+            answer_over_radio = 1;
             sx127x.got_new_packet = 0;
+            xdev_out(lora_set_tx_buff);
         }
         vTaskDelay(15);
     }
@@ -78,13 +99,18 @@ void CONSOLE_TASK(void *pvParameters){
     vTaskDelete( NULL );
 	// Delay(1000);
 }
-
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
+{
+    UNUSED(xTask);
+    xprintf("\nKERNEL PANIC! STACK OVERFLOW AT TASK %s\n", pcTaskName);
+    while (1){};
+}
 int main(){
     System_Init();
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     xTaskCreate( LED_BLINK, "LED1", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 4, NULL, 2, ( xTaskHandle * ) NULL);
+    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 10, NULL, 2, ( xTaskHandle * ) NULL);
     xTaskCreate( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, ( xTaskHandle * ) NULL);
     vTaskStartScheduler();
 }

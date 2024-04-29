@@ -12,9 +12,11 @@
 #define OneWire_ROM_ID_lenth   64
 
 typedef enum{
-  ONE_WIRE_OK = 0,
-  ONE_WIRE_EMPTY_BUS = !ONE_WIRE_OK
-} OneWireStatus;
+  OW_OK = 0,
+  OW_EMPTY_BUS = 1,
+  OW_TIMEOUT = 2,
+  OW_ROM_FINDING_ERROR = 3,
+} OW_Status;
 
 typedef union uRomCode{
     uint64_t serial_code;
@@ -33,13 +35,15 @@ typedef struct OneWire{
     uint8_t lastROM[8];  // 64 bit ROM
 } OneWire;
 
-OneWireStatus OneWire_Reset(OneWire *ow);
-uint8_t OneWire_ReadBit(OneWire *ow);
-uint8_t OneWire_SendBit(OneWire *ow, uint8_t data);
-uint8_t OneWire_Read(OneWire *ow);
-uint8_t OneWire_Write(OneWire *ow, uint8_t byte);
-void OneWire_ReadArray(OneWire *ow, uint8_t *array, uint8_t length);
-void OneWire_WriteArray(OneWire *ow, uint8_t *array, uint8_t length);
-int OneWire_SearchDevices(OneWire *ow);
-OneWireStatus OneWire_MatchRom(OneWire *ow, RomCode *rom);
+OW_Status OW_Reset(OneWire *ow);
+OW_Status OW_SendBit(OneWire *ow, uint8_t data, uint8_t *rx_buf);
+OW_Status OW_Read(OneWire *ow, uint8_t *rx_buf);
+OW_Status OW_Write(OneWire *ow, uint8_t byte);
+OW_Status OW_ReadArray(OneWire *ow, uint8_t *array, uint8_t length);
+OW_Status OW_WriteArray(OneWire *ow, uint8_t *array, uint8_t length);
+OW_Status OW_SearchDevices(OneWire *ow, uint8_t *sensors_amount);
+OW_Status OW_MatchRom(OneWire *ow, RomCode *rom);
+
+extern OneWire ow;
+
 #endif /* INC_1_WIRE_H_ */

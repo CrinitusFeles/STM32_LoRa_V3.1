@@ -10,7 +10,9 @@
 typedef struct DS18B20_BUS{
     OneWire *ow;
     DS18B20 *sensors;
-    uint8_t amount;
+    uint8_t connected_amount;
+    uint8_t found_amount;
+    uint8_t is_calibrated;
     uint64_t *serials;
     void (*greetings)(void);
     void (*notification)(void);
@@ -20,9 +22,17 @@ typedef struct DS18B20_BUS{
     void (*delay_ms)(uint32_t);
 } DS18B20_BUS;
 
-OneWireStatus TemperatureSensorsMeasure(DS18B20_BUS *sensors, uint8_t is_sorted);
-void RecognitionRoutine(DS18B20_BUS *sensors, float *initial_temperatures, uint8_t *sorted_nums);
-uint8_t Calibration_routine(DS18B20_BUS *sensors, uint64_t *sorted_serials);
+typedef enum{
+  DS18B20_OK = 0,
+  DS18B20_EMPTY_BUS = 1,
+  DS18B20_TIMEOUT = 2,
+  DS18B20_ROM_FINDING_ERROR = 3,
+  DS18B20_INCORRECT_SENSORS_AMOUNT = 4,
+  DS18B20_RECOGNITION_FAILED = 5,
+} DS18B20_BUS_Status;
+
+OW_Status TemperatureSensorsMeasure(DS18B20_BUS *sensors, uint8_t is_sorted);
+DS18B20_BUS_Status Calibration_routine(DS18B20_BUS *sensors);
 
 extern DS18B20_BUS sensors_bus;
 #endif

@@ -119,13 +119,14 @@ typedef struct LoRa_setting{
 
     uint8_t         got_new_packet;
     uint8_t         rx_buffer[255];
+    uint8_t         tx_buffer[255];
     void (*delay)(uint32_t milli);
 } LoRa;
 
 
 void LoRa_gotoMode(LoRa* _LoRa, uint8_t mode);
 
-void LoRa_setFrequency(LoRa* _LoRa, uint16_t freq_mhz);
+void LoRa_setFrequency(LoRa* _LoRa, uint32_t freq_mhz);
 void LoRa_setSpreadingFactor(LoRa* _LoRa, uint8_t SP);
 void LoRa_setPower(LoRa* _LoRa, uint8_t power);
 void LoRa_setOCP(LoRa* _LoRa, uint8_t current);
