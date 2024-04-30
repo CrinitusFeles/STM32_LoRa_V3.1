@@ -13,7 +13,6 @@
 static uint8_t xmodem_packet_number = 1;         /**< Packet number counter. */
 static uint32_t xmodem_actual_flash_address = 0; /**< Address where we have to write. */
 static bool x_first_packet_received = false;     /**< First packet or not. */
-char data_buffer[1024] = {0};
 /* Local functions. */
 static uint16_t xmodem_calc_crc(uint8_t *data, uint16_t length);
 static xmodem_status xmodem_handle_packet(uint8_t size);
@@ -90,8 +89,7 @@ void xmodem_receive(uint32_t write_addr) {
                 /* ACK, feedback to user (as a text), then jump to user application. */
                 xprintf("%c", X_ACK);
                 delay(10);
-                xprintf("\nFirmware updated!\n");
-                xprintf("Jumping to user application...\n");
+                xprintf("\n\nFirmware updated!\n");
                 // FLASH_jump_to_app();
                 return;
             /* Abort from host. */
@@ -162,7 +160,6 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     comm_status |= read_data(received_packet_number, X_PACKET_NUMBER_SIZE, X_HEADER_TIMEOUT_MS);
     comm_status |= read_data(received_packet_data, size, X_HEADER_TIMEOUT_MS);
     comm_status |= read_data(received_packet_crc, X_PACKET_CRC_SIZE, X_HEADER_TIMEOUT_MS);
-    memcpy(data_buffer + strlen(data_buffer), received_packet_data, strlen((char *)received_packet_data));
     /* Merge the two bytes of CRC. */
     uint16_t crc_received = ((uint16_t)received_packet_crc[X_PACKET_CRC_HIGH_INDEX] << 8) |
                             ((uint16_t)received_packet_crc[X_PACKET_CRC_LOW_INDEX]);
@@ -176,14 +173,14 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     if ((X_OK == status) && (false == x_first_packet_received)) {
         uint8_t curr_block = HaveRunFlashBlockNum();
         if(curr_block){
-            for(uint8_t sec_num = 0; sec_num < 31; sec_num++){
+            for(uint8_t sec_num = 0; sec_num < 63; sec_num++){
                 if(FLASH_erase_page(sec_num) != FLASH_OK) {
                     status |= X_ERROR_FLASH;
                     break;
                 }
             }
         } else {
-            for(uint8_t sec_num = 32; sec_num < 63; sec_num++){
+            for(uint8_t sec_num = 64; sec_num < 127; sec_num++){
                 if(FLASH_erase_page(sec_num) != FLASH_OK) {
                     status |= X_ERROR_FLASH;
                     break;
@@ -192,6 +189,8 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
         }
         if(status == X_OK) {
             x_first_packet_received = true;
+        } else {
+            return status;
         }
     }
 
@@ -215,8 +214,8 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
 
     /* Do the actual flashing (if there weren't any errors). */
     if ((X_OK == status) && (FLASH_OK != FLASH_write(xmodem_actual_flash_address,
-                                                          (uint64_t*)&received_packet_data[0],
-                                                          (uint32_t)size / 8))) {
+                                                     (uint64_t*)&received_packet_data[0],
+                                                     (uint32_t)size / 8))) {
         /* Flashing error. */
         status |= X_ERROR_FLASH;
     }
