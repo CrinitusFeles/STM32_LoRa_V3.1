@@ -30,11 +30,11 @@ void USART1_IRQHandler(void) {
 	if(USART1->ISR & USART_ISR_ORE){
         (void)(USART1->RDR);
 		USART1->ICR |= USART_ICR_ORECF;
-		UART_tx_string(USART1, "\n\rOVERRUN ERROR!\r\n");
+		// UART_tx_string(USART1, "\n\rOVERRUN ERROR!\r\n");
 	}
     if(USART1->ISR & USART_ISR_FE){
         USART1->ICR |= USART_ICR_FECF;
-        UART_tx_string(USART1, "\n\rFRAMING ERROR!\r\n");
+        // UART_tx_string(USART1, "\n\rFRAMING ERROR!\r\n");
     }
 }
 // void USART3_IRQHandler(void) {
