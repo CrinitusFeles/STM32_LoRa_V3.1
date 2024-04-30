@@ -15,7 +15,7 @@ typedef struct DS18B20_BUS{
     uint8_t is_calibrated;
     uint64_t *serials;
     void (*greetings)(void);
-    void (*notification)(void);
+    void (*notification)(int);
     void (*on_single_registered)(void);
     void (*on_registration_finished)(void);
     void (*on_cooling_down)(void);

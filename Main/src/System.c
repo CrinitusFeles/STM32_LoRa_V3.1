@@ -44,12 +44,24 @@ SystemConfig system_config;
 
 
 void on_greetings(){
-    BUZZ_beep(&buzzer, 400, 30);
-    BUZZ_beep(&buzzer, 800, 30);
+    BUZZ_beep(&buzzer, 800, 50);
+    BUZZ_beep(&buzzer, 1600, 50);
+}
+
+void on_cooling_down(){
+    BUZZ_down(&buzzer, 2000, 1000, 100, 30, 2);
 }
 
 void on_registration_finished(){
     BUZZ_tmnt(&buzzer);
+}
+
+void on_single_registered(){
+    BUZZ_up(&buzzer, 2000, 3000, 100, 30, 1);
+}
+
+void notification(int founded_count){
+    BUZZ_beep_repeat(&buzzer, 1500, 100, 500, founded_count);
 }
 
 void System_Init(){
@@ -167,6 +179,9 @@ void System_Init(){
         .serials = system_config.sensors_serials,
         .greetings = on_greetings,
         .on_registration_finished = on_registration_finished,
+        .on_cooling_down = on_cooling_down,
+        .on_single_registered = on_single_registered,
+        .notification = notification,
     };
 
     adc = (ADC){

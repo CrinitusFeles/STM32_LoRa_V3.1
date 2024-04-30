@@ -94,7 +94,7 @@ OW_Status RecognitionRoutine(DS18B20_BUS *bus, float *initial_temperatures,
         }
         bus->delay_ms(3000);
         if(single_sensor_tries > 15){
-            bus->notification();
+            bus->notification(founded_counter);
             single_sensor_tries = 0;
         }
     }
@@ -114,13 +114,13 @@ OW_Status waiting_cooling_down(DS18B20_BUS *bus, float *initial_temps, uint8_t d
         deviation = max_temp_deviation(initial_temps, bus->connected_amount);
         if(deviation > delta){
             bus->on_cooling_down();
+            bus->delay_ms(15000);
         }
     }
     return status;
 }
 
 DS18B20_BUS_Status Calibration_routine(DS18B20_BUS *bus){
-    // OW_Status status;
     uint64_t initial_serials[TEMP_SENSOR_AMOUNT] = {0};
     uint8_t sorted_nums[TEMP_SENSOR_AMOUNT] = {0};
     float initial_temperature[TEMP_SENSOR_AMOUNT] = {.0};

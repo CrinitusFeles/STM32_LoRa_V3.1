@@ -10,7 +10,7 @@
 // }
 
 OW_Status OW_SendBit(OneWire *ow, uint8_t data, uint8_t *rx_data){
-    int16_t timeout = 1000;
+    int16_t timeout = 5000;
     if(ow->uart->ISR & USART_ISR_ORE) ow->uart->ICR |= USART_ICR_ORECF;
     if(ow->uart->ISR & USART_ISR_FE) ow->uart->ICR |= USART_ICR_FECF;
     if(ow->uart->ISR & USART_ISR_NE) ow->uart->ICR |= USART_ICR_NECF;
