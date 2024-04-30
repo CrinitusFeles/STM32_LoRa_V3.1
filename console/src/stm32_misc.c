@@ -221,7 +221,7 @@ void ls(const char *path) {
 }
 
 void dump_memory(unsigned long addr, uint32_t *ptr, size_t len){
-    xprintf("%10s | %8s | %8s | %8s | %8s | %16s\n", "Address", "0", "4", "8", "C", "ASCII");
+    xprintf("%10s | %-8s | %-8s | %-8s | %-8s | %-16s\n", "Address", "0", "4", "8", "C", "ASCII");
     for(uint32_t i = 0; i < len; i += 4){
         // xprintf("0x%08lX | %08lX | %08lX | %08lX | %08lX | ",
         //         addr + (i << 2), *(ptr + i), *(ptr + i + 1), *(ptr + i + 2), *(ptr + i + 3));
@@ -499,7 +499,7 @@ int execute(int argc, const char *const *argv) {
                     break;
                 }
                 for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                    xprintf("T%d: %08lX\n", i, sensors_bus.serials[i]);
+                    xprintf("T%d: %016lX\n", i, sensors_bus.serials[i]);
                 }
                 if(system_config.auto_save_config){
                     FLASH_status result = save_system_config(&system_config);
@@ -640,8 +640,9 @@ int execute(int argc, const char *const *argv) {
                 long len = 0;
                 xatoi((char **)&argv[1], &addr);
                 xatoi((char **)&argv[2], &len);
-                if(addr < 0x8000000 && addr > 0x803FFFF){
+                if(addr < 0x8000000 || addr > 0x803FFFF){
                     xprintf("Address out of range\n");
+                    break;
                 }
                 addr -= MOD(addr, 4);
                 dump_memory(addr, (uint32_t *)addr, (size_t)len);
