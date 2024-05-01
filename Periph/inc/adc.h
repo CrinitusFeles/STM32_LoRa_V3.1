@@ -17,7 +17,6 @@ typedef enum ADC_Resolution{
 } ADC_Resolution;
 
 typedef enum ADC_ChannelNum{
-    adc_ch_uninitialized,
     VREF,
     CH1,
     CH2,

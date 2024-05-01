@@ -415,13 +415,17 @@ int execute(int argc, const char *const *argv) {
         } else if (strcmp(argv[i], _CMD_ADC_MEASURE) == 0) {
             if(argc == 1){
                 gpio_state(EN_PERIPH, LOW);
+                vTaskDelay(50);
                 ADC_Start(&adc);
-                ADC_WaitMeasures(&adc, 1000000);
+                uint8_t status = ADC_WaitMeasures(&adc, 1000000);
                 gpio_state(EN_PERIPH, HIGH);
-                for(uint8_t i = 0; i < 11; i++){
-                    xprintf("A%d: %d\n", i + 1, adc.reg_channel_queue[i].result_mv);
+                if(status){
+                    xprintf("ADC timeout\n");
                 }
-                xprintf("VREF: %d\n", adc.reg_channel_queue[11].result_mv);
+                for(uint8_t i = 0; i < 11; i++){
+                    xprintf("A%02d (mv): %d\n", i + 1, adc.reg_channel_queue[i].result_mv);
+                }
+                xprintf("VDDA (mv): %d\n", adc.vdda_mvolt);
             } else {
                 xprintf("Too many arguments\n");
             }
@@ -447,7 +451,6 @@ int execute(int argc, const char *const *argv) {
                         break;
                     }
                     for(uint8_t i = 0; i < sensors_bus.connected_amount; i++){
-                        // initial_serials[i] = sensors_bus.ow->ids[i].serial_code;
                         sensors_bus.sensors[i].serialNumber = &(sensors_bus.ow->ids[i]);
                     }
                     if(status == OW_OK && sensors_bus.found_amount > 0){
@@ -479,7 +482,9 @@ int execute(int argc, const char *const *argv) {
                     gpio_state(EN_PERIPH, HIGH);
                     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
                         xprintf("T%02d [0x%016llX] : %.2f °С\n", i + 1,
-                                sensors_bus.sensors[i].serialNumber->serial_code,
+                                sensors_bus.is_calibrated ?
+                                    sensors_bus.serials[i] :
+                                    sensors_bus.sensors[i].serialNumber->serial_code,
                                 sensors_bus.sensors[i].temperature);
                     }
                 }
@@ -499,7 +504,7 @@ int execute(int argc, const char *const *argv) {
                     break;
                 }
                 for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                    xprintf("T%d: %016lX\n", i, sensors_bus.serials[i]);
+                    xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
                 }
                 if(system_config.auto_save_config){
                     FLASH_status result = save_system_config(&system_config);

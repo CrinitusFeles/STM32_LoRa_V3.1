@@ -44,24 +44,28 @@ SystemConfig system_config;
 
 
 void on_greetings(){
-    BUZZ_beep(&buzzer, 800, 50);
-    BUZZ_beep(&buzzer, 1600, 50);
+    BUZZ_mario(&buzzer);
+    xprintf("Heat up first temperature sensor\n");
 }
 
-void on_cooling_down(){
+void on_cooling_down(float deviation){
     BUZZ_down(&buzzer, 2000, 1000, 100, 30, 2);
+    xprintf("Coolling down... Deviation: %.2f\n", deviation);
 }
 
 void on_registration_finished(){
     BUZZ_tmnt(&buzzer);
+    xprintf("Calibration finished\n");
 }
 
-void on_single_registered(){
+void on_single_registered(uint8_t sensor_num){
     BUZZ_up(&buzzer, 2000, 3000, 100, 30, 1);
+    xprintf("Sensor %d has been registered\n", sensor_num);
 }
 
 void notification(int founded_count){
     BUZZ_beep_repeat(&buzzer, 1500, 100, 500, founded_count);
+    xprintf("Last registered sensor num: %d\n", founded_count);
 }
 
 void System_Init(){
@@ -172,7 +176,8 @@ void System_Init(){
     }
     sensors_bus = (DS18B20_BUS){
         .connected_amount = TEMP_SENSOR_AMOUNT,
-        .found_amount = 0,
+        .found_amount = TEMP_SENSOR_AMOUNT,
+        .is_calibrated = 1,
         .delay_ms = vTaskDelay,
         .ow = &ow,
         .sensors = sensors,
@@ -183,6 +188,14 @@ void System_Init(){
         .on_single_registered = on_single_registered,
         .notification = notification,
     };
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+        // sensors[i].serialNumber->serial_code = system_config.sensors_serials[i];
+        if(system_config.sensors_serials[i] == 0xFFFFFFFFFFFFFFFF){
+            sensors_bus.is_calibrated = 0;
+            sensors_bus.found_amount = 0;
+            break;
+        }
+    }
 
     adc = (ADC){
         .ADCx = ADC1,
@@ -220,7 +233,7 @@ void System_Init(){
     ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
     ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
     ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
-//     // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
+    // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
 //     // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
     ADC_Enable(&adc);
 

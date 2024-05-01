@@ -16,9 +16,9 @@ typedef struct DS18B20_BUS{
     uint64_t *serials;
     void (*greetings)(void);
     void (*notification)(int);
-    void (*on_single_registered)(void);
+    void (*on_single_registered)(uint8_t);
     void (*on_registration_finished)(void);
-    void (*on_cooling_down)(void);
+    void (*on_cooling_down)(float);
     void (*delay_ms)(uint32_t);
 } DS18B20_BUS;
 

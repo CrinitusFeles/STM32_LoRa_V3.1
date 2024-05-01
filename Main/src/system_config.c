@@ -4,11 +4,13 @@
 #include "string.h"
 #include "system_select.h"
 
+#define CONFIG_SIZE_64  17
+
 
 FLASH_status save_system_config(SystemConfig *config){
     uint8_t need_rewrite = 0;
     FLASH_status status = FLASH_OK;
-    for(uint8_t i = 0; i < 16; i++){
+    for(uint8_t i = 0; i < CONFIG_SIZE_64; i++){
         if(config->FLASH_page_buffer[i] != M64(config->config_addr + i * sizeof(uint64_t)))
             need_rewrite = 1;
     }
@@ -17,7 +19,7 @@ FLASH_status save_system_config(SystemConfig *config){
         if(status != FLASH_OK) return status;
         status = SetPrefferedBlockNum(config->pref_block);
         if(status != FLASH_OK) return status;
-        status = FLASH_write(config->config_addr, config->FLASH_page_buffer, 16);
+        status = FLASH_write(config->config_addr, config->FLASH_page_buffer, CONFIG_SIZE_64);
     }
     return status;
 }
@@ -75,6 +77,10 @@ void system_config_init(SystemConfig *config){
     config->lora_sync_word = 0x12;
     config->lora_tx_power = 0xF6;
     config->lora_preamble = 8;
+    config->res1 = 0;
+    for(uint8_t i = 0; i < 3; i++){
+        config->res[i] = 0;
+    }
     memset(config->sensors_serials, 0xFF, 12 * sizeof(uint64_t));
 }
 
@@ -84,7 +90,7 @@ int8_t write_system_config(SystemConfig *config){
         if(save_system_config(config) != FLASH_OK) return -10;
         return 1;
     } else {  // read config from FLASH
-        for(uint16_t i = 0; i < 16; i++){
+        for(uint16_t i = 0; i < CONFIG_SIZE_64; i++){
             config->FLASH_page_buffer[i] = *(uint64_t *)(config->config_addr + i * sizeof(uint64_t));
         }
         return 0;

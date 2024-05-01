@@ -40,7 +40,7 @@ void ADC_Init(ADC *ADC_struct){
     ADC_struct->ADCx->CFGR |= ADC_struct->mode << ADC_CFGR_CONT_Pos;  // continuous or single mode
     ADC_struct->ADCx->CFGR |= ADC_CFGR_OVRMOD;  // data will be always actual
     ADC_struct->ADCx->CFGR |= ADC_CFGR_JQDIS;  // Injected Queue disabled
-    ADC_struct->ADCx->CFGR |= ADC_CFGR_AUTDLY;
+    ADC_struct->ADCx->CFGR |= ADC_CFGR_AUTDLY;  // Auto-delayed conversion mode
     ADC_struct->ADCx->CFGR |= ADC_struct->trigger.polarity << ADC_CFGR_EXTEN_Pos;
     ADC_struct->ADCx->CFGR |= ADC_struct->trigger.exti_channel << ADC_CFGR_EXTSEL_Pos;
     ADC_struct->ADCx->CFGR |= ADC_struct->resolution << ADC_CFGR_RES_Pos;
@@ -80,7 +80,6 @@ void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, A
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].pin = gpio;
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].group = ADC_CH_Regular;
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].smp_time = smp_time;
-    ch_num--;
     if (ch_num <= 9) {
 		ADC_struct->ADCx->SMPR1 |= (smp_time << (ch_num * 3));
 	} else {
@@ -123,7 +122,7 @@ void ADC_Handler(){
     if(adc.ADCx->ISR & ADC_ISR_EOS){  // After the regular sequence is complete
         adc.reg_ch_queue_pointer = 0;
         adc.vdda_mvolt = adc.vrefinternal_cal / (float)(adc.reg_channel_queue[11].result);
-        for(uint8_t i = 0; i < 11; i++){
+        for(uint8_t i = 0; i < adc.reg_ch_amount; i++){
             adc.reg_channel_queue[i].result_mv = adc.reg_channel_queue[i].result * adc.vdda_mvolt / 4095;
         }
         adc.ADCx->ISR |= ADC_ISR_EOS;
