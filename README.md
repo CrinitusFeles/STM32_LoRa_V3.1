@@ -17,7 +17,7 @@ For using CLI you need to use any serial terminal at `76800` baudrate, without c
 
 For Windows e.x. Putty or ExtraPutty. For Linux e.x.  miniterm.
 
-If you want to update firmware over XMODEM you need to use serial terminal with this feater. For Windows you can use ExtraPutty (https://sourceforge.net/projects/extraputty/).
+If you want to update firmware over XMODEM you need to use serial terminal with this feature. For Windows you can use ExtraPutty (https://sourceforge.net/projects/extraputty/).
 
 Also you can communicate over radio with LoRa modulation. Default LoRa settings:
 * Frequency = 435000000
@@ -68,6 +68,8 @@ For updating firmware over terminal your terminal client has to have XMODEM file
 
 Also you can upload firmware from SD card using `upload_sd_fw` but firstly you better to make sure that the reserve sector is clear (using `erase_firmware`).
 
+For checking is firmware downloaded correctly you should use `check_cmd <0 | 1>` command, where 0 - main firmware block *0x8000000* - *0x801FFFF*; 1 - reserverd firmware block *0x8020000* - *0x803FFFF*. When firmware is correct you should get "CRC OK" result.
+
 ## Sensors measurements
 
 After first connection of temperature sensors you can check their work using command `temps_measure`.
@@ -81,3 +83,4 @@ If you need to know temperature sensor' position you need first to calibrate sen
 ## TODO:
  - починить перепеполнение счетчиков `pulTotalRunTime`
  - добавить рекурсивное удаление файлов
+ - разобраться с рассинхронизацией RTC
