@@ -88,17 +88,21 @@ uint32_t RTC_struct_brief_time_converter(RTC_struct_brief *br_data){
 
 uint16_t RTC_string_datetime(char *buf){
     // fills first 20 bytes
-    while (!(RTC->ISR & RTC_ISR_RSF)){};	//  Calendar shadow registers synchronized
+    int16_t timeout = 10000;
+    while (!(RTC->ISR & RTC_ISR_RSF) && --timeout > 0){};	//  Calendar shadow registers synchronized
 
 	uint32_t TR_buf = 0, DR_buf = 0;
     uint16_t prediv_s = RTC->PRER & 0x7FFF;
 
 	TR_buf = (RTC->TR);
 	DR_buf = (RTC->DR);
+    TR_buf = (RTC->TR);
+	DR_buf = (RTC->DR);
+    TR_buf = (RTC->TR);
+	DR_buf = (RTC->DR);
 
 	uint8_t months = ((((DR_buf & RTC_DR_MT) >> RTC_DR_MT_Pos) * 10) + ((DR_buf & RTC_DR_MU) >> RTC_DR_MU_Pos));
 	uint8_t date = ((((DR_buf & RTC_DR_DT) >> RTC_DR_DT_Pos) * 10) + ((DR_buf & RTC_DR_DU) >> RTC_DR_DU_Pos));
-
     uint16_t y = 2000 + ((((DR_buf & RTC_DR_YT) >> RTC_DR_YT_Pos) * 10) + ((DR_buf & RTC_DR_YU) >> RTC_DR_YU_Pos));
     uint8_t m = months == 0 ? 1 : months;
     uint8_t d = date == 0 ? 1 : date;
@@ -118,8 +122,7 @@ uint16_t RTC_string_datetime(char *buf){
             }
         }
     }
-    xsprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d.%03d", y, m, d, h, mm, s, ss);
-    return 25;
+    return xsprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d.%03d", y, m, d, h, mm, s, ss);
 }
 
 uint32_t RTC_struct_brief_date_converter(RTC_struct_brief *br_data){
@@ -197,7 +200,7 @@ uint8_t RTC_Init(){
 		// LSE as clk source - [01] - LSE oscillator clock used as the RTC clock
 		RCC->BDCR |= RCC_BDCR_RTCSEL_0;
 		RCC->BDCR &= ~RCC_BDCR_RTCSEL_1;
-		RCC->BDCR |= RCC_BDCR_RTCEN;  // RTC clock on
+        RCC->BDCR |= RCC_BDCR_RTCEN;  // RTC clock on
 		// RTC_auto_wakeup_enable();
 		// RTC_data_update(f_data);
 			// unlock write protection
@@ -208,7 +211,9 @@ uint8_t RTC_Init(){
         while (!(RTC->ISR & RTC_ISR_INITF) && timeout--);  // INITF polling
         if(timeout == 0) return -2;
         // Fck_spre = RTCCLK / (PREDIV_S+1)*(PREDIV_A+1)
-        RTC->PRER |= (0x7F << 16) | 0xFF;  // (0x7F+1) * (0xFF + 1) = 32768
+        RTC->PRER |= 0x7F << 16;  // the operation must be performed in two separate write accesses.
+        RTC->PRER |= 0xFF;  // (0x7F+1) * (0xFF + 1) = 32768
+        RTC->CR |= RTC_CR_BYPSHAD;
         RTC->TR = 0x00000000;
         RTC->DR = 0x00000000;
         RTC->CR &= ~RTC_CR_FMT;  // 24h format == 0
