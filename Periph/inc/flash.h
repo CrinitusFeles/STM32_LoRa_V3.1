@@ -6,7 +6,7 @@
 #define FLASH_START_ADDR            0x8000000
 #define FLASH_PAGE_2_POW            11
 #define FLASH_MAX_SIZE              0x40000
-#define FLASH_EMPTY_CEIL            0xFFFFFFFFFFFFFFFF
+#define FLASH_EMPTY_CELL            0xFFFFFFFFFFFFFFFF
 /* Status report for the functions. */
 typedef enum {
   FLASH_OK                  = 0x00, /**< The action was successful. */
@@ -29,5 +29,5 @@ void FLASH_read(uint8_t page_num, uint16_t offset, uint64_t *buffer, uint16_t le
 void FLASH_jump_to_app(uint32_t addr);
 FLASH_status SetPrefferedBlockNum(uint8_t block_num);
 FLASH_status FLASH_erase_firmware(uint8_t current_block_num);
-
+void FLASH_disable_iwdg_stby();
 #endif

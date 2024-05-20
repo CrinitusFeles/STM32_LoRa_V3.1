@@ -12,9 +12,12 @@
 #include "ff.h"
 #include "ds18b20_bus.h"
 #include "system_config.h"
+#include "json.h"
 
-#define WATCHDOG_PERIOD_MS      5000
+
+#define WATCHDOG_PERIOD_MS      2000
 #define WAKEUP_PERIOD_SEC       60*20
+#define JSON_CONFIG_SIZE        512
 
 void _close_r(void) {}
 void _lseek_r(void) {}
@@ -31,56 +34,83 @@ tBuzzer buzzer;
 microrl_t rl;
 // logging_init_t logger;
 LoRa sx127x;
-FATFS fs;
-DIR dir;
+
 // FRESULT res;
-FIL _file;
-FILINFO fno;
 DS18B20 sensors[12];
 DS18B20_BUS sensors_bus;
 OneWire ow;
 SystemConfig system_config;
-
+char config_json[JSON_CONFIG_SIZE] = {0};
 
 
 void on_greetings(){
-    BUZZ_mario(&buzzer);
+    if(system_config.enable_beep){
+        BUZZ_mario(&buzzer);
+    }
     xprintf("Heat up first temperature sensor\n");
 }
 
 void on_cooling_down(float deviation){
-    BUZZ_down(&buzzer, 2000, 1000, 100, 30, 2);
+    if(system_config.enable_beep){
+        BUZZ_down(&buzzer, 2000, 1000, 100, 30, 2);
+    }
     xprintf("Coolling down... Deviation: %.2f\n", deviation);
 }
 
 void on_registration_finished(){
-    BUZZ_tmnt(&buzzer);
+    if(system_config.enable_beep){
+        BUZZ_tmnt(&buzzer);
+    }
     xprintf("Calibration finished\n");
 }
 
 void on_single_registered(uint8_t sensor_num){
-    BUZZ_up(&buzzer, 2000, 3000, 100, 30, 1);
+    if(system_config.enable_beep){
+        BUZZ_up(&buzzer, 2000, 3000, 100, 30, 1);
+    }
     xprintf("Sensor %d has been registered\n", sensor_num);
 }
 
 void notification(int founded_count){
-    BUZZ_beep_repeat(&buzzer, 1500, 100, 500, founded_count);
+    if(system_config.enable_beep){
+        BUZZ_beep_repeat(&buzzer, 1500, 100, 500, founded_count);
+    }
     xprintf("Last registered sensor num: %d\n", founded_count);
+}
+
+void print(const char *buf){
+    xprintf(buf);
+}
+
+void sensors_on(){
+    gpio_state(EN_PERIPH, LOW);
+}
+
+void sensors_off(){
+    gpio_state(EN_PERIPH, HIGH);
 }
 
 void System_Init(){
     xdev_out(uart_print);
     system_config_init(&system_config);
-    int8_t init_result = write_system_config(&system_config);
+    SystemConfigStatus config_status = init_FLASH_system_config(&system_config);
+    if(config_status == CONFIG_VALIDATION_ERROR){
+        while(1){};
+    }
     // uint64_t sorted_serials[12] = {0};
     // setvbuf(stdout, NULL, _IONBF, 0);
     // SysTick_Config(millisec);
     // RCC_init_MSI();
-    uint8_t is_first_init = RTC_Init();
+    // uint8_t is_first_init =
+    int8_t rtc_status = RTC_Init(system_config.rtc_ppm);
+    // if(is_first_init){
+    //     RTC_set_date(19 << 20 | 80 << 16);  // just for set ISR_INITS flag
+    // }
     // RTC_auto_wakeup_enable(WAKEUP_PERIOD_SEC);
-
-    // IWDG_init(WATCHDOG_PERIOD_MS);
-    // IWDG_disable_in_debug();
+    if(system_config.enable_watchdog){
+        IWDG_init(WATCHDOG_PERIOD_MS);
+        IWDG_disable_in_debug();
+    }
     DWT_Init();
 
     gpio_init(LED, General_output, Push_pull, no_pull, Low_speed);
@@ -105,37 +135,43 @@ void System_Init(){
 
     UART_init(USART1, system_config.uart_speed, FULL_DUPLEX);
 
-    microrl_init(&rl, xprintf);
+    microrl_init(&rl, print);
     microrl_set_execute_callback (&rl, execute);
 	microrl_set_complete_callback (&rl, complet);
     microrl_set_sigint_callback (&rl, sigint);
 
     RTC_get_time(&current_rtc);
+
     // logger = (logging_init_t){
     //     .write_function=print,
     //     .get_time_string=RTC_string_datetime,
     //     .default_level=LOGGING_LEVEL_DEBUG
     // };
     // logging_init(&logger);
-    if(is_first_init){
-        xprintf("\nRTC first initialization. You need to set MCU time.\n");
-    }
-    if(init_result < 0){
-        xprintf("\nSaving system config to FLASH failed!\n");
-    } else if(init_result == 0){
-        xprintf("\nSystem config loaded from FLASH\n");
-    } else if(init_result == 1){
-        xprintf("\nDefault system config saved to FLASH\n");
-    } else{
-        xprintf("\nIncorrect init_result! %d\n", init_result);
-    }
-
-    xprintf("STARTED FROM 0x%08lX ADDRESS\n", SCB->VTOR);
-
     if((RCC->CSR & RCC_CSR_IWDGRSTF) || (RCC->CSR & RCC_CSR_WWDGRSTF)){
         RCC->CSR |= RCC_CSR_RMVF;
-        xprintf("WATCHDOG\n");
+        xprintf("\n\033[31mWATCHDOG\033[0m\n");
     }
+    if(rtc_status < 0){
+        xprintf("\n\033[31mRTC ERROR\033[0m\n");
+        BUZZ_beep_repeat(&buzzer, 300, 200, 300, 3);
+    }
+    xprintf("\nSTARTED FROM 0x%08lX ADDRESS\n", SCB->VTOR);
+    char rtc_data[25] = {0};
+    RTC_string_datetime(rtc_data);
+    xprintf("%s\n", rtc_data);
+    if(config_status == CONFIG_SAVE_ERROR){
+        xprintf("Saving system config to FLASH failed!\n");
+    } else if(config_status == CONFIG_OK){
+        xprintf("System config loaded from FLASH\n");
+    } else {
+        xprintf("Incorrect init_result! %d\n", config_status);
+    }
+
+    if(system_config.enable_watchdog){
+        FLASH_disable_iwdg_stby();
+    }
+
 
     spi_init(LoRa_SPI, div_4, Mode_0, data_8_bit, MSB);
 
@@ -167,7 +203,9 @@ void System_Init(){
         .TIMx = TIM15,
         .delay = DWT_Delay_ms
     };
-
+    if(system_config.enable_beep){
+        BUZZ_beep(&buzzer, 500, 50);
+    }
     ow = (OneWire){.uart=USART3};
 
     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
@@ -187,6 +225,8 @@ void System_Init(){
         .on_cooling_down = on_cooling_down,
         .on_single_registered = on_single_registered,
         .notification = notification,
+        .power_on = sensors_on,
+        .power_off = sensors_off,
     };
     for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
         // sensors[i].serialNumber->serial_code = system_config.sensors_serials[i];
@@ -238,25 +278,52 @@ void System_Init(){
     ADC_Enable(&adc);
 
     SDMMC_INIT();
-    SDResult result = SD_Init();
+    UINT written_count = 0;
+    FATFS fs;
+    FRESULT result;
+    FIL _file;
+    SystemConfigStatus status;
+    OW_Status ow_status;
+    SystemConfig flash_config;
+    char sd_log[1024] = {0};
+    uint16_t sd_ptr = 0;
 
-    if(result == SDR_Success){
+    if(SD_Init() == SDR_Success){
         xprintf("SD Card initialization completed\n");
-        if (f_mount(&fs, "", 1) == FR_OK) {
+        result = f_mount(&fs, "", 1);
+        if (result == FR_OK) {
             xprintf("SD Card mounted\n");
-            if(system_config.action_mode == 1){
-                gpio_state(EN_PERIPH, LOW);
-                ADC_Start(&adc);
-                OW_Status status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
-                gpio_state(EN_PERIPH, HIGH);
-                f_open(&_file, "measures.log", FA_CREATE_ALWAYS | FA_READ  | FA_WRITE);
-                f_lseek(&_file, _file.obj.objsize);
-                UINT written_count = 0;
-                char data[128] = {0};
-                f_write(&_file, data, strlen(data), &written_count);
-                f_close(&_file);
-                f_mount(0, "", 1);
-                stop_cortex();
+
+            memcpy(flash_config.FLASH_page_buffer,
+                   system_config.FLASH_page_buffer,
+                   CONFIG_SIZE_64 * sizeof(uint64_t));
+
+            status = read_config_from_SD(&system_config, SYSTEM_CONFIG_PATH,
+                                         config_json, JSON_CONFIG_SIZE);
+            if(status == CONFIG_SD_EMPTY){
+                status = save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH,
+                                           config_json);
+                if(status != CONFIG_OK){
+                    xprintf("Cant save system config to SD card\n");
+                } else {
+                    xprintf("System config saved to SD card\n");
+                }
+            } else {
+                if(memcmp(system_config.FLASH_page_buffer,
+                          flash_config.FLASH_page_buffer,
+                          CONFIG_SIZE_64 * sizeof(uint64_t))){
+                    xprintf("System config loaded from SD card\n");
+                    save_system_config_to_FLASH(&system_config);
+                    if(system_config.immediate_applying){
+                        xprintf("Immediately applying option has been activated."\
+                                "\nFor applying new config the system will be restarted\n");
+                        DWT_Delay_ms(1);
+                        __NVIC_SystemReset();
+                    } else {
+                        xprintf("For applying new config restart system\n");
+                    }
+                }
+
             }
         } else {
             xprintf("SD Card not mounted\n");
@@ -265,9 +332,80 @@ void System_Init(){
         xprintf("SD Card initialization failed\n");
     }
 
+
+    if(system_config.action_mode == 1){
+        RTC_auto_wakeup_enable(system_config.wakeup_period);
+        sensors_bus.power_on();
+        DWT_Delay_ms(50);
+        ADC_Start(&adc);
+        if(sensors_bus.found_amount == 0){
+            ow_status = OW_EMPTY_BUS;
+        } else {
+            ow_status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
+        }
+        ADC_WaitMeasures(&adc, 10000);
+        sensors_bus.power_off();
+
+        f_open(&_file, "measures.log", FA_OPEN_ALWAYS | FA_READ  | FA_WRITE);
+        if(f_size(&_file) == 0){
+            sd_ptr += xsprintf(sd_log + sd_ptr, "Module id: %d\n\n", system_config.module_id);
+            for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "T%02d: [0x%016llX]\n", i + 1,
+                                    sensors_bus.is_calibrated ?
+                                    sensors_bus.serials[i] :
+                                    sensors_bus.sensors[i].serialNumber->serial_code);
+            }
+            sd_ptr += xsprintf(sd_log + sd_ptr, "\n");
+            sd_ptr += xsprintf(sd_log + sd_ptr, "%-25s", "Timestamp");
+            for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "T%02d    ", i + 1);
+            }
+            for(uint8_t i = 0; i < 11; i++){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "A%02d   ", i + 1);
+            }
+            sd_ptr += xsprintf(sd_log + sd_ptr, "VDDA\n");
+        }
+
+        sd_ptr += RTC_string_datetime(sd_log + sd_ptr);
+        sd_ptr += xsprintf(sd_log + sd_ptr, "  ");
+        for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+            sd_ptr += xsprintf(sd_log + sd_ptr, "%.2f  ",
+                                sensors_bus.sensors[i].temperature);
+        }
+        for(uint8_t i = 0; i < 11; i++){
+            sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d  ",
+                                adc.reg_channel_queue[i].result_mv);
+        }
+        sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d\n", adc.vdda_mvolt);
+        f_lseek(&_file, _file.obj.objsize);
+        f_write(&_file, sd_log, sd_ptr, &written_count);
+        f_close(&_file);
+
+        if(ow_status != OW_OK) {
+            f_open(&_file, "errors.log", FA_OPEN_ALWAYS | FA_READ  | FA_WRITE);
+            f_lseek(&_file, _file.obj.objsize);
+            sd_ptr += RTC_string_datetime(sd_log + sd_ptr);
+            sd_ptr += xsprintf(sd_log + sd_ptr, "  ");
+            if(ow_status == OW_EMPTY_BUS){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "Empty bus\n");
+            } else if(ow_status == OW_TIMEOUT){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "Timeout\n");
+            } else if(ow_status == OW_ROM_FINDING_ERROR){
+                sd_ptr += xsprintf(sd_log + sd_ptr, "ROM_FINDING_ERROR\n");
+            } else {
+                sd_ptr += xsprintf(sd_log + sd_ptr, "ERROR\n");
+            }
+            f_write(&_file, sd_log, strlen(sd_log), &written_count);
+            f_close(&_file);
+        }
+        f_mount(0, "", 1);
+        stop_cortex();
+    }
+
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;
     sx127x.delay = vTaskDelay;
+
 }
 
 

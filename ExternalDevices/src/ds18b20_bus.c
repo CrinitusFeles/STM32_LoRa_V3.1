@@ -138,6 +138,7 @@ DS18B20_BUS_Status Calibration_routine(DS18B20_BUS *bus){
     status = waiting_cooling_down(bus, initial_temperature, CALIBRATION_TEMP_DELTA);
     if(status != OW_OK) return (DS18B20_BUS_Status)status;
     bus->greetings();
+    IWDG->KR = 0xAAAA;
     status = RecognitionRoutine(bus, initial_temperature, sorted_nums);
     if(status != OW_OK) return (DS18B20_BUS_Status)status;
     if(!is_unic_set(sorted_nums, TEMP_SENSOR_AMOUNT)){

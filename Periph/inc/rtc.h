@@ -43,7 +43,7 @@ void RTC_set_time(uint32_t time_reg);
 uint16_t RTC_string_datetime(char *str);
 uint32_t RTC_struct_brief_time_converter(RTC_struct_brief *br_data);
 uint32_t RTC_struct_brief_date_converter(RTC_struct_brief *br_data);
-uint8_t RTC_Init();
+uint8_t RTC_Init(int16_t ppm);
 
 extern RTC_struct_brief current_rtc;
 #endif /* CODE_HEADER_RTC_H_ */

@@ -1,7 +1,7 @@
 
 #include "iwdg.h"
 #include "stm32l4xx.h"
-#define LSI_CLK      40000  // 40 KHz
+#define LSI_CLK      32000  // 40 KHz
 
 uint16_t IWDG_init(uint16_t period_ms){
     IWDG->KR = 0x0000CCCC;

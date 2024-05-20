@@ -165,18 +165,23 @@ void xputc (
 }
 
 
-void xfputc (			/* Put a character to the specified device */
+int xfputc (			/* Put a character to the specified device */
 	void(*func)(int),	/* Pointer to the output function (null:strptr) */
 	int chr				/* Character to be output */
 )
 {
-	if (XF_CRLF && chr == '\n') xfputc(func, '\r');	/* CR -> CRLF */
+    int counter = 1;
+	if (XF_CRLF && chr == '\n') {
+        xfputc(func, '\r');	/* CR -> CRLF */
+        counter = 2;
+    }
 
 	if (func) {
 		func(chr);		/* Write a character to the output device */
 	} else if (strptr) {
 		 *strptr++ = chr;	/* Write a character to the memory */
 	}
+    return counter;
 }
 
 
@@ -230,13 +235,14 @@ void xfputs (			/* Put a string to the specified device */
     xprintf("%.4E", 123.45678);		"1.2346E+02"	<XF_USE_FP>
 */
 
-static void xvfprintf (
+static int xvfprintf (
 	void(*func)(int),	/* Pointer to the output function */
 	const char*	fmt,	/* Pointer to the format string */
 	va_list arp			/* Pointer to arguments */
 )
 {
 	unsigned int r, i, j, w, f;
+    int counter = 0;
 	int n, prec;
 	char str[SZB_OUTPUT], c, d, *p, pad;
 #if XF_USE_LLI
@@ -251,7 +257,8 @@ static void xvfprintf (
 		c = *fmt++;					/* Get a format character */
 		if (!c) break;				/* End of format? */
 		if (c != '%') {				/* Pass it through if not a % sequense */
-			xfputc(func, c); continue;
+            counter += xfputc(func, c);
+            continue;
 		}
 		f = w = 0;			 		/* Clear parms */
 		pad = ' '; prec = -1;
@@ -309,28 +316,42 @@ static void xvfprintf (
 		case 'X':					/* Hexdecimal (upper case) */
 			r = 16; break;
 		case 'c':					/* A character */
-			xfputc(func, (char)va_arg(arp, int)); continue;
+            counter += xfputc(func, (char)va_arg(arp, int));;
+            continue;
 		case 's':					/* String */
 			p = va_arg(arp, char*);		/* Get a pointer argument */
 			if (!p) p = "";				/* Null ptr generates a null string */
 			j = strlen(p);
 			if (prec >= 0 && j > (unsigned int)prec) j = prec;	/* Limited length of string body */
-			for ( ; !(f & 2) && j < w; j++) xfputc(func, pad);	/* Left pads */
-			while (*p && prec--) xfputc(func, *p++);/* String body */
-			while (j++ < w) xfputc(func, ' ');		/* Right pads */
+			for ( ; !(f & 2) && j < w; j++) {
+                counter += xfputc(func, pad);	/* Left pads */
+            }
+			while (*p && prec--) {
+                counter += xfputc(func, *p++);  /* String body */
+            }
+			while (j++ < w) {
+                counter += xfputc(func, ' ');		/* Right pads */
+            }
 			continue;
 #if XF_USE_FP
 		case 'f':					/* Float (decimal) */
 		case 'e':					/* Float (e) */
 		case 'E':					/* Float (E) */
 			ftoa(p = str, va_arg(arp, double), prec, c);	/* Make fp string */
-			for (j = strlen(p); !(f & 2) && j < w; j++) xfputc(func, pad);	/* Left pads */
-			while (*p) xfputc(func, *p++);		/* Value */
-			while (j++ < w) xfputc(func, ' ');	/* Right pads */
+			for (j = strlen(p); !(f & 2) && j < w; j++) {
+                counter += xfputc(func, pad);	/* Left pads */
+            }
+			while (*p) {
+                counter += xfputc(func, *p++);		/* Value */
+            }
+			while (j++ < w) {
+                counter += xfputc(func, ' ');	/* Right pads */
+            }
 			continue;
 #endif
 		default:					/* Unknown type (passthrough) */
-			xfputc(func, c); continue;
+            counter += xfputc(func, c);;
+            continue;
 		}
 
 		/* Get an integer argument and put it in numeral */
@@ -361,10 +382,17 @@ static void xvfprintf (
 			str[i++] = d + '0';
 		} while (uv != 0 && i < sizeof str);
 		if (f & 1) str[i++] = '-';					/* Sign */
-		for (j = i; !(f & 2) && j < w; j++) xfputc(func, pad);	/* Left pads */
-		do xfputc(func, str[--i]); while (i != 0);	/* Value */
-		while (j++ < w) xfputc(func, ' ');			/* Right pads */
+		for (j = i; !(f & 2) && j < w; j++) {
+            counter += xfputc(func, pad);	/* Left pads */
+        }
+		do {
+            counter += xfputc(func, str[--i]);;
+        } while (i != 0);	/* Value */
+		while (j++ < w) {
+            counter+= xfputc(func, ' ');			/* Right pads */
+        }
 	}
+    return counter;
 }
 
 
@@ -374,7 +402,6 @@ void xprintf (			/* Put a formatted string to the default device */
 )
 {
 	va_list arp;
-
 
 	va_start(arp, fmt);
 	xvfprintf(xfunc_output, fmt, arp);
@@ -397,21 +424,22 @@ void xfprintf (			/* Put a formatted string to the specified device */
 }
 
 
-void xsprintf (			/* Put a formatted string to the memory */
+int xsprintf (			/* Put a formatted string to the memory */
 	char* buff,			/* Pointer to the output buffer */
 	const char*	fmt,	/* Pointer to the format string */
 	...					/* Optional arguments */
 )
 {
 	va_list arp;
-
+    int counter = 0;
 
 	strptr = buff;		/* Enable destination for memory */
 	va_start(arp, fmt);
-	xvfprintf(0, fmt, arp);
+	counter += xvfprintf(0, fmt, arp);
 	va_end(arp);
 	*strptr = 0;		/* Terminate output string */
 	strptr = 0;			/* Disable destination for memory */
+    return counter;
 }
 
 void xsnprintf (			/* Put a formatted string to the memory */

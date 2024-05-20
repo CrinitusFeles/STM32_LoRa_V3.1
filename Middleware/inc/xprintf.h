@@ -22,12 +22,11 @@ extern "C" {
 #if defined(__GNUC__) && __GNUC__ >= 10
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
-
 #if XF_USE_OUTPUT
 #define xdev_out(func) xfunc_output = (void(*)(int))(func)
 extern void (*xfunc_output)(int);
 void xputc (int chr);
-void xfputc (void (*func)(int), int chr);
+int xfputc (void (*func)(int), int chr);
 void xputs (const char* str);
 void xfputs (void (*func)(int), const char* str);
 void xsnprintf (			/* Put a formatted string to the memory */
@@ -36,12 +35,13 @@ void xsnprintf (			/* Put a formatted string to the memory */
 	va_list arp				/* Optional arguments */
 );
 void xprintf (const char* fmt, ...);
-void xsprintf (char* buff, const char* fmt, ...);
+int xsprintf (char* buff, const char* fmt, ...);
 void xfprintf (void (*func)(int), const char* fmt, ...);
 void put_dump (const void* buff, unsigned long addr, int len, size_t width);
 #endif
 
 #if XF_USE_INPUT
+
 #define xdev_in(func) xfunc_input = (int(*)(void))(func)
 extern int (*xfunc_input)(void);
 int xgets (char* buff, int len);

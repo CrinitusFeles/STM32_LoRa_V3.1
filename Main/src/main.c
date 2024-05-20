@@ -105,12 +105,15 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
     xprintf("\nKERNEL PANIC! STACK OVERFLOW AT TASK %s\n", pcTaskName);
     while (1){};
 }
+void vApplicationIdleHook (void){
+    IWDG->KR = 0xAAAA;
+}
 int main(){
     System_Init();
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     xTaskCreate( LED_BLINK, "LED1", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 10, NULL, 2, ( xTaskHandle * ) NULL);
+    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 14, NULL, 2, ( xTaskHandle * ) NULL);
     xTaskCreate( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, ( xTaskHandle * ) NULL);
     vTaskStartScheduler();
 }

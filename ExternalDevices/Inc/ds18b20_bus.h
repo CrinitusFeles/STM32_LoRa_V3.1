@@ -20,6 +20,8 @@ typedef struct DS18B20_BUS{
     void (*on_registration_finished)(void);
     void (*on_cooling_down)(float);
     void (*delay_ms)(uint32_t);
+    void (*power_on)(void);
+    void (*power_off)(void);
 } DS18B20_BUS;
 
 typedef enum{

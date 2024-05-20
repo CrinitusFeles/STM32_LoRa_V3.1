@@ -4,6 +4,8 @@
 
 #define KEY1                        0x45670123
 #define KEY2                        0xCDEF89AB
+#define OPTKEY1                     0x08192A3B
+#define OPTKEY2                     0x4C5D6E7F
 #define FLASH_OPERATION_TIMEOUT     100000
 #define OFFSET_ALIGN_BYTES          8 // 64 bit word
 #define FLASH_PGERR       (FLASH_SR_PGSERR | FLASH_SR_PGAERR | FLASH_SR_WRPERR)
@@ -192,10 +194,28 @@ FLASH_status SetPrefferedBlockNum(uint8_t block_num){
 
 
 FLASH_status FLASH_erase_firmware(uint8_t current_block_num){
-    uint8_t page_amount = current_block_num == 0 ? FW_PAGES_AMOUNT : 0;
-    for (uint8_t i = 0; i < page_amount - 1; i++) {
-        FLASH_status status = FLASH_erase_page(page_amount + i);
+    uint8_t start_page = current_block_num == 0 ? FW_PAGES_AMOUNT : 0;
+    for (uint8_t i = start_page; i < FW_PAGES_AMOUNT - 1 + start_page; i++) {
+        FLASH_status status = FLASH_erase_page(i);
         if(status != FLASH_OK) return status;
     }
     return FLASH_OK;
+}
+
+void FLASH_disable_iwdg_stby(){
+    uint32_t option_bytes = *(uint32_t *)0x1FFF7800;
+    if(option_bytes & FLASH_OPTR_IWDG_STDBY){
+        __disable_irq();
+        if(FLASH_UNLOCK() != FLASH_OK){
+            __enable_irq();
+        }
+        FLASH->OPTKEYR = OPTKEY1;
+        FLASH->OPTKEYR = OPTKEY2;
+        FLASH_wait_operation();
+        FLASH->OPTR &= ~FLASH_OPTR_IWDG_STDBY;
+        FLASH->CR |= FLASH_CR_OPTSTRT;
+        FLASH_wait_operation();
+        FLASH_soft_lock();
+        __enable_irq();
+    }
 }
