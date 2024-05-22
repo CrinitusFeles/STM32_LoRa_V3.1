@@ -94,8 +94,11 @@ void System_Init(){
     xdev_out(uart_print);
     system_config_init(&system_config);
     SystemConfigStatus config_status = init_FLASH_system_config(&system_config);
+    uint8_t prev_config_err = 0;
     if(config_status == CONFIG_VALIDATION_ERROR){
-        while(1){};
+        prev_config_err = 1;
+        system_config_init(&system_config);
+        save_system_config_to_FLASH(&system_config);
     }
     // uint64_t sorted_serials[12] = {0};
     // setvbuf(stdout, NULL, _IONBF, 0);
@@ -155,6 +158,9 @@ void System_Init(){
     if(rtc_status < 0){
         xprintf("\n\033[31mRTC ERROR\033[0m\n");
         BUZZ_beep_repeat(&buzzer, 300, 200, 300, 3);
+    }
+    if(prev_config_err){
+        xprintf("\n\033[31mCONFIG ERROR\033[0m\n");
     }
     xprintf("\nSTARTED FROM 0x%08lX ADDRESS\n", SCB->VTOR);
     char rtc_data[25] = {0};
