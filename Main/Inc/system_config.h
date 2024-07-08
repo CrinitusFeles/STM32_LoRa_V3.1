@@ -42,6 +42,7 @@ typedef union SystemConfig{
         uint8_t lora_sync_word;
         uint8_t lora_tx_power;
         uint8_t lora_preamble;
+        uint64_t res;
 
         uint64_t sensors_serials[12];
         uint64_t pref_block;

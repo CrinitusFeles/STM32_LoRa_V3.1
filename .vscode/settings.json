@@ -40,7 +40,9 @@
         "typeinfo": "c",
         "flash.h": "c",
         "stm32_misc.h": "c",
-        "microrl.h": "c"
+        "microrl.h": "c",
+        "xprintf.h": "c",
+        "json.h": "c"
     },
-    "cortex-debug.variableUseNaturalFormat": true
+    "cortex-debug.variableUseNaturalFormat": false
 }
