@@ -3,7 +3,7 @@
 #include "stm32l4xx.h"
 #include "flash.h"
 
-#define CONFIG_SIZE_64          17  // размер конфига в словах (8 байт)
+#define CONFIG_SIZE_64          18  // размер конфига в словах (8 байт)
 #define JSON_CONFIG_SIZE        512
 #define SYSTEM_CONFIG_PATH      "system_config.json"
 
