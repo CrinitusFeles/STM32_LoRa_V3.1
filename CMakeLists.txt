@@ -45,6 +45,8 @@ file(GLOB_RECURSE SOURCES
         "XModem/*.c"
         "BootLib/*.c"
         "FAT_FS/*.c"
+        "lua-5.4.7/src/*.c"
+        "lua-5.4.7/*.c"
         )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
@@ -59,7 +61,6 @@ endif ()
 set(EXECUTABLE ${PROJECT_NAME}.out)
 
 add_executable(${EXECUTABLE} ${SOURCES})
-
 # Add Include directories
 target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/ExternalDevices/Inc
@@ -73,6 +74,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/XModem
         ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
         ${CMAKE_CURRENT_SOURCE_DIR}/FAT_FS
+        ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)

@@ -42,7 +42,8 @@
         "stm32_misc.h": "c",
         "microrl.h": "c",
         "xprintf.h": "c",
-        "json.h": "c"
+        "json.h": "c",
+        "lauxlib.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": false
 }
