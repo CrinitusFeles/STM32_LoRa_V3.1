@@ -45,8 +45,8 @@ file(GLOB_RECURSE SOURCES
         "XModem/*.c"
         "BootLib/*.c"
         "FAT_FS/*.c"
-        "lua-5.4.7/src/*.c"
-        "lua-5.4.7/*.c"
+        # "lua-5.4.7/src/*.c"
+        # "lua-5.4.7/*.c"
         )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
@@ -74,7 +74,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/XModem
         ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
         ${CMAKE_CURRENT_SOURCE_DIR}/FAT_FS
-        ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
+        # ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)
