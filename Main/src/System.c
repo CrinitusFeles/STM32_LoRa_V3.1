@@ -16,7 +16,7 @@
 
 #define WATCHDOG_PERIOD_MS 2000
 #define WAKEUP_PERIOD_SEC 60 * 20
-#define JSON_CONFIG_SIZE 512
+#define JSON_CONFIG_SIZE 2048
 
 void _close_r(void) {}
 void _lseek_r(void) {}
