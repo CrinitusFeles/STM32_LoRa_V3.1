@@ -46,6 +46,7 @@ void put_dump (const void* buff, unsigned long addr, int len, size_t width);
 extern int (*xfunc_input)(void);
 int xgets (char* buff, int len);
 int xatoi (char** str, long* res);
+int xatoll (char** str, long long* res);
 int xatof (char** str, double* res);
 #endif
 
