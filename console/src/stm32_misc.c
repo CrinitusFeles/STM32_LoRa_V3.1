@@ -58,9 +58,10 @@
 #define _CMD_SAVE_CONFIG "save_config"        // 33
 #define _CMD_CLEAR_CONFIG "clear_config"      // 34
 #define _CMD_UPLOAD_SD_FW "upload_sd_fw"      // 35
-#define _CMD_WATCHDOG "watchdog"              // 35
+#define _CMD_WATCHDOG "watchdog"              // 36
+#define _CMD_MOCK_CALIB "mock_calib"          // 37
 
-#define _NUM_OF_CMD 36
+#define _NUM_OF_CMD 37
 #define FILE_BUFFER 1024
 
 void uart_print(int data){
@@ -83,7 +84,7 @@ char *keyworld[] = {_CMD_HELP,              // 1
                     _CMD_SENS_MEASURE,      // 14
                     _CMD_CALIB_SENSORS,     // 15
                     _CMD_SLEEP,             // 16
-                    _CMD_WATCHDOG,             // 16
+                    _CMD_WATCHDOG,          // 16
                     _CMD_RADIO_CONF,        // 17
                     _CMD_DUMP_MEM,          // 18
                     _CMD_NEOFETCH,          // 19
@@ -102,7 +103,9 @@ char *keyworld[] = {_CMD_HELP,              // 1
                     _CMD_SHOW_CONFIG,       // 32
                     _CMD_SAVE_CONFIG,       // 33
                     _CMD_CLEAR_CONFIG,      // 34
-                    _CMD_UPLOAD_SD_FW};     // 35
+                    _CMD_UPLOAD_SD_FW,      // 36
+                    _CMD_MOCK_CALIB
+                    };
 
 // array for comletion
 char *compl_world[_NUM_OF_CMD + 1];
@@ -937,6 +940,15 @@ int execute(int argc, const char *const *argv) {
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             xmodem_receive(write_addr);
         }
+    } else if (strcmp(argv[0], _CMD_MOCK_CALIB) == 0) {
+        uint64_t test_calibs[12] = {
+            0xDEADBEAF55225511, 0xDEADBEAF55225522, 0xDEADBEAF55225533,
+            0xDEADBEAF55225544, 0xDEADBEAF55225555, 0xDEADBEAF55225566,
+            0xDEADBEAF55225577, 0xDEADBEAF55225588, 0xDEADBEAF55225599,
+            0xDEADBEAF552255AA, 0xDEADBEAF552255BB, 0xDEADBEAF552255CC
+        };
+        memcpy(system_config.sensors_serials, test_calibs, sizeof(uint64_t) * 12);
+        xprintf("test sensors config successfully written\n");
     } else if (strcmp(argv[0], _CMD_ERASE_FIRMWARE) == 0) {
         if (argc != 1) {
             xprintf("erase_firmware cmd does not accept any arguments\n");
