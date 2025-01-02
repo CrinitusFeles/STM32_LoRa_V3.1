@@ -11,6 +11,7 @@
 // JSON parsing API
 int json_get(const char *buf, int len, const char *path, int *size);
 int json_get_num(const char *buf, int len, const char *path, long *val);
+int json_get_big_num(const char *buf, int len, const char *path, long long *val);
 int json_set_num(char *buf, int len, const char *path, long val);
 int json_get_bool(const char *buf, int len, const char *path, int *val);
 int json_get_str(const char *buf, int len, const char *path, char *dst, size_t dlen);

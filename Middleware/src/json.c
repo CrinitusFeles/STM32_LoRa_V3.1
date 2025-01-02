@@ -217,6 +217,26 @@ int json_get_num(const char *buf, int len, const char *path, long *v) {
     return found;
 }
 
+int json_get_big_num(const char *buf, int len, const char *path, long long *v) {
+    int found = 0, n = 0, off = json_get(buf, len, path, &n);
+    char **pptr;
+    char *ptr;
+    char int_buf[25] = {0};
+    if (off >= 0 && (buf[off] == '-' || (buf[off] >= '0' && buf[off] <= '9'))) {
+        if (v != NULL) {
+            // *v = xatod(buf + off, n, NULL);
+            for(int i = 0; i < off + 25 && buf[i + off] != '\0' && buf[i + off] != ',' && buf[i + off] != ']'; i++){
+                int_buf[i] = buf[i + off];
+            }
+            ptr =(char*) int_buf;
+            pptr = &ptr;
+            xatoll(pptr, v);
+        }
+        found = 1;
+    }
+    return found;
+}
+
 /*
 make sure that you have enough buffer space for expansion
 */
