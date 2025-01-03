@@ -20,7 +20,7 @@
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
 
-#define _STM_DEMO_VER "1.1.0"
+#define _STM_DEMO_VER "1.2.0"
 
 // definition commands word
 #define _CMD_HELP "help"                      // 1
