@@ -5,7 +5,7 @@
 #include "ds18b20.h"
 #include "one_wire.h"
 
-#define TEMP_SENSOR_AMOUNT 12
+#define TEMP_SENSOR_AMOUNT 40
 
 typedef struct DS18B20_BUS{
     OneWire *ow;

@@ -1,6 +1,7 @@
 #include "one_wire.h"
 #include "uart.h"
-
+#include "dwt.h"
+#include "iwdg.h"
 // uint8_t check_flag(uint32_t flag){
 //     uint8_t counter = 20000;
 //     while((--counter) && flag);
@@ -28,7 +29,7 @@ OW_Status OW_SendBit(OneWire *ow, uint8_t data, uint8_t *rx_data){
 OW_Status ReadBit(OneWire *ow, uint8_t *rx_data){
     OW_Status status = OW_SendBit(ow, OneWire_read_bit, rx_data);
     if(status != OW_OK) return status;
-    *rx_data = (*rx_data == OneWire_bit_1) ? 1 : 0;
+    *rx_data = (*rx_data > 0xFA) ? 1 : 0;
     return status;
 }
 
@@ -73,7 +74,7 @@ OW_Status OW_Write(OneWire *ow, uint8_t byte){
         uint8_t next_bit = ((byte >> i) & 0x01);
         status = OW_SendBit(ow, next_bit, &rx_buffer);
         if(status != OW_OK) return status;
-        rx_buffer |= ((rx_buffer == OneWire_bit_1) ? 1 : 0) << i;
+        rx_buffer |= ((rx_buffer > 0xFA) ? 1 : 0) << i;
     }
     return status;
 }
@@ -169,6 +170,7 @@ OW_Status OW_SearchDevices(OneWire *ow, uint8_t *sensors_amount) {
     InitStruct(ow);
     while (nextROM && device_counter < MAXDEVICES_ON_THE_BUS){
         status = hasNextRom(ow, (uint8_t *)(&ow->ids[device_counter]), &nextROM);
+        IWDG_refresh();
         if (status != OW_OK) return status;
         ow->crc_status[device_counter] = CRC8_ROM((uint8_t *)(&ow->ids[device_counter]), 8);
         if (nextROM != 0)
