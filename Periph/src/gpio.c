@@ -133,8 +133,13 @@ void gpio_exti_init(GPIO_Pin gpio, uint8_t mode){
             EXTI->FTSR1 |= 1 << pin;
         }
         SYSCFG->EXTICR[pin / 4] |= port_num << (4 * (pin % 4));
-        if(pin < 5) NVIC_EnableIRQ(EXTI4_IRQn);
+        if (pin == 0) NVIC_EnableIRQ(EXTI0_IRQn);
+        else if(pin == 1) NVIC_EnableIRQ(EXTI1_IRQn);
+        else if(pin == 2) NVIC_EnableIRQ(EXTI2_IRQn);
+        else if(pin == 3) NVIC_EnableIRQ(EXTI3_IRQn);
+        else if(pin == 4) NVIC_EnableIRQ(EXTI4_IRQn);
         else if(pin < 10) NVIC_EnableIRQ(EXTI9_5_IRQn);
         else if(pin < 16) NVIC_EnableIRQ(EXTI15_10_IRQn);
+        else while(1);
     }
 }
