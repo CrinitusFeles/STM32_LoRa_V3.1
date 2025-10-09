@@ -1,6 +1,7 @@
 #include "sx127x.h"
 #include "sx127x_misc.h"
 #include <math.h>
+#include "iwdg.h"
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
@@ -128,22 +129,37 @@ void LoRa_set_LDRO(LoRa* _LoRa, uint8_t ldro){
 	LoRa_Delay(_LoRa, 10);
 }
 
-uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length){
+uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint16_t length){
 	volatile uint8_t read;
 	// int mode = _LoRa->current_mode;
 	LoRa_gotoMode(_LoRa, STNBY_MODE);
 	LoRa_writeRegister(_LoRa, RegIrqFlags, 0xFF);
 	read = LoRa_readRegister(_LoRa, RegOpMode);
 	read = LoRa_readRegister(_LoRa, RegFiFoTxBaseAddr);
-	LoRa_writeRegister(_LoRa, RegFiFoAddPtr, read);
-	LoRa_writeRegister(_LoRa, RegPayloadLength, length);
-	LoRa_writeRegisters(_LoRa, RegFiFo, data, length);
-	read = LoRa_readRegister(_LoRa, RegOpMode);
-	LoRa_gotoMode(_LoRa, TRANSMIT_MODE);
+    uint16_t counter = 0;
+    uint8_t chunk_size = 255;
+    while(counter < length){
+        LoRa_writeRegister(_LoRa, RegFiFoAddPtr, read);
+        LoRa_writeRegister(_LoRa, RegPayloadLength, length);
+        LoRa_writeRegisters(_LoRa, RegFiFo, data, length);
+        read = LoRa_readRegister(_LoRa, RegOpMode);
+        _LoRa->transmitting_progress = 1;
+        LoRa_gotoMode(_LoRa, TRANSMIT_MODE);
+        while(1){
+            uint8_t irq_flags = LoRa_readRegister(_LoRa, RegIrqFlags);
+            read = LoRa_readRegister(_LoRa, RegOpMode);
+            if(read != TRANSMIT_MODE && (irq_flags & LORA_IRQ_TX_DONE))
+                break;
+        }
+        _LoRa->transmitting_progress = 0;
+        _LoRa->tx_data.dlen = 0;
+        IWDG_refresh();
+        counter += chunk_size;
+    }
 	// модуль ненадолго переходит в режим отправки, после чего возвращается в режим ожидания или приема.
 	// Поэтому нет смысла пытаться прочитать из регистра режим отправки.
-    uint16_t delay = Calc_TOA(length, 8, 10, 125, 1, 1, 1, 1);
-    LoRa_Delay(_LoRa, delay);
+    // uint16_t delay = Calc_TOA(length, 8, 10, 125, 1, 1, 1, 1);
+    // LoRa_Delay(_LoRa, delay);
     LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
 	return 1;
 }

@@ -2,6 +2,7 @@
 #define INC_SX1278_H
 
 #include "stm32l4xx.h"
+#include "radio_protocol.h"
 
 #define TRANSMIT_TIMEOUT	2000
 #define RECEIVE_TIMEOUT		2000
@@ -117,9 +118,10 @@ typedef struct LoRa_setting{
 	uint8_t			overCurrentProtection;
     uint8_t         ldro;
 
-    uint8_t         got_new_packet;
-    uint8_t         rx_buffer[255];
-    uint8_t         tx_buffer[255];
+    uint8_t         new_rx_data_flag;
+    RadioProtocol   rx_data;
+    RadioProtocol   tx_data;
+    uint8_t transmitting_progress;
     void (*delay)(uint32_t milli);
 } LoRa;
 
@@ -132,7 +134,7 @@ void LoRa_setPower(LoRa* _LoRa, uint8_t power);
 void LoRa_setOCP(LoRa* _LoRa, uint8_t current);
 void LoRa_set_LDRO(LoRa* _LoRa, uint8_t ldro);
 void LoRa_setTOMsb_setCRCon(LoRa* _LoRa);
-uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint8_t length);
+uint8_t LoRa_transmit(LoRa* _LoRa, uint8_t *data, uint16_t length);
 void LoRa_startReceiving(LoRa* _LoRa);
 uint8_t LoRa_receive(LoRa* _LoRa, uint8_t* data, uint8_t length);
 int LoRa_getRSSI(LoRa* _LoRa);

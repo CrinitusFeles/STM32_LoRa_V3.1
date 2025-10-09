@@ -2,6 +2,7 @@
 #define INC_SX126X_H_
 
 #include "stm32l4xx.h"
+#include "radio_protocol.h"
 #include "gpio.h"
 /***************************   Opcodes  ************************************/
 #define OPCODE_RESET_STATS              0x00
@@ -162,21 +163,12 @@ typedef struct SX126x_Mode{
     SX126x_CMD_Status cmd : 3;
 } SX126x_Mode;
 
-typedef struct SX126x{
-
-	// Hardware setings:
-    SX126x_GPIO gpio;
-
-	SPI_TypeDef *spi;
-
-	// Module  gs:
-    SX126x_Mode mode;
-    uint8_t self_addr;
+typedef struct SX126x_Config{
     uint8_t packet_type;
 	uint32_t frequency;
     uint8_t header_type;
     uint8_t crc_on_off;
-	uint8_t	spredingFactor;
+	uint8_t	spreadingFactor;
 	uint8_t	bandWidth;
 	uint8_t	crcRate;
 	uint16_t preamble_len;
@@ -186,6 +178,18 @@ typedef struct SX126x{
     uint8_t low_data_rate_optim;
     uint8_t iq_polarity;
     uint16_t sync_word;
+ } SX126x_Config;
+
+typedef struct SX126x{
+
+	// Hardware setings:
+    SX126x_GPIO gpio;
+
+	SPI_TypeDef *spi;
+
+	// Module  gs:
+    SX126x_Mode mode;
+    SX126x_Config config;
     // ------- rx_packet data -----
     uint8_t new_rx_data_flag;
     uint8_t rssi;
@@ -195,12 +199,14 @@ typedef struct SX126x{
     uint8_t rx_buf_ptr;
     SX126x_IRQ_Status irq_status;
     uint8_t busy_issues;
-    uint8_t rx_data[128];
+    RadioProtocol rx_data;
+    RadioProtocol tx_data;
     uint8_t packet_configured;
+    uint8_t transmitting_progress;
 } SX126x;
 
 void SX126x_Init(SX126x *driver);
-void SX126x_SendData(SX126x *driver, uint8_t *data, uint8_t data_len);
+void SX126x_SendData(SX126x *driver, uint8_t *data, uint16_t data_len);
 void SX126x_RxHandler(SX126x *driver);
 void SX126x_RxDataParse(SX126x *driver);
 
@@ -236,7 +242,7 @@ void SX126x_SetSyncWord(SX126x *driver, uint16_t sync_word);
 void SX126x_SetDIO2AsRfSwitchCtr(SX126x *driver, uint8_t enable);
 void SX126x_SetDioIrqParams(SX126x *driver, uint16_t irq_mask, uint16_t dio1_mask, uint16_t dio2_mask, uint16_t dio3_mask);
 
-
+uint8_t SX126x_IsTransmitting(SX126x *driver);
 extern SX126x SX1268;
 
 #endif  // INC_SX126X_H_
