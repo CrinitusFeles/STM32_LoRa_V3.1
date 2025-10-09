@@ -1,3 +1,44 @@
+// 0x2102187c0e64ff28
+// 0x6e6f0c7c0e64ff28
+// 0x753a097c0e64ff28
+// 0x796a1d7c0e64ff28
+// 0xc4711d7c0e64ff28
+// 0xbf84037c0e64ff28
+// 0x2bd915720e64ff28
+// 0xc70403720e64ff28
+// 0x6fd51f720e64ff28
+// 0xd2ca246a0e64ff28
+// 0xb01a1b6a0e64ff28
+// 0xd544ba710e64ff28
+// 0xe67381710e64ff28
+// 0x4b5fb1710e64ff28
+// 0xa243a5710e64ff28
+// 0x69c5bd710e64ff28
+// 0xfde3607d0e64ff28
+// 0x9de487d0e64ff28
+// 0xe315487d0e64ff28
+// 0xa7064c7d0e64ff28
+// 0xc787457d0e64ff28
+// 0x4cd5557d0e64ff28
+// 0xe82a577d0e64ff28
+// 0x8d95f7d0e64ff28
+// 0x509986730e64ff28
+// 0x33528b730e64ff28
+// 0x85aa8b730e64ff28
+// 0x517dd46b0e64ff28
+// 0x9b9cc66b0e64ff28
+// 0x2d10366b0e64ff28
+// 0xf51abb6b0e64ff28
+// 0x2f7c376b0e64ff28
+// 0x7639287f0e64ff28
+// 0xd56e547f0e64ff28
+// 0x45e6ea7f0e64ff28
+// 0x83f5f97f0e64ff28
+// 0x342ae57f0e64ff28
+// 0xeebee37f0e64ff28
+// 0xbdd97b7f0e64ff28
+// 0xa8ae77f0e64ff28
+
 #include "FreeRTOS.h"
 #include "buzzer.h"
 #include "ds18b20_bus.h"
@@ -14,9 +55,8 @@
 #include "task.h"
 #include "xprintf.h"
 
-#define WATCHDOG_PERIOD_MS 2000
+#define WATCHDOG_PERIOD_MS 5000
 #define WAKEUP_PERIOD_SEC 60 * 20
-#define JSON_CONFIG_SIZE 2048
 
 void _close_r(void) {}
 void _lseek_r(void) {}
@@ -36,13 +76,13 @@ tBuzzer buzzer;
 microrl_t rl;
 // logging_init_t logger;
 LoRa sx127x;
-
+SX126x SX1268;
 // FRESULT res;
-DS18B20 sensors[12];
+DS18B20 sensors[TEMP_SENSOR_AMOUNT];
 DS18B20_BUS sensors_bus;
 OneWire ow;
 SystemConfig system_config;
-char config_json[JSON_CONFIG_SIZE] = {0};
+char config_json[JSON_STR_CONFIG_SIZE] = {0};
 
 void on_greetings() {
     if (system_config.enable_beep) {
@@ -112,15 +152,19 @@ void System_Init() {
     gpio_init(LoRa_SCK, PB3_SPI1_SCK, Push_pull, no_pull, High_speed);
     gpio_init(LoRa_NSS, General_output, Push_pull, no_pull, High_speed);
     gpio_init(LoRa_DIO0, Input_mode, Open_drain, no_pull, Input);
+    // gpio_init(LoRa_DIO1, Input_mode, Open_drain, no_pull, Input);
+    gpio_init(LoRa_BUSY, Input_mode, Open_drain, no_pull, Input);
     gpio_init(BUZZ, PB15_TIM15_CH2, Push_pull, no_pull, Very_high_speed);
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
-    gpio_init(UART3_TX, PB10_USART3_TX, Push_pull, pull_up, High_speed);
+    gpio_init(UART3_TX, PB10_USART3_TX, Open_drain, no_pull, High_speed);
 
     gpio_state(EN_SD, LOW);
     gpio_state(EN_LORA, LOW);
     gpio_state(LoRa_NSS, HIGH);
+    gpio_state(EN_PERIPH, LOW);
 
     gpio_exti_init(LoRa_DIO0, 0);
+    // gpio_exti_init(LoRa_DIO1, 0);
 
     UART_init(USART1, 76800, FULL_DUPLEX);
 
@@ -173,7 +217,7 @@ void System_Init() {
         .spredingFactor = system_config.lora_sf,
         .ldro = system_config.lora_ldro,
         .overCurrentProtection = 120,
-        .got_new_packet = 0,
+        .new_rx_data_flag = 0,
         .delay = DWT_Delay_ms,
     };
     if (LoRa_init(&sx127x) == LORA_OK) {
@@ -183,10 +227,48 @@ void System_Init() {
     } else {
         xprintf("Radio initialization failed!\n");
     }
+    // SX1268 = (SX126x){
+    //     .gpio = (SX126x_GPIO){
+    //         .busy_pin = LoRa_BUSY,
+    //         .CS_pin = LoRa_NSS,
+    //         .MISO_pin = LoRa_MISO,
+    //         .MOSI_pin = LoRa_MOSI,
+    //         .SCK_pin = LoRa_SCK,
+    //         .reset_pin = EN_LORA,
+    //         .DIO1_pin = LoRa_DIO1,
+    //         .__MISO_AF_pin = PB4_SPI1_MISO,
+    //         .__MOSI_AF_pin = PB5_SPI1_MOSI,
+    //         .__SCK_AF_pin = PB3_SPI1_SCK,
+    //     },
+    //     .spi = LoRa_SPI,
+    //     .config = (SX126x_Config){
+    //         .frequency = 433000000,
+    //         .header_type = 0x00,
+    //         .preamble_len = 8,
+    //         .bandWidth = 0x05, // BW250
+    //         .crcRate = 0x01,  // CR4/5
+    //         .crc_on_off = 0x01,
+    //         .iq_polarity = 0x00,
+    //         .low_data_rate_optim = 0x01,
+    //         .packet_type = 0x01, // LoRa
+    //         .spreadingFactor = 7,
+    //         .power_dbm = 15,
+    //         .ramping_time = 0x03,
+    //         .sync_word = 0x1424, // 0x12 (0x3444 = 0x34)
+    //     },
+    //     .rx_data = {0},
+    //     .tx_data = {0},
+    // };
+
     buzzer = (tBuzzer){.channel = PWM_CH2, .TIMx = TIM15, .delay = DWT_Delay_ms};
     if (system_config.enable_beep) {
         BUZZ_beep(&buzzer, 500, 50);
     }
+    // SX126x_Init(&SX1268);
+    // uint8_t tx_data[] = "hello world!";
+    // SX126x_SendData(&SX1268, tx_data, 12);
+    // SX126x_GetStatus(&SX1268);
+    LoRa_transmit(&sx127x, (uint8_t *)"hello world!", 12);
     ow = (OneWire){.uart = USART3};
 
     for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
@@ -217,6 +299,14 @@ void System_Init() {
             break;
         }
     }
+
+    // uint8_t devices_count = 0;
+    // OW_SearchDevices(&ow, &devices_count);
+    // for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+    //     system_config.sensors_serials[i] = ow.ids[i].serial_code;
+    //     sensors_bus.sensors[i].serialNumber = &(ow.ids[i]);
+    // }
+    // xprintf("founded %d devices", devices_count);
 
     adc = (ADC){
         .ADCx = ADC1,
@@ -272,7 +362,7 @@ void System_Init() {
 
             memcpy(flash_config.FLASH_page_buffer, system_config.FLASH_page_buffer, CONFIG_SIZE_64 * sizeof(uint64_t));
 
-            status = read_config_from_SD(&system_config, SYSTEM_CONFIG_PATH, config_json, JSON_CONFIG_SIZE);
+            status = read_config_from_SD(&system_config, SYSTEM_CONFIG_PATH, config_json, JSON_STR_CONFIG_SIZE);
             if (status == CONFIG_SD_EMPTY) {
                 status = save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json);
                 if (status != CONFIG_OK) {

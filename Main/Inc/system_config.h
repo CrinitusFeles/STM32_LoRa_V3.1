@@ -3,8 +3,8 @@
 #include "stm32l4xx.h"
 #include "flash.h"
 
-#define CONFIG_SIZE_64          18  // размер конфига в словах (8 байт)
-#define JSON_CONFIG_SIZE        2048
+#define CONFIG_SIZE_64          52  // размер конфига в словах (8 байт)
+#define JSON_STR_CONFIG_SIZE    4096
 #define SYSTEM_CONFIG_PATH      "system_config.json"
 
 typedef enum SystemConfigStatus{
@@ -31,20 +31,20 @@ typedef union SystemConfig{
 
         uint32_t wakeup_period;  // 2
         uint32_t uart_speed;
-        int32_t rtc_ppm;
+        int32_t rtc_ppm;  // 3
 
-        uint32_t lora_freq;  // 3
-        uint8_t lora_sf;
+        uint32_t lora_freq;
+        uint8_t lora_sf;  // 4
         uint8_t lora_bw;
         uint8_t lora_cr;
-        uint8_t lora_crc_en;  // 4
+        uint8_t lora_crc_en;
         uint8_t lora_ldro;
         uint8_t lora_sync_word;
         uint8_t lora_tx_power;
         uint8_t lora_preamble;
-        uint64_t res;
+        uint64_t res;  // 5
 
-        uint64_t sensors_serials[12];
+        uint64_t sensors_serials[45];  // 6
         uint64_t pref_block;
     };
 } SystemConfig;
@@ -61,6 +61,6 @@ SystemConfigStatus save_config_to_SD(SystemConfig *config, char *path,
 SystemConfigStatus read_config_from_SD(SystemConfig *config, char *path,
                                        char *json, uint16_t json_size);
 extern SystemConfig system_config;
-extern char config_json[JSON_CONFIG_SIZE];
+extern char config_json[JSON_STR_CONFIG_SIZE];
 
 #endif

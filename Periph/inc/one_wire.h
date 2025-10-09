@@ -8,7 +8,7 @@
 #define OneWire_read_bit       0xFF
 #define OneWire_reset_cmd      0xF0
 
-#define MAXDEVICES_ON_THE_BUS  40
+#define MAXDEVICES_ON_THE_BUS  45
 #define OneWire_ROM_ID_lenth   64
 
 typedef enum{

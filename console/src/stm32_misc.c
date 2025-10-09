@@ -676,7 +676,7 @@ int execute(int argc, const char *const *argv) {
         }
     } else if (strcmp(argv[0], _CMD_SHOW_CONFIG) == 0) {
         if(argc <= 2){
-            char tmp_json[JSON_CONFIG_SIZE] = {0};
+            char tmp_json[JSON_STR_CONFIG_SIZE] = {0};
             SystemConfig tmp_config;
             if(argc == 2){
                 if(strcmp(argv[1], "FLASH") == 0){

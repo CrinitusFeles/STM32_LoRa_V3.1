@@ -6,6 +6,7 @@
 #include "xprintf.h"
 #include "json.h"
 #include "ff.h"
+#include "ds18b20_bus.h"
 
 
 
@@ -85,15 +86,15 @@ void system_config_init(SystemConfig *config){
     config->uart_speed = 76800;
     config->rtc_ppm = -300;
     config->lora_freq = 435000000;
-    config->lora_sf = 10;
-    config->lora_bw = 7;
+    config->lora_sf = 7;
+    config->lora_bw = 8;
     config->lora_cr = 1;
     config->lora_crc_en = 1;
     config->lora_ldro = 0;
     config->lora_sync_word = 0x12;
     config->lora_tx_power = 0xF6;
     config->lora_preamble = 8;
-    memset(config->sensors_serials, 0xFF, 12 * sizeof(uint64_t));
+    memset(config->sensors_serials, 0xFF, TEMP_SENSOR_AMOUNT * sizeof(uint64_t));
 }
 
 void system_config_to_str(SystemConfig *config, char *buf){
@@ -131,7 +132,40 @@ void system_config_to_str(SystemConfig *config, char *buf){
     "    \"temp_sensor_id9\": %llu,\n"\
     "    \"temp_sensor_id10\": %llu,\n"\
     "    \"temp_sensor_id11\": %llu,\n"\
-    "    \"temp_sensor_id12\": %llu\n"\
+    "    \"temp_sensor_id12\": %llu,\n"\
+    "    \"temp_sensor_id13\": %llu,\n"\
+    "    \"temp_sensor_id14\": %llu,\n"\
+    "    \"temp_sensor_id15\": %llu,\n"\
+    "    \"temp_sensor_id16\": %llu,\n"\
+    "    \"temp_sensor_id17\": %llu,\n"\
+    "    \"temp_sensor_id18\": %llu,\n"\
+    "    \"temp_sensor_id19\": %llu,\n"\
+    "    \"temp_sensor_id20\": %llu,\n"\
+    "    \"temp_sensor_id21\": %llu,\n"\
+    "    \"temp_sensor_id22\": %llu,\n"\
+    "    \"temp_sensor_id23\": %llu,\n"\
+    "    \"temp_sensor_id24\": %llu,\n"\
+    "    \"temp_sensor_id25\": %llu,\n"\
+    "    \"temp_sensor_id26\": %llu,\n"\
+    "    \"temp_sensor_id27\": %llu,\n"\
+    "    \"temp_sensor_id28\": %llu,\n"\
+    "    \"temp_sensor_id29\": %llu,\n"\
+    "    \"temp_sensor_id30\": %llu,\n"\
+    "    \"temp_sensor_id31\": %llu,\n"\
+    "    \"temp_sensor_id32\": %llu,\n"\
+    "    \"temp_sensor_id33\": %llu,\n"\
+    "    \"temp_sensor_id34\": %llu,\n"\
+    "    \"temp_sensor_id35\": %llu,\n"\
+    "    \"temp_sensor_id36\": %llu,\n"\
+    "    \"temp_sensor_id37\": %llu,\n"\
+    "    \"temp_sensor_id38\": %llu,\n"\
+    "    \"temp_sensor_id39\": %llu,\n"\
+    "    \"temp_sensor_id40\": %llu,\n"\
+    "    \"temp_sensor_id41\": %llu,\n"\
+    "    \"temp_sensor_id42\": %llu,\n"\
+    "    \"temp_sensor_id43\": %llu,\n"\
+    "    \"temp_sensor_id44\": %llu,\n"\
+    "    \"temp_sensor_id45\": %llu\n"\
     "}\n",
     config->config_addr,
     config->serials_addr,
@@ -165,16 +199,46 @@ void system_config_to_str(SystemConfig *config, char *buf){
     config->sensors_serials[8],
     config->sensors_serials[9],
     config->sensors_serials[10],
-    config->sensors_serials[11]
+    config->sensors_serials[11],
+    config->sensors_serials[12],
+    config->sensors_serials[13],
+    config->sensors_serials[14],
+    config->sensors_serials[15],
+    config->sensors_serials[16],
+    config->sensors_serials[17],
+    config->sensors_serials[18],
+    config->sensors_serials[19],
+    config->sensors_serials[20],
+    config->sensors_serials[21],
+    config->sensors_serials[22],
+    config->sensors_serials[23],
+    config->sensors_serials[24],
+    config->sensors_serials[25],
+    config->sensors_serials[26],
+    config->sensors_serials[27],
+    config->sensors_serials[28],
+    config->sensors_serials[29],
+    config->sensors_serials[30],
+    config->sensors_serials[31],
+    config->sensors_serials[32],
+    config->sensors_serials[33],
+    config->sensors_serials[34],
+    config->sensors_serials[35],
+    config->sensors_serials[36],
+    config->sensors_serials[37],
+    config->sensors_serials[38],
+    config->sensors_serials[39],
+    config->sensors_serials[40],
+    config->sensors_serials[41],
+    config->sensors_serials[42],
+    config->sensors_serials[43],
+    config->sensors_serials[44],
+    config->sensors_serials[45]
     );
 }
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
-    // char str_buf[10] = "";
-    // json_get_str(buf, buf_len, "$.config_addr", str_buf, 10);
-    // config->config_addr = xsprintf(str_buf, "%d");
-    // json_get_str(buf, buf_len, "$.serials_addr", str_buf, 10);
-    // config->serials_addr = xsprintf(str_buf, "%d");
+    char str_buf[30] = "";
     json_get_num(buf, buf_len, "$.config_addr", (long *)&config->config_addr);
     json_get_num(buf, buf_len, "$.serials_addr", (long *)&config->serials_addr);
     json_get_num(buf, buf_len, "$.config_page", (long *)&config->config_page);
@@ -196,18 +260,10 @@ void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     json_get_num(buf, buf_len, "$.lora_sync_word", (long *)&config->lora_sync_word);
     json_get_num(buf, buf_len, "$.lora_tx_power", (long *)&config->lora_tx_power);
     json_get_num(buf, buf_len, "$.lora_preamble", (long *)&config->lora_preamble);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id1", (long long*)&config->sensors_serials[0]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id2", (long long*)&config->sensors_serials[1]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id3", (long long*)&config->sensors_serials[2]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id4", (long long*)&config->sensors_serials[3]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id5", (long long*)&config->sensors_serials[4]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id6", (long long*)&config->sensors_serials[5]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id7", (long long*)&config->sensors_serials[6]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id8", (long long*)&config->sensors_serials[7]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id9", (long long*)&config->sensors_serials[8]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id10", (long long*)&config->sensors_serials[9]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id11", (long long*)&config->sensors_serials[10]);
-    json_get_big_num(buf, buf_len, "$.temp_sensor_id12", (long long*)&config->sensors_serials[11]);
+    for(uint8_t i = 0; i < 45; i++){
+        xsprintf(str_buf, "$.temp_sensor_id%d", i+1);
+        json_get_big_num(buf, buf_len, str_buf, (long long*)&config->sensors_serials[i]);
+    }
 }
 
 SystemConfigStatus read_FLASH_system_config(SystemConfig *config){
@@ -241,7 +297,7 @@ SystemConfigStatus save_config_to_SD(SystemConfig *config, char *path,
     UINT written_count = 0;
     UINT read_count = 0;
     uint16_t json_len;
-    char json_old[JSON_CONFIG_SIZE] = {0};
+    char json_old[JSON_STR_CONFIG_SIZE] = {0};
 
     if(validate_config(config) != CONFIG_OK){
         return CONFIG_VALIDATION_ERROR;
@@ -250,7 +306,7 @@ SystemConfigStatus save_config_to_SD(SystemConfig *config, char *path,
     json_len = strlen(json);
     if(f_open(&file, path, FA_OPEN_ALWAYS | FA_WRITE | FA_READ) != FR_OK)
         return CONFIG_SD_ERROR;
-    if(f_read(&file, json_old, JSON_CONFIG_SIZE, &read_count) != FR_OK){
+    if(f_read(&file, json_old, JSON_STR_CONFIG_SIZE, &read_count) != FR_OK){
         f_close(&file);
         return CONFIG_SD_ERROR;
     }
