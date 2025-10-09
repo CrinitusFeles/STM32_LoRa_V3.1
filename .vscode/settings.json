@@ -43,7 +43,21 @@
         "microrl.h": "c",
         "xprintf.h": "c",
         "json.h": "c",
-        "lauxlib.h": "c"
+        "lauxlib.h": "c",
+        "ds18b20_bus.h": "c",
+        "one_wire.h": "c",
+        "system_config.h": "c",
+        "dwt.h": "c",
+        "sx126x.h": "c",
+        "low_power.h": "c",
+        "radio_protocol.h": "c"
     },
-    "cortex-debug.variableUseNaturalFormat": false
+    "cortex-debug.variableUseNaturalFormat": true,
+    "cSpell.words": [
+        "EXTI",
+        "IWDG",
+        "NVIC",
+        "USART",
+        "xsnprintf"
+    ]
 }
