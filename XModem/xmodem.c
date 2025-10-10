@@ -6,8 +6,6 @@
 #include "task.h"
 #include "string.h"
 #include "xprintf.h"
-#include "System.h"
-#include "system_select.h"
 
 /* Global variables. */
 static uint8_t xmodem_packet_number = 1;         /**< Packet number counter. */
@@ -15,15 +13,14 @@ static uint32_t xmodem_actual_flash_address = 0; /**< Address where we have to w
 static bool x_first_packet_received = false;     /**< First packet or not. */
 /* Local functions. */
 static uint16_t xmodem_calc_crc(uint8_t *data, uint16_t length);
-static xmodem_status xmodem_handle_packet(uint8_t size);
+static xmodem_status xmodem_handle_packet(XModem *xmodem,  uint8_t size);
 static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_error_number);
 
-void delay(uint32_t delay_ms) { vTaskDelay(delay_ms); }
 
-uint8_t read_data(uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
+uint8_t read_data(XModem *xmodem, uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
     for (uint16_t i = 0; i < size && timeout_ms; i++) {
         while (FIFO_IS_EMPTY(fifo) && --timeout_ms) {
-            delay(1);
+            xmodem->delay(1);
         }
         if (timeout_ms) {
             buffer[i] = FIFO_FRONT(fifo);
@@ -33,7 +30,7 @@ uint8_t read_data(uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
     return timeout_ms ? 0 : 1;
 }
 
-void xmodem_receive(uint32_t write_addr) {
+void xmodem_receive(XModem *xmodem, uint32_t write_addr) {
     volatile xmodem_status status = X_OK;
     uint8_t error_number = 0;
 
@@ -45,12 +42,12 @@ void xmodem_receive(uint32_t write_addr) {
     xprintf(
         "\nStarting XModem flashing procedure.\n"
         "Open ExtraPutty or Minicom terminal with XModem mode to send binary "
-        "file to MCU.\nrPress CTRL-C to abort procedure\n");
+        "file to MCU.\nPress CTRL-C to abort procedure\n");
     while (X_OK == status) {
         uint8_t header = 0x00;
 
         /* Get the header from UART. */
-        uint8_t comm_status = read_data(&header, 1, X_HEADER_TIMEOUT_MS);
+        uint8_t comm_status = read_data(xmodem, &header, 1, X_HEADER_TIMEOUT_MS);
 
         /* Spam the host (until we receive something) with ACSII "C", to notify it, we want to use CRC-16. */
         if ((0 != comm_status) && (false == x_first_packet_received)) {
@@ -70,7 +67,7 @@ void xmodem_receive(uint32_t write_addr) {
             case X_SOH:
             case X_STX:
                 /* If the handling was successful, then send an ACK. */
-                packet_status = xmodem_handle_packet(header);
+                packet_status = xmodem_handle_packet(xmodem, header);
                 if (X_OK == packet_status) {
                     xprintf("%c", X_ACK);
                 }
@@ -88,7 +85,7 @@ void xmodem_receive(uint32_t write_addr) {
             case X_EOT:
                 /* ACK, feedback to user (as a text), then jump to user application. */
                 xprintf("%c", X_ACK);
-                delay(10);
+                xmodem->delay(10);
                 xprintf("\n\nFirmware updated!\n");
                 // FLASH_jump_to_app();
                 return;
@@ -136,7 +133,7 @@ static uint16_t xmodem_calc_crc(uint8_t *data, uint16_t length) {
  * @param   header: SOH or STX.
  * @return  status: Report about the packet.
  */
-static xmodem_status xmodem_handle_packet(uint8_t header) {
+static xmodem_status xmodem_handle_packet(XModem *xmodem, uint8_t header) {
     xmodem_status status = X_OK;
     uint16_t size = 0;
     uint8_t comm_status = 0;
@@ -157,9 +154,9 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     }
 
     /* Get the packet number, data and CRC from UART. */
-    comm_status |= read_data(received_packet_number, X_PACKET_NUMBER_SIZE, X_HEADER_TIMEOUT_MS);
-    comm_status |= read_data(received_packet_data, size, X_HEADER_TIMEOUT_MS);
-    comm_status |= read_data(received_packet_crc, X_PACKET_CRC_SIZE, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(xmodem, received_packet_number, X_PACKET_NUMBER_SIZE, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(xmodem, received_packet_data, size, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(xmodem, received_packet_crc, X_PACKET_CRC_SIZE, X_HEADER_TIMEOUT_MS);
     /* Merge the two bytes of CRC. */
     uint16_t crc_received = ((uint16_t)received_packet_crc[X_PACKET_CRC_HIGH_INDEX] << 8) |
                             ((uint16_t)received_packet_crc[X_PACKET_CRC_LOW_INDEX]);
@@ -171,25 +168,10 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     }
     /* If it is the first packet, then erase the memory. */
     if ((X_OK == status) && (false == x_first_packet_received)) {
-        uint8_t curr_block = HaveRunFlashBlockNum();
-        if(curr_block){
-            for(uint8_t sec_num = 0; sec_num < 63; sec_num++){
-                if(FLASH_erase_page(sec_num) != FLASH_OK) {
-                    status |= X_ERROR_FLASH;
-                    break;
-                }
-            }
-        } else {
-            for(uint8_t sec_num = 64; sec_num < 127; sec_num++){
-                if(FLASH_erase_page(sec_num) != FLASH_OK) {
-                    status |= X_ERROR_FLASH;
-                    break;
-                }
-            }
-        }
-        if(status == X_OK) {
+        if( xmodem->on_first_packet() ) {
             x_first_packet_received = true;
         } else {
+            status |= X_ERROR_FLASH;
             return status;
         }
     }
@@ -213,9 +195,8 @@ static xmodem_status xmodem_handle_packet(uint8_t header) {
     }
 
     /* Do the actual flashing (if there weren't any errors). */
-    if ((X_OK == status) && (FLASH_OK != FLASH_write(xmodem_actual_flash_address,
-                                                     (uint64_t*)&received_packet_data[0],
-                                                     (uint32_t)size / 8))) {
+    if ((X_OK == status) && (!xmodem->save(xmodem_actual_flash_address,
+                                           received_packet_data, size))) {
         /* Flashing error. */
         status |= X_ERROR_FLASH;
     }

@@ -54,6 +54,8 @@
 #include "system_config.h"
 #include "task.h"
 #include "xprintf.h"
+#include "xmodem.h"
+#include "flash.h"
 
 #define WATCHDOG_PERIOD_MS 5000
 #define WAKEUP_PERIOD_SEC 60 * 20
@@ -77,6 +79,10 @@ microrl_t rl;
 // logging_init_t logger;
 LoRa sx127x;
 SX126x SX1268;
+XModem xmodem = {
+    .delay = vTaskDelay,
+    .on_first_packet = FLASH_erase_neighbor,
+};
 // FRESULT res;
 DS18B20 sensors[TEMP_SENSOR_AMOUNT];
 DS18B20_BUS sensors_bus;

@@ -50,7 +50,12 @@
         "dwt.h": "c",
         "sx126x.h": "c",
         "low_power.h": "c",
-        "radio_protocol.h": "c"
+        "radio_protocol.h": "c",
+        "fifo.h": "c",
+        "system.h": "c",
+        "freertos.h": "c",
+        "xmodem.h": "c",
+        "stdbool.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
     "cSpell.words": [

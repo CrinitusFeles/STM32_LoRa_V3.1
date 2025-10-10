@@ -162,6 +162,30 @@ FRESULT res;
 FIL file;
 char file_buff[FILE_BUFFER] = {0};
 
+bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
+    FLASH_status status = FLASH_write(addr, (uint64_t*)&buff[0], (uint32_t)size / 8);
+    if(status == FLASH_OK)
+        return true;
+    return false;
+}
+
+bool xmodem_sd_write(uint32_t addr, uint8_t *buff, uint32_t size){
+    static size_t written_amount = 0;
+    res = f_lseek(&file, addr);
+    if(res != FR_OK){
+        f_close(&file);
+        xprintf("Failed seek file. Written %d bytes\n", written_amount);
+        return false;
+    }
+    FRESULT result = f_write(&file, buff, size, &written_amount);
+    if(result == FR_OK)
+        return true;
+    return false;
+}
+
+bool xmodem_sd_on_first_packet(){
+    return true;
+}
 
 void neofetch(){
     xprintf(
@@ -934,11 +958,25 @@ int execute(int argc, const char *const *argv) {
             xprintf("you should set only message string for transaction\n");
         }
     } else if (strcmp(argv[0], _CMD_XMODEM) == 0) {
-        if (argc != 1) {
-            xprintf("xmodem cmd does not accept any arguments\n");
-        } else {
+        if (argc == 1) {
+            xmodem.save = xmodem_flash_write;
+            xmodem.on_first_packet = FLASH_erase_neighbor;
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
-            xmodem_receive(write_addr);
+            xmodem_receive(&xmodem, write_addr);
+        } else if (argc == 2){
+            xmodem.save = xmodem_sd_write;
+            xmodem.on_first_packet = xmodem_sd_on_first_packet;
+            res = f_open(&file, argv[1], FA_CREATE_NEW | FA_WRITE);
+            if(res != FR_OK){
+                f_close(&file);
+                xprintf("Failed to create file\n");
+                return 1;
+            }
+            xmodem_receive(&xmodem, 0);
+            xprintf("Written %d bytes to file\n", f_size(&file));
+            f_close(&file);
+        } else {
+            xprintf("Incorrect amount of arguments\n");
         }
     } else if (strcmp(argv[0], _CMD_MOCK_CALIB) == 0) {
         uint64_t test_calibs[12] = {

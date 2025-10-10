@@ -219,3 +219,21 @@ void FLASH_disable_iwdg_stby(){
         __enable_irq();
     }
 }
+
+bool FLASH_erase_neighbor(){
+    uint8_t curr_block = HaveRunFlashBlockNum();
+    if(curr_block){
+        for(uint8_t sec_num = 0; sec_num < 63; sec_num++){
+            if(FLASH_erase_page(sec_num) != FLASH_OK) {
+                return false;
+            }
+        }
+    } else {
+        for(uint8_t sec_num = 64; sec_num < 127; sec_num++){
+            if(FLASH_erase_page(sec_num) != FLASH_OK) {
+                return false;
+            }
+        }
+    }
+    return true;
+}

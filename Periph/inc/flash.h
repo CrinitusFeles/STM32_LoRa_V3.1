@@ -2,6 +2,8 @@
 #define FLASH_INC_H
 
 #include "stm32l4xx.h"
+#include "stdbool.h"
+
 #define FLASH_PAGE_SIZE             0x800
 #define FLASH_START_ADDR            0x8000000
 #define FLASH_PAGE_2_POW            11
@@ -30,4 +32,5 @@ void FLASH_jump_to_app(uint32_t addr);
 FLASH_status SetPrefferedBlockNum(uint8_t block_num);
 FLASH_status FLASH_erase_firmware(uint8_t current_block_num);
 void FLASH_disable_iwdg_stby();
+bool FLASH_erase_neighbor();
 #endif

@@ -30,7 +30,7 @@
  */
 
 /* Maximum allowed errors (user defined). */
-#define X_MAX_ERRORS ((uint8_t)3)
+#define X_MAX_ERRORS          ((uint8_t)3)
 #define X_HEADER_TIMEOUT_MS     1000
 
 /* Sizes of the packets. */
@@ -45,7 +45,7 @@
 #define X_PACKET_CRC_HIGH_INDEX           ((uint16_t)0)
 #define X_PACKET_CRC_LOW_INDEX            ((uint16_t)1)
 #define _X_UART USART1
-#if !defined _X_UART
+#ifndef _X_UART
 #error "You need to define X_UART"
 #endif
 
@@ -72,6 +72,16 @@ typedef enum {
 } xmodem_status;
 
 
-void xmodem_receive(uint32_t write_addr);
+
+typedef struct XModem{
+    void (*delay)(uint32_t ms);
+    bool (*save)(uint32_t addr, uint8_t *buff, uint32_t size);
+    bool (*on_first_packet)(void);
+} XModem;
+
+
+void xmodem_receive(XModem *xmodem, uint32_t write_addr);
+
+extern XModem xmodem;
 
 #endif /* XMODEM_H_ */
