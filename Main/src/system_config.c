@@ -98,7 +98,7 @@ void system_config_init(SystemConfig *config){
 }
 
 void system_config_to_str(SystemConfig *config, char *buf){
-    xsprintf(buf,
+    uint16_t written = xsprintf(buf,
     "{\n"\
     "    \"config_addr\": %d,\n"\
     "    \"serials_addr\": %d,\n"\
@@ -120,53 +120,7 @@ void system_config_to_str(SystemConfig *config, char *buf){
     "    \"lora_ldro\": %d,\n"\
     "    \"lora_sync_word\": %d,\n"\
     "    \"lora_tx_power\": %d,\n"\
-    "    \"lora_preamble\": %d,\n"\
-    "    \"temp_sensor_id1\": %llu,\n"\
-    "    \"temp_sensor_id2\": %llu,\n"\
-    "    \"temp_sensor_id3\": %llu,\n"\
-    "    \"temp_sensor_id4\": %llu,\n"\
-    "    \"temp_sensor_id5\": %llu,\n"\
-    "    \"temp_sensor_id6\": %llu,\n"\
-    "    \"temp_sensor_id7\": %llu,\n"\
-    "    \"temp_sensor_id8\": %llu,\n"\
-    "    \"temp_sensor_id9\": %llu,\n"\
-    "    \"temp_sensor_id10\": %llu,\n"\
-    "    \"temp_sensor_id11\": %llu,\n"\
-    "    \"temp_sensor_id12\": %llu,\n"\
-    "    \"temp_sensor_id13\": %llu,\n"\
-    "    \"temp_sensor_id14\": %llu,\n"\
-    "    \"temp_sensor_id15\": %llu,\n"\
-    "    \"temp_sensor_id16\": %llu,\n"\
-    "    \"temp_sensor_id17\": %llu,\n"\
-    "    \"temp_sensor_id18\": %llu,\n"\
-    "    \"temp_sensor_id19\": %llu,\n"\
-    "    \"temp_sensor_id20\": %llu,\n"\
-    "    \"temp_sensor_id21\": %llu,\n"\
-    "    \"temp_sensor_id22\": %llu,\n"\
-    "    \"temp_sensor_id23\": %llu,\n"\
-    "    \"temp_sensor_id24\": %llu,\n"\
-    "    \"temp_sensor_id25\": %llu,\n"\
-    "    \"temp_sensor_id26\": %llu,\n"\
-    "    \"temp_sensor_id27\": %llu,\n"\
-    "    \"temp_sensor_id28\": %llu,\n"\
-    "    \"temp_sensor_id29\": %llu,\n"\
-    "    \"temp_sensor_id30\": %llu,\n"\
-    "    \"temp_sensor_id31\": %llu,\n"\
-    "    \"temp_sensor_id32\": %llu,\n"\
-    "    \"temp_sensor_id33\": %llu,\n"\
-    "    \"temp_sensor_id34\": %llu,\n"\
-    "    \"temp_sensor_id35\": %llu,\n"\
-    "    \"temp_sensor_id36\": %llu,\n"\
-    "    \"temp_sensor_id37\": %llu,\n"\
-    "    \"temp_sensor_id38\": %llu,\n"\
-    "    \"temp_sensor_id39\": %llu,\n"\
-    "    \"temp_sensor_id40\": %llu,\n"\
-    "    \"temp_sensor_id41\": %llu,\n"\
-    "    \"temp_sensor_id42\": %llu,\n"\
-    "    \"temp_sensor_id43\": %llu,\n"\
-    "    \"temp_sensor_id44\": %llu,\n"\
-    "    \"temp_sensor_id45\": %llu\n"\
-    "}\n",
+    "    \"lora_preamble\": %d,\n",
     config->config_addr,
     config->serials_addr,
     config->config_page,
@@ -187,54 +141,13 @@ void system_config_to_str(SystemConfig *config, char *buf){
     config->lora_ldro,
     config->lora_sync_word,
     config->lora_tx_power,
-    config->lora_preamble,
-    config->sensors_serials[0],
-    config->sensors_serials[1],
-    config->sensors_serials[2],
-    config->sensors_serials[3],
-    config->sensors_serials[4],
-    config->sensors_serials[5],
-    config->sensors_serials[6],
-    config->sensors_serials[7],
-    config->sensors_serials[8],
-    config->sensors_serials[9],
-    config->sensors_serials[10],
-    config->sensors_serials[11],
-    config->sensors_serials[12],
-    config->sensors_serials[13],
-    config->sensors_serials[14],
-    config->sensors_serials[15],
-    config->sensors_serials[16],
-    config->sensors_serials[17],
-    config->sensors_serials[18],
-    config->sensors_serials[19],
-    config->sensors_serials[20],
-    config->sensors_serials[21],
-    config->sensors_serials[22],
-    config->sensors_serials[23],
-    config->sensors_serials[24],
-    config->sensors_serials[25],
-    config->sensors_serials[26],
-    config->sensors_serials[27],
-    config->sensors_serials[28],
-    config->sensors_serials[29],
-    config->sensors_serials[30],
-    config->sensors_serials[31],
-    config->sensors_serials[32],
-    config->sensors_serials[33],
-    config->sensors_serials[34],
-    config->sensors_serials[35],
-    config->sensors_serials[36],
-    config->sensors_serials[37],
-    config->sensors_serials[38],
-    config->sensors_serials[39],
-    config->sensors_serials[40],
-    config->sensors_serials[41],
-    config->sensors_serials[42],
-    config->sensors_serials[43],
-    config->sensors_serials[44],
-    config->sensors_serials[45]
+    config->lora_preamble
     );
+    for(uint8_t i = 0; i < 45; i++){
+        written += xsprintf(buf + written, "    \"temp_sensor_id%d\": %llu,\n",
+                           i + 1, config->sensors_serials[i]);
+    }
+    xsprintf(buf + written, "}\n");
 }
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
