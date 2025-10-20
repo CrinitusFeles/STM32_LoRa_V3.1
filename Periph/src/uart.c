@@ -33,7 +33,7 @@ void UART_init(USART_TypeDef *USARTx, uint32_t baudrate, uint8_t duplex_mode){
 	else if(USARTx == LPUART1){
 		RCC->APB1ENR2 |= RCC_APB1ENR2_LPUART1EN;
 		NVIC_EnableIRQ(LPUART1_IRQn);
-		USARTx->BRR = APB1_CLK / baudrate;
+		USARTx->BRR = 256 * APB1_CLK / baudrate;
 	}
 	else return;
 
