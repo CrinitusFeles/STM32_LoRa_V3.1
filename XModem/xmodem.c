@@ -1,13 +1,14 @@
 #include "xmodem.h"
 
 #include "FreeRTOS.h"
-#include "fifo.h"
 #include "flash.h"
 #include "task.h"
 #include "string.h"
 #include "xprintf.h"
+#include "periph_handlers.h"
 
 /* Global variables. */
+// QueueHandle_t cli_queue;
 static uint8_t xmodem_packet_number = 1;         /**< Packet number counter. */
 static uint32_t xmodem_actual_flash_address = 0; /**< Address where we have to write. */
 static bool x_first_packet_received = false;     /**< First packet or not. */
@@ -17,17 +18,15 @@ static xmodem_status xmodem_handle_packet(XModem *xmodem,  uint8_t size);
 static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_error_number);
 
 
-uint8_t read_data(XModem *xmodem, uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
-    for (uint16_t i = 0; i < size && timeout_ms; i++) {
-        while (FIFO_IS_EMPTY(fifo) && --timeout_ms) {
-            xmodem->delay(1);
-        }
-        if (timeout_ms) {
-            buffer[i] = FIFO_FRONT(fifo);
-            FIFO_POP(fifo);
-        }
+uint8_t read_data(uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
+    uint16_t i = 0;
+    uint8_t rsize = 0;
+    while (i < size) {
+        rsize = xStreamBufferReceive(cli_stream, &(buffer[i]), size, timeout_ms);
+        i += rsize;
+        if(rsize == 0) return 1;
     }
-    return timeout_ms ? 0 : 1;
+    return 0;
 }
 
 void xmodem_receive(XModem *xmodem, uint32_t write_addr) {
@@ -47,7 +46,7 @@ void xmodem_receive(XModem *xmodem, uint32_t write_addr) {
         uint8_t header = 0x00;
 
         /* Get the header from UART. */
-        uint8_t comm_status = read_data(xmodem, &header, 1, X_HEADER_TIMEOUT_MS);
+        uint8_t comm_status = read_data(&header, 1, X_HEADER_TIMEOUT_MS);
 
         /* Spam the host (until we receive something) with ACSII "C", to notify it, we want to use CRC-16. */
         if ((0 != comm_status) && (false == x_first_packet_received)) {
@@ -154,9 +153,9 @@ static xmodem_status xmodem_handle_packet(XModem *xmodem, uint8_t header) {
     }
 
     /* Get the packet number, data and CRC from UART. */
-    comm_status |= read_data(xmodem, received_packet_number, X_PACKET_NUMBER_SIZE, X_HEADER_TIMEOUT_MS);
-    comm_status |= read_data(xmodem, received_packet_data, size, X_HEADER_TIMEOUT_MS);
-    comm_status |= read_data(xmodem, received_packet_crc, X_PACKET_CRC_SIZE, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(received_packet_number, X_PACKET_NUMBER_SIZE, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(received_packet_data, size, X_HEADER_TIMEOUT_MS);
+    comm_status |= read_data(received_packet_crc, X_PACKET_CRC_SIZE, X_HEADER_TIMEOUT_MS);
     /* Merge the two bytes of CRC. */
     uint16_t crc_received = ((uint16_t)received_packet_crc[X_PACKET_CRC_HIGH_INDEX] << 8) |
                             ((uint16_t)received_packet_crc[X_PACKET_CRC_LOW_INDEX]);

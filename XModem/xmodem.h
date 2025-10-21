@@ -44,10 +44,6 @@
 #define X_PACKET_NUMBER_COMPLEMENT_INDEX  ((uint16_t)1)
 #define X_PACKET_CRC_HIGH_INDEX           ((uint16_t)0)
 #define X_PACKET_CRC_LOW_INDEX            ((uint16_t)1)
-#define _X_UART USART1
-#ifndef _X_UART
-#error "You need to define X_UART"
-#endif
 
 
 /* Bytes defined by the protocol. */
