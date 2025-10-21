@@ -23,9 +23,9 @@ SemaphoreHandle_t xSemaphore;
 StaticTask_t xTaskBuffer_RADIO;
 StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
 StaticTask_t xTaskBuffer_RADIO_CONSOLE;
-StackType_t xStack_RADIO [configMINIMAL_STACK_SIZE * 2];
-StackType_t xStack_GSM_PRINT [configMINIMAL_STACK_SIZE * 5];
-StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 22];
+StackType_t xStack_RADIO [configMINIMAL_STACK_SIZE];
+StackType_t xStack_GSM_PRINT [configMINIMAL_STACK_SIZE];
+StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 10];
 
 
 #define UNUSED(x) (void)(x)
@@ -238,8 +238,8 @@ int main(){
     System_Init();
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
-    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE * 2, NULL, 3, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
+    xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
+    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
     xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 10, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
     vTaskStartScheduler();
 }

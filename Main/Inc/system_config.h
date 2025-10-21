@@ -4,7 +4,7 @@
 #include "flash.h"
 
 #define CONFIG_SIZE_64          52  // размер конфига в словах (8 байт)
-#define JSON_STR_CONFIG_SIZE    4096
+#define JSON_STR_CONFIG_SIZE    2800
 #define SYSTEM_CONFIG_PATH      "system_config.json"
 
 typedef enum SystemConfigStatus{

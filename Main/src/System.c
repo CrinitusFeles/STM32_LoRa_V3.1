@@ -49,7 +49,7 @@
 #include "spi.h"
 #include "stm32_misc.h"
 #include "string.h"
-#include "sx126x.h"
+// #include "sx126x.h"
 #include "sx127x.h"
 #include "system_config.h"
 #include "task.h"
@@ -86,7 +86,7 @@ StaticStreamBuffer_t  cli_static_queue;
 StaticSemaphore_t xSemaphoreBuffer;
 // logging_init_t logger;
 LoRa sx127x;
-SX126x SX1268;
+// SX126x SX1268;
 XModem xmodem = {
     .delay = vTaskDelay,
     .on_first_packet = FLASH_erase_neighbor,
@@ -442,13 +442,13 @@ void System_Init() {
         RTC_auto_wakeup_enable(system_config.wakeup_period);
         sensors_bus.power_on();
         DWT_Delay_ms(50);
-        ADC_Start(&adc);
+        // ADC_Start(&adc);
         if (sensors_bus.found_amount == 0) {
             ow_status = OW_EMPTY_BUS;
         } else {
             ow_status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
         }
-        ADC_WaitMeasures(&adc, 10000);
+        // ADC_WaitMeasures(&adc, 10000);
         sensors_bus.power_off();
 
         f_open(&_file, "measures.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
@@ -464,9 +464,9 @@ void System_Init() {
             for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
                 sd_ptr += xsprintf(sd_log + sd_ptr, "T%02d    ", i + 1);
             }
-            for (uint8_t i = 0; i < 11; i++) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "A%02d   ", i + 1);
-            }
+            // for (uint8_t i = 0; i < 11; i++) {
+            //     sd_ptr += xsprintf(sd_log + sd_ptr, "A%02d   ", i + 1);
+            // }
             sd_ptr += xsprintf(sd_log + sd_ptr, "VDDA\n");
         }
 
@@ -475,10 +475,10 @@ void System_Init() {
         for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
             sd_ptr += xsprintf(sd_log + sd_ptr, "%.2f  ", sensors_bus.sensors[i].temperature);
         }
-        for (uint8_t i = 0; i < 11; i++) {
-            sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d  ", adc.reg_channel_queue[i].result_mv);
-        }
-        sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d\n", adc.vdda_mvolt);
+        // for (uint8_t i = 0; i < 11; i++) {
+        //     sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d  ", adc.reg_channel_queue[i].result_mv);
+        // }
+        // sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d\n", adc.vdda_mvolt);
         f_lseek(&_file, _file.obj.objsize);
         f_write(&_file, sd_log, sd_ptr, &written_count);
         f_close(&_file);

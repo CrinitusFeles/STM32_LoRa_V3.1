@@ -4,7 +4,7 @@
 #include "gsm.h"
 #include <string.h>
 #include "sx127x.h"
-#include "sx126x.h"
+// #include "sx126x.h"
 #include "microrl.h"
 #include "stm32_misc.h"
 #include "xprintf.h"
@@ -82,10 +82,10 @@ void EXTI9_5_IRQHandler(void){
     sx127x.new_rx_data_flag = 1;
 }
 
-void EXTI2_IRQHandler(void){
-    EXTI->PR1 |= EXTI_PR1_PIF2;
-    SX1268.new_rx_data_flag = 1;
-}
+// void EXTI2_IRQHandler(void){
+//     EXTI->PR1 |= EXTI_PR1_PIF2;
+//     SX1268.new_rx_data_flag = 1;
+// }
 void ADC1_IRQHandler(void){
     ADC_Handler();
 }
