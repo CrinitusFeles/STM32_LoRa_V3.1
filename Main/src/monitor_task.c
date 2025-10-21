@@ -30,13 +30,15 @@ void show_monitor(){
             _buffer[task].pcTaskName,
             status_buffer,
             _buffer[task].uxCurrentPriority,
-            _buffer[task].usStackHighWaterMark,
+            _buffer[task].usStackHighWaterMark * 4,
             _buffer[task].ulRunTimeCounter / 1000,
             _buffer[task].ulRunTimeCounter / _total_runtime
         );
     }
+    #if ( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
         xprintf("Current Heap Free Size: %u\n", xPortGetFreeHeapSize());
         xprintf("Minimal Heap Free Size: %u\n", xPortGetMinimumEverFreeHeapSize());
+    #endif
         xprintf("Total RunTime:  %u ms\n", _total_runtime / 10);
         xprintf("System Uptime:  %u ms\n",  xTaskGetTickCount() * portTICK_PERIOD_MS);
 }

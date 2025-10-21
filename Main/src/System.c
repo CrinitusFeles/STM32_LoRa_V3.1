@@ -56,6 +56,9 @@
 #include "xprintf.h"
 #include "xmodem.h"
 #include "flash.h"
+#include "gsm.h"
+#include "queue.h"
+#include "periph_handlers.h"
 
 #define WATCHDOG_PERIOD_MS 5000
 #define WAKEUP_PERIOD_SEC 60 * 20
@@ -76,6 +79,11 @@ void _unlink_r(void) {}
 
 tBuzzer buzzer;
 microrl_t rl;
+static uint8_t gsm_stream_storage[65];
+static uint8_t cli_stream_storage[257];
+StaticStreamBuffer_t  gsm_static_queue;
+StaticStreamBuffer_t  cli_static_queue;
+StaticSemaphore_t xSemaphoreBuffer;
 // logging_init_t logger;
 LoRa sx127x;
 SX126x SX1268;
@@ -125,13 +133,27 @@ void notification(int founded_count) {
     xprintf("Last registered sensor num: %d\n", founded_count);
 }
 
-void print(const char *buf) { xprintf(buf); }
+void print(const char *buf) {
+    xSemaphoreTake(xSemaphore, 1000);
+    xprintf(buf);
+    xSemaphoreGive(xSemaphore);
+}
 
 void sensors_on() { gpio_state(EN_PERIPH, LOW); }
 
 void sensors_off() { gpio_state(EN_PERIPH, HIGH); }
 
 void System_Init() {
+    // NVIC_SetPriorityGrouping(0x07);
+    xSemaphore = xSemaphoreCreateBinaryStatic( &xSemaphoreBuffer );
+    xSemaphoreGive(xSemaphore);
+    gsm_stream = xStreamBufferCreateStatic(64, 1, gsm_stream_storage, &gsm_static_queue);
+    cli_stream = xStreamBufferCreateStatic(256, 1, cli_stream_storage, &cli_static_queue);
+    // vQueueAddToRegistry(gsm_queue, "GSM_QUEUE");
+    // vQueueAddToRegistry(cli_queue, "CLI_QUEUE");
+    vStreamBufferSetStreamBufferNumber(gsm_stream, 1);
+    vStreamBufferSetStreamBufferNumber(cli_stream, 2);
+
     xdev_out(uart_print);
     system_config_init(&system_config);
     SystemConfigStatus config_status = init_FLASH_system_config(&system_config);
@@ -164,6 +186,11 @@ void System_Init() {
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(UART3_TX, PB10_USART3_TX, Open_drain, no_pull, High_speed);
 
+    gpio_init(GSM_TX, PC1_LPUART1_TX, Push_pull, pull_up, High_speed);
+    gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, no_pull, Input);
+    gpio_init(GSM_PWR, General_output, Push_pull, pull_up, Low_speed);
+
+    gpio_state(GSM_PWR, HIGH);
     gpio_state(EN_SD, LOW);
     gpio_state(EN_LORA, LOW);
     gpio_state(LoRa_NSS, HIGH);
@@ -173,6 +200,7 @@ void System_Init() {
     // gpio_exti_init(LoRa_DIO1, 0);
 
     UART_init(USART1, 76800, FULL_DUPLEX);
+
 
     microrl_init(&rl, print);
     microrl_set_execute_callback(&rl, execute);
@@ -274,7 +302,7 @@ void System_Init() {
     // uint8_t tx_data[] = "hello world!";
     // SX126x_SendData(&SX1268, tx_data, 12);
     // SX126x_GetStatus(&SX1268);
-    LoRa_transmit(&sx127x, (uint8_t *)"hello world!", 12);
+    // LoRa_transmit(&sx127x, (uint8_t *)"hello world!", 12);
     ow = (OneWire){.uart = USART3};
 
     for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
@@ -314,40 +342,51 @@ void System_Init() {
     // }
     // xprintf("founded %d devices", devices_count);
 
-    adc = (ADC){
-        .ADCx = ADC1,
-        .clk_devider = ADC_ClockDevider_1,
-        .internal_channels = {.temp = false, .vbat = false, .vref = true},
-        .resolution = ADC_12bit,
-        .mode = ADC_SINGLE_MODE,
-        .trigger.polarity = ADC_Software_trigger,
-        .ovrsmpl_ratio = OVRSMPL_32x,
-        .delay_ms = DWT_Delay_ms,
-    };
+    // adc = (ADC){
+    //     .ADCx = ADC1,
+    //     .clk_devider = ADC_ClockDevider_1,
+    //     .internal_channels = {.temp = false, .vbat = false, .vref = true},
+    //     .resolution = ADC_12bit,
+    //     .mode = ADC_SINGLE_MODE,
+    //     .trigger.polarity = ADC_Software_trigger,
+    //     .ovrsmpl_ratio = OVRSMPL_32x,
+    //     .delay_ms = DWT_Delay_ms,
+    // };
 
-    ADC_Init(&adc);
+    // ADC_Init(&adc);
     /*
                                     6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1
     (0cm)     VCC  GND (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4) VCC
     GND TMP_S NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND (CH6,
     PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
     */
-    ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
-    ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
-    ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
-    ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
-    ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
-    ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
+    // ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
+    // ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
+    // ADC_InitRegChannel(&adc, CH12, PA7, SMP_92);
+    // ADC_InitRegChannel(&adc, CH13, PC4, SMP_92);
+    // ADC_InitRegChannel(&adc, CH15, PB0, SMP_92);
+    // ADC_InitRegChannel(&adc, CH14, PC5, SMP_92);
     // ADC_InitRegChannel(&adc, CH6, PA1, SMP_92);
-    ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
-    ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
-    ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
-    ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
-    ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
-    ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
+    // ADC_InitRegChannel(&adc, CH1, PC0, SMP_92);
+    // ADC_InitRegChannel(&adc, CH2, PC1, SMP_92);
+    // ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
+    // ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
+    // ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
+    // ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
     // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
     //     // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
-    ADC_Enable(&adc);
+    // ADC_Enable(&adc);
+
+    // vQueueAddToRegistry(queue, "GSM_QUEUE");
+    sim7000g = (GSM){
+        .uart = LPUART1,
+        .gpio.pwr = GSM_PWR,
+        .delay_ms = vTaskDelay,
+    };
+    UART_init(LPUART1, 9600, FULL_DUPLEX);
+    NVIC_SetPriority(LPUART1_IRQn, 11);
+    NVIC_SetPriority(USART1_IRQn, 11);
+
 
     SDMMC_INIT();
     UINT written_count = 0;

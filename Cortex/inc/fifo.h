@@ -45,7 +45,7 @@ typedef struct FIFO {
         fifo.head = 0;   \
     }
 
-extern FIFO fifo;
-extern FIFO lora_fifo;
+// extern FIFO fifo;
+// extern FIFO lora_fifo;
 
 #endif /* INC_FIFO_H_ */

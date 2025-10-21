@@ -152,7 +152,6 @@
 #define UART3_TX	PB10
 #define UART1_RX	PB7
 #define UART1_TX	PB6
-#define _X_UART     USART1
 
 #define LoRa_SPI          SPI1
 #define LoRa_BUSY         PA3
@@ -171,6 +170,10 @@
 #define SD_CK				PC12
 #define SD_CMD				PD2
 
+
+#define GSM_RX          PC0
+#define GSM_TX          PC1
+#define GSM_PWR         PA5
 
 #define SELF_ID        1
 //-----------------------//

@@ -1,8 +1,7 @@
 #include "periph_handlers.h"
 #include "uart.h"
 #include "adc.h"
-#include "fifo.h"
-// #include "gsm.h"
+#include "gsm.h"
 #include <string.h>
 #include "sx127x.h"
 #include "sx126x.h"
@@ -10,10 +9,47 @@
 #include "stm32_misc.h"
 #include "xprintf.h"
 
+GSM sim7000g;
 
+
+void LPUART1_IRQHandler(void) {
+    // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    while (LPUART1->ISR & USART_ISR_RXNE) {
+        char data = LPUART1->RDR;
+        // sim7000g.rx_buf[sim7000g.rx_counter] = data;
+        xStreamBufferSendFromISR(gsm_stream, ( void * )&data, 1, NULL);
+        // sim7000g.rx_counter++;
+        // if(sim7000g.rx_counter >= sizeof(sim7000g.rx_buf)){
+        //     sim7000g.rx_counter = 0;
+        //     sim7000g.status.buffer_filled = 1;
+        // }
+	}
+    if(LPUART1->ISR & USART_ISR_IDLE){
+        LPUART1->ICR |= USART_ICR_IDLECF;
+        // for(uint32_t i = 0; i < 40000; i++){
+        //     if (LPUART1->ISR & USART_ISR_RXNE) return;
+        // }
+        // GSM_AnswerParser(); // TODO: вызывать парсер после каждой функции GSM_wait_for_answer(), а не в прерывании
+                            // тогда не нужно будет тупить десятки тысяч циклов в самом начале парсера
+    }
+	if(LPUART1->ISR & USART_ISR_ORE){
+        (void)LPUART1->RDR;
+        sim7000g.overrun_counter++;
+		LPUART1->ICR |= USART_ICR_ORECF;
+		// UART_tx_array(USART1, "USART3 OVERRUN ERROR!\r\n");
+	}
+    if(LPUART1->ISR & USART_ISR_FE){
+        LPUART1->ICR |= USART_ICR_FECF;
+        sim7000g.status.pwr_status = 0;
+        sim7000g.frame_error_counter++;
+    }
+}
 void USART1_IRQHandler(void) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     while (USART1->ISR & USART_ISR_RXNE) {
-        FIFO_PUSH(fifo, USART1->RDR);
+        char data = USART1->RDR;
+        xStreamBufferSendFromISR(cli_stream, ( void * )&data, 1, &xHigherPriorityTaskWoken);
+
 	}
     xdev_out(uart_print);
     if(USART1->ISR & USART_ISR_IDLE){

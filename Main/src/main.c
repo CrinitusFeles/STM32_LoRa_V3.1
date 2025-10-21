@@ -5,19 +5,28 @@
 #include "System.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "fifo.h"
 #include "sx127x.h"
 #include "sx126x.h"
 #include "monitor_task.h"
 #include "xprintf.h"
 #include "iwdg.h"
 #include "stm32_misc.h"
+#include "gsm.h"
+#include "periph_handlers.h"
 
-
-FIFO fifo;
 
 uint8_t timeout_counter = 0;
 uint8_t self_addr = 31;
+StreamBufferHandle_t  cli_stream;
+StreamBufferHandle_t  gsm_stream;
+SemaphoreHandle_t xSemaphore;
+StaticTask_t xTaskBuffer_RADIO;
+StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
+StaticTask_t xTaskBuffer_RADIO_CONSOLE;
+StackType_t xStack_RADIO [configMINIMAL_STACK_SIZE * 2];
+StackType_t xStack_GSM_PRINT [configMINIMAL_STACK_SIZE * 5];
+StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 22];
+
 
 #define UNUSED(x) (void)(x)
 
@@ -99,6 +108,7 @@ unsigned long vGetTimerForRunTimeStats(void){
 
 void RADIO_TASK(void *pvParameters){
     UNUSED(pvParameters);
+    char new_line[] = "\n\r";
     for (;;) {
         if(sx127x.new_rx_data_flag){
             memset(sx127x.rx_data.payload, 0, 250);
@@ -113,11 +123,10 @@ void RADIO_TASK(void *pvParameters){
             // xprintf((char*)sx127x.rx_data.payload);
 
             xdev_out(route_cli_to_lora);
-            for(uint8_t i = 0; i < sx127x.rx_data.dlen; i++){
-                FIFO_PUSH(fifo, sx127x.rx_data.payload[i]);
-            }
-            FIFO_PUSH(fifo, '\n');
-            FIFO_PUSH(fifo, '\r');
+            // for(uint8_t i = 0; i < sx127x.rx_data.dlen; i++){
+            //     xQueueSend(cli_queue, &sx127x.rx_data.payload[i], portMAX_DELAY);
+            // }
+            // xQueueSend(cli_queue, new_line, portMAX_DELAY);
         }
         if(sx127x.tx_data.dlen > 1){
             timeout_counter += 1;
@@ -136,15 +145,16 @@ void RADIO_TASK(void *pvParameters){
 
 void CONSOLE_TASK(void *pvParameters){
     UNUSED(pvParameters);
+    char data[256] = {0};
     for (;;) {
-        if(!FIFO_IS_EMPTY(fifo)){
+        uint8_t rsize = xStreamBufferReceive(cli_stream, data, 256, portMAX_DELAY);
+        for(uint8_t i = 0; i < rsize; i++){
             if(rl.last_index < 50){
                 rl.last_index += 1;
             } else {
                 rl.last_index = 0;
             }
-            rl.buffer[rl.last_index] = FIFO_FRONT(fifo);
-            FIFO_POP(fifo);
+            rl.buffer[rl.last_index] = data[i];
 
             if(rl.last_index != rl.current_index){
                 if(rl.current_index < 50){
@@ -155,7 +165,36 @@ void CONSOLE_TASK(void *pvParameters){
                 microrl_insert_char(&rl, (int)(rl.buffer[rl.current_index]));
             }
         }
-        vTaskDelay(1);
+    }
+    vTaskDelete( NULL );
+	// Delay(1000);
+}
+
+void GSM_PRINT(void *pvParameters){
+    UNUSED(pvParameters);
+    char gsm_output[64] = {0};
+    for (;;) {
+        uint8_t rsize = xStreamBufferReceive(gsm_stream, gsm_output, 64, portMAX_DELAY);
+        xSemaphoreTake(xSemaphore, 1000);
+        for(uint8_t i = 0; i < rsize; i++){
+            UART_tx(USART1, gsm_output[i]);
+            if(gsm_output[i] == '\r'){
+                if(sim7000g.rx_counter > 0)
+                    sim7000g.rx_buf[sim7000g.rx_counter] = 0;
+            }
+            else if(gsm_output[i] == '\n'){
+                if(sim7000g.rx_counter > 1)
+                    GSM_AnswerParser();
+            }
+            else if(gsm_output[i] != 0){
+                sim7000g.rx_buf[sim7000g.rx_counter] = gsm_output[i];
+                sim7000g.rx_counter += 1;
+            }
+        }
+        xSemaphoreGive(xSemaphore);
+        // if(strstr(sim7000g.rx_buf, "OK\r\n") == 0){
+        //     GSM_AnswerParser();
+        // }
     }
     vTaskDelete( NULL );
 	// Delay(1000);
@@ -172,13 +211,36 @@ void vApplicationIdleHook (void){
     IWDG_refresh();
 }
 
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                    StackType_t **ppxIdleTaskStackBuffer,
+                                    uint32_t *pulIdleTaskStackSize )
+{
+    /* If the buffers to be provided to the Idle task are declared inside this
+       function then they must be declared static - otherwise they will be allocated on
+       the stack and so not exists after this function exits. */
+    static StaticTask_t xIdleTaskTCB;
+    static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
+
+    /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
+       state will be stored. */
+    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+
+    /* Pass out the array that will be used as the Idle task's stack. */
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+
+    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+       Note that, as the array is necessarily of type StackType_t,
+       configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
 
 int main(){
     System_Init();
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 14, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreate( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, ( xTaskHandle * ) NULL);
+    xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE * 2, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
+    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE * 2, NULL, 3, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
+    xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 10, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
     vTaskStartScheduler();
 }
 
