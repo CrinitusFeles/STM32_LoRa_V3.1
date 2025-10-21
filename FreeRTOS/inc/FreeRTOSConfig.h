@@ -49,13 +49,17 @@
 #define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES		( 5 )
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 256 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 20 * 1024 ) )
+// #define configTOTAL_HEAP_SIZE		( ( size_t ) ( 30 * 1024 ) )
 #define configMAX_TASK_NAME_LEN		( 16 )
+
+#define configSUPPORT_DYNAMIC_ALLOCATION    0
+#define configSUPPORT_STATIC_ALLOCATION     1
 
 // #define configUSE_STATS_FORMATTING_FUNCTIONS 1
 #define configRECORD_STACK_HIGH_ADDRESS 1
 #define configGENERATE_RUN_TIME_STATS   1
 #define configUSE_TRACE_FACILITY	    1
+#define configQUEUE_REGISTRY_SIZE 10 /* 0: no queue registry; >0: queue registry size */
 
 #if configGENERATE_RUN_TIME_STATS == 1
 
@@ -66,7 +70,7 @@ unsigned long vGetTimerForRunTimeStats(void);
 #define portGET_RUN_TIME_COUNTER_VALUE()            vGetTimerForRunTimeStats()
 
 #endif
-
+// #define configTASK_NOTIFICATION_ARRAY_ENTRIES      1
 #define configUSE_16_BIT_TICKS		0
 #define configIDLE_SHOULD_YIELD		1
 #define configUSE_MUTEXES			0
@@ -91,6 +95,8 @@ to exclude the API function. */
 #define INCLUDE_vTaskSuspend			0
 #define INCLUDE_vTaskDelayUntil			1
 #define INCLUDE_vTaskDelay				1
+#define INCLUDE_uxTaskGetStackHighWaterMark     1
+#define INCLUDE_xTaskGetHandle                  1
 
 /* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
 (lowest) to 0 (1?) (highest). */
@@ -99,12 +105,6 @@ to exclude the API function. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191 /* equivalent to 0xb0, or priority 11. */
 
-
-/* This is the value being used as per the ST library which permits 16
-priority values, 0 to 15.  This must correspond to the
-configKERNEL_INTERRUPT_PRIORITY setting.  Here 15 corresponds to the lowest
-NVIC value of 255. */
-#define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
 
 #endif /* FREERTOS_CONFIG_H */
 
