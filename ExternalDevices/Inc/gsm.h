@@ -38,7 +38,8 @@ typedef enum GSM_IP_STATUS{
     GPRS_GPRSACT,
     GPRS_STATUS,
     GPRS_CONNECT_OK,
-    GPRS_CLOSED
+    GPRS_CLOSED,
+    GPRS_PDP_DEACT
 } GSM_IP_STATUS;
 
 typedef enum GSM_Mode{
@@ -86,7 +87,7 @@ typedef struct GSM {
     void (*ll_send)(char *);
 } GSM;
 
-void GSM_RX_Handler();
+void GSM_AnswerParser();
 uint8_t GSM_Init(GSM *driver);
 uint8_t GSM_InitGPRS(GSM *driver);
 void GSM_DisableEcho(GSM *driver);
@@ -98,13 +99,13 @@ void GSM_SetAPN(GSM *driver, char *apn);
 void GSM_SendCMD(GSM *driver, char *cmd);
 uint16_t GSM_GetVBAT(GSM *driver);
 void GSM_ActivateContext(GSM *driver);
-void GSM_OpenConnection(GSM *driver, char *ip, char *port);
+void GSM_OpenConnection(GSM *driver, const char *ip, const char *port);
 void GSM_CloseConnections(GSM *driver);
 void GSM_CheckIPstatus(GSM *driver);
 void GSM_TogglePower(GSM *driver);
 void GSM_PowerOFF(GSM *driver);
 void GSM_SendSMS(GSM *driver, char *data, char *phone_num);
-void GSM_SendTCP(GSM *driver, char *data, uint16_t data_len);
+void GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len);
 void GSM_SaveSettings(GSM *driver);
 uint8_t GSM_isAlive(GSM *driver);
 uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms);
@@ -113,6 +114,7 @@ uint8_t GSM_WaitTCPServerConnection(GSM *driver, uint16_t timeout_ms);
 
 extern GSM sim7000g;
 
+// extern QueueHandle_t queue;
 
 
 #endif

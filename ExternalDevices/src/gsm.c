@@ -4,6 +4,7 @@
 #include "stdlib.h"
 #include "sx126x.h"
 #include "xprintf.h"
+#include "periph_handlers.h"
 
 
 uint8_t GSM_Init(GSM *driver){
@@ -88,7 +89,7 @@ void GSM_TogglePower(GSM *driver){
     gpio_state(driver->gpio.pwr, LOW);
     driver->delay_ms(900);
     gpio_state(driver->gpio.pwr, HIGH);
-    driver->delay_ms(5000);
+    // driver->delay_ms(5000);
 }
 void GSM_PowerOFF(GSM *driver){
     GSM_SendCMD(driver, "AT+CPOWD=1");
@@ -97,22 +98,30 @@ uint8_t GSM_InitGPRS(GSM *driver){
     GSM_CheckGPRS(driver);
     if(driver->status.gprs_connected && driver->status.gsm_reg_status){
         GSM_CheckIPstatus(driver);
-        if(driver->ip_status == GPRS_INITIAL){
-            GSM_SetAPN(driver, "internet.tele2.ru");
-            driver->delay_ms(500);
-            GSM_CheckIPstatus(driver);
-            if(driver->ip_status == GPRS_START){
-                GSM_SendCMD(driver, "AT+CIICR");
-                driver->delay_ms(600);
-                GSM_CheckIPstatus(driver);
-                if(driver->ip_status == GPRS_GPRSACT){
-                    GSM_SendCMD(driver, "AT+CIFSR");
-                    driver->delay_ms(500);
+        driver->delay_ms(500);
+        for (uint8_t i = 0; i < 4; i++){
+            switch(driver->ip_status){
+                case(GPRS_INITIAL):
+                    GSM_SetAPN(driver, "internet.tele2.ru");  // AT+CSTT=internet.tele2.ru
                     GSM_CheckIPstatus(driver);
-                    if(driver->ip_status == GPRS_STATUS){
-                        return 0;  // можно открывать TCP соединение
-                    }
-                }
+                    driver->delay_ms(500);
+                    break;
+                case(GPRS_START):
+                    GSM_SendCMD(driver, "AT+CIICR");
+                    GSM_CheckIPstatus(driver);
+                    driver->delay_ms(600);
+                    break;
+                case(GPRS_GPRSACT):
+                    GSM_SendCMD(driver, "AT+CIFSR");
+                    GSM_CheckIPstatus(driver);
+                    driver->delay_ms(600);
+                    break;
+                case(GPRS_STATUS):
+                    return 0;  // можно открывать TCP соединение
+                // case(GPRS_CLOSED):
+                //     return 0;
+                default:
+                    return 1;
             }
         }
     }
@@ -136,7 +145,7 @@ void GSM_SendSMS(GSM *driver, char *data, char *phone_num){
     free(buf);
 }
 
-void GSM_OpenConnection(GSM *driver, char *ip, char *port){
+void GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
     if(driver->ip_status == GPRS_STATUS){
         // char *cmd = "AT+CIPSTART=\"TCP\",\"";
         // size_t ip_len = strlen(ip);
@@ -150,9 +159,9 @@ void GSM_OpenConnection(GSM *driver, char *ip, char *port){
         // GSM_SendCMD(driver, buf);
         // free(buf);
         UART_tx_string(driver->uart, "AT+CIPSTART=\"TCP\",\"");
-        UART_tx_string(driver->uart, ip);
+        UART_tx_string(driver->uart, (char*)ip);
         UART_tx_string(driver->uart, "\",");
-        UART_tx_string(driver->uart, port);
+        UART_tx_string(driver->uart, (char*)(port));
         UART_tx(driver->uart, '\r');
         driver->tx_counter++;
         driver->status.waiting_for_answer = 1;
@@ -163,7 +172,7 @@ void GSM_OpenConnection(GSM *driver, char *ip, char *port){
     }
 }
 
-void GSM_SendTCP(GSM *driver, char *data, uint16_t data_len){
+void GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
     UART_tx_string(driver->uart, "AT+CIPSEND");
     UART_tx(driver->uart, '\r');
     driver->delay_ms(500);
@@ -183,10 +192,13 @@ void GSM_CloseConnections(GSM *driver){
     GSM_SendCMD(driver, "AT+CIPCLOSE");
     driver->delay_ms(50);
     GSM_CheckIPstatus(driver);
-    if(driver->ip_status == GPRS_CLOSED){
-        GSM_SendCMD(driver, "AT+CIPSHUT");
-    }
+    driver->delay_ms(200);
+    GSM_SendCMD(driver, "AT+CIPSHUT");
     GSM_CheckIPstatus(driver);
+    driver->delay_ms(200);
+    GSM_SendCMD(driver, "AT+CGATT=0");
+    GSM_CheckIPstatus(driver);
+    driver->delay_ms(500);
     driver->status.gprs_connected = 0;
     driver->status.tcp_server_answer = 0;
     driver->status.tcp_server_connected = 0;
@@ -258,136 +270,183 @@ void GSM_CheckMode(GSM *driver){
     GSM_SendCMD(driver, "AT+CNMP?");
 }
 
-void GSM_AnswerParser(){
-    sim7000g.status.waiting_for_answer = 0;
-    // uint8_t parsed_flag = 0;
-    if(strstr(sim7000g.rx_buf, "\nOK\r") != 0){
-        sim7000g.status.last_answer = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "\nERROR\r") != 0){
-        sim7000g.status.last_answer = 1;
-        sim7000g.error_answer_counter++;
-    }
-    if(strstr(sim7000g.rx_buf, "STATE:") != 0){
-        if(strstr(sim7000g.rx_buf, "IP INITIAL") != 0){
-            sim7000g.ip_status = GPRS_INITIAL;
-        }
-        else if(strstr(sim7000g.rx_buf, "IP START") != 0){
-            sim7000g.ip_status = GPRS_START;
-        }
-        else if(strstr(sim7000g.rx_buf, "IP GPRSACT") != 0){
-            sim7000g.ip_status = GPRS_GPRSACT;
-        }
-        else if(strstr(sim7000g.rx_buf, "IP STATUS") != 0){
-            sim7000g.ip_status = GPRS_STATUS;
-        }
-        else if(strstr(sim7000g.rx_buf, "TCP CLOSED") != 0){
-             sim7000g.ip_status = GPRS_CLOSED;
-        }
-        else if(strstr(sim7000g.rx_buf, "TCP CONNECTING") != 0){
-            sim7000g.ip_status = GPRS_CONNECT_OK;
-        }
-        else if(strstr(sim7000g.rx_buf, "CONNECT OK") != 0){
-            sim7000g.ip_status = GPRS_CONNECT_OK;
-        }
-    }
-    else if(strstr(sim7000g.rx_buf, "RDY\r\n") != 0){
-        sim7000g.status.pwr_status = 1;
-    }
-    else if(strstr(sim7000g.rx_buf, "cmd") != 0){  // Custom answer from TCP server
-        sim7000g.status.last_answer = 0;
-        sim7000g.status.tcp_server_answer = 1;
-        char *cmd_ptr = strstr(sim7000g.rx_buf, "#");
-        if(cmd_ptr != 0){
-            // CommandStruct *pkt = (CommandStruct *)(cmd_ptr + 1);
-            // CMD_Parser(&SX1268, pkt);
-        }
-        // gpio_toggle(LED);
-    }
-    else if(strstr(sim7000g.rx_buf, "start") != 0){
-        sim7000g.status.tcp_server_connected = 1;
-    }
-    else if(strstr(sim7000g.rx_buf, "POWER DOWN\r\n") != 0){
-        sim7000g.status.pwr_status = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CPIN:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CPIN: READY") != 0) sim7000g.status.sim_status = 1;
-        else sim7000g.status.sim_status = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CREG:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CREG: 0,1") != 0) sim7000g.status.gsm_reg_status = 1;
-        else sim7000g.status.gsm_reg_status = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CGREG:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CGREG: 0,1") != 0) sim7000g.status.gprs_reg_status = 1;
-        else sim7000g.status.gprs_reg_status = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CEREG:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CEREG: 0,1") != 0) sim7000g.status.lte_reg_status = 1;
-        else sim7000g.status.lte_reg_status = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CGATT:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CGATT: 1") != 0) sim7000g.status.gprs_connected = 1;
-        else sim7000g.status.gprs_connected = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+PDP: DEACT") != 0){
-        sim7000g.status.gprs_connected = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CNMP:") != 0){
-        if(strstr(sim7000g.rx_buf, "+CNMP: 51") != 0) sim7000g.mode = GSM_and_LTE_only;
-        else if(strstr(sim7000g.rx_buf, "+CNMP: 38") != 0) sim7000g.mode = LTE_only;
-        else if(strstr(sim7000g.rx_buf, "+CNMP: 13") != 0) sim7000g.mode = GSM_only;
-        else if(strstr(sim7000g.rx_buf, "+CNMP: 2") != 0) sim7000g.mode = Automatic;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
-        uint32_t bit_error = 0;
-        xsprintf(sim7000g.rx_buf, "\r\n+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
-    }
-    else if(strstr(sim7000g.rx_buf, "CLOSE OK") != 0){
-        sim7000g.ip_status = GPRS_INITIAL;
-    }
-    else if(strstr(sim7000g.rx_buf, "SEND OK") != 0){
-        // если сервер быстро отвечает, то ответ приходит вместе с SEND OK и до сюда обработчик не доходит
-        sim7000g.status.last_answer = 0;
-    }
-    else if(strstr(sim7000g.rx_buf, "+CBC:") != 0){
-        uint32_t charger_status = 0;
-        uint32_t percent = 0;
-        uint32_t vbat = 0;
-        xsprintf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
-        sim7000g.vbat = (uint16_t)vbat;
-    }
-    sim7000g.rx_counter = 0;
-    memset(sim7000g.rx_buf, 0, sizeof(sim7000g.rx_buf));
+#define GSM_SHUT_OK                 2802156163          //"SHUT OK",
+#define GSM_HINT                    5861987          //"CONNECT OK",
+#define GSM_PDP_DEACT               3440200933      //"STATE: PDP DEACT",
+#define GSM_CONNECT_OK              1292179753      //"CONNECT_OK",
+#define GSM_EMPTY_APN               3557573663      //"+CSTT: "CMNET","",""",
+#define GSM_ATI                     1103507907      //"SIM7000G R1529",
+#define GSM_APN                     3518297380      //"+CSTT: "internet.tele2.ru","",""",
+#define GSM_ate0                    2090089199      //"ate0",
+#define GSM_ATE0                    2088903311      //"ATE0",
+#define GSM_OK                      5862591         //"OK",
+#define GSM_ERROR                   219019599       //"ERROR",
+#define GSM_RDY                     193468628       //"RDY",
+#define GSM_SMS_READY               202236397       //"SMS Ready",
+#define GSM_CFUN                    4189516231      //"+CFUN: 1",
+#define GSM_POWER_DOWN              1969610611      //"NORMAL POWER DOWN",
+#define GSM_CPIN                    2968058089      //"+CPIN: READY",
+#define GSM_CREG                    1985516344      //"+CREG: 0,1",
+#define GSM_CGREG                   3314961631      //"+CGREG: 0,1",
+#define GSM_CGREG2                  1985516345      //"+CGREG: 0,2",
+#define GSM_CGATT                   1331919950      //"+CGATT: 1"",
+#define GSM_CGATT0                  1331919949      //"+CGATT: 0"",
+#define GSM_PDP                     456551535       //"+PDP: DEACT"",
+#define GSM_CNMP_LTE_GSM            2246180190      //"+CNMP: 51"",
+#define GSM_CNMP_LTE                2246180131      //"+CNMP: 38"",
+#define GSM_CNMP_GSM                2246180060      //"+CNMP: 13"",
+#define GSM_CNMP_AUTO               198216586       //"+CNMP: 2"",
+#define GSM_SENDED                  2675873545      //"SEND OK"",
+#define GSM_CLOSED                  3917737589      //"CLOSE OK"",
+#define GSM_STATE_INITIAL           3886319939      //"STATE: IP INITIAL",
+#define GSM_STATE_START             1526169639      //"STATE: IP START",
+#define GSM_STATE_GPRSACT           1392283501      //"STATE: IP GPRSACT",
+#define GSM_STATE_STATUS            3118960125      //"STATE: IP STATUS",
+#define GSM_STATE_TCP_CLOSED        144060321       //"STATE: TCP CLOSED",
+#define GSM_STATE_TCP_CONNECTING    2984550063      //"STATE: TCP CONNECTING",
+#define GSM_STATE_TCP_CONNECT_OK    1392283501      //"STATE: TCP CONNECT OK"
+
+
+uint32_t gsm_hash(const char *str) {
+    uint32_t hash = 5381;
+    char c;
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c;
+    return hash;
 }
 
-void GSM_RX_Handler(){
-    if (sim7000g.uart->ISR & USART_ISR_RXNE) {
-        sim7000g.rx_buf[sim7000g.rx_counter] = sim7000g.uart->RDR;
-        sim7000g.rx_counter++;
-        if(sim7000g.rx_counter >= sizeof(sim7000g.rx_buf)){
-            sim7000g.rx_counter = 0;
-            sim7000g.status.buffer_filled = 1;
+
+void GSM_AnswerParser(){
+    switch (gsm_hash(sim7000g.rx_buf))
+    {
+    case GSM_OK:
+        sim7000g.status.waiting_for_answer = 0;
+        sim7000g.status.last_answer = 0;
+        sim7000g.error_answer_counter++;
+        break;
+    case GSM_ERROR:
+        sim7000g.status.waiting_for_answer = 0;
+        sim7000g.status.last_answer = 1;
+        sim7000g.error_answer_counter++;
+        break;
+    case GSM_RDY:
+        sim7000g.status.pwr_status = 1;
+        break;
+    case GSM_SMS_READY:
+        sim7000g.status.sim_status = 1;
+        break;
+    case GSM_POWER_DOWN:
+        sim7000g.status.waiting_for_answer = 0;
+        break;
+    case GSM_EMPTY_APN:
+        // sim7000g.ip_status = GPRS_INITIAL;
+        break;
+    case GSM_APN:
+        // sim7000g.ip_status = GPRS_START;
+        break;
+    case GSM_CGREG:
+
+        break;
+    case GSM_CONNECT_OK:
+
+        break;
+    case GSM_HINT:
+
+        break;
+    case GSM_ate0:
+
+        break;
+    case GSM_ATI:
+        break;
+    case GSM_ATE0:
+
+        break;
+    case GSM_CFUN:
+
+        break;
+    case GSM_CPIN:
+        sim7000g.status.sim_status = 1;
+        break;
+    case GSM_CREG:
+        sim7000g.status.gsm_reg_status = 1;
+        break;
+    case GSM_CGREG2:
+        break;
+    case GSM_CGATT:
+        sim7000g.status.gprs_connected = 1;
+        break;
+    case GSM_CGATT0:
+        sim7000g.status.gprs_connected = 0;
+        break;
+
+    case GSM_PDP:
+        sim7000g.status.gprs_connected = 0;
+        break;
+
+    case GSM_CNMP_LTE_GSM:
+        sim7000g.mode = GSM_and_LTE_only;
+        break;
+
+    case GSM_CNMP_LTE:
+        sim7000g.mode = LTE_only;
+        break;
+
+    case GSM_CNMP_GSM:
+        sim7000g.mode = GSM_only;
+        break;
+    case GSM_CNMP_AUTO:
+        sim7000g.mode = Automatic;
+        break;
+    case GSM_SENDED:
+        sim7000g.status.waiting_for_answer = 0;
+        break;
+    case GSM_CLOSED:
+
+        break;
+    case GSM_SHUT_OK:
+
+        break;
+    case GSM_STATE_INITIAL:
+        sim7000g.ip_status = GPRS_INITIAL;
+        break;
+    case GSM_STATE_START:
+        sim7000g.ip_status = GPRS_START;
+        break;
+    case GSM_STATE_GPRSACT:
+        sim7000g.ip_status = GPRS_GPRSACT;
+        break;
+    case GSM_STATE_STATUS:
+        sim7000g.ip_status = GPRS_STATUS;
+        break;
+    case GSM_STATE_TCP_CLOSED:
+        sim7000g.ip_status = GPRS_CLOSED;
+        break;
+    case GSM_PDP_DEACT:
+        sim7000g.ip_status = GPRS_INITIAL;
+        break;
+    case GSM_STATE_TCP_CONNECTING:
+        sim7000g.ip_status = GPRS_CONNECT_OK;
+        break;
+
+    default:
+        if(strstr(sim7000g.rx_buf, "+CBC:") != 0){
+            uint32_t charger_status = 0;
+            uint32_t percent = 0;
+            uint32_t vbat = 0;
+            xsprintf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
+            sim7000g.vbat = (uint16_t)vbat;
         }
-	}
-    if(sim7000g.uart->ISR & USART_ISR_IDLE){
-        sim7000g.uart->ICR |= USART_ICR_IDLECF;
-        for(uint32_t i = 0; i < 40000; i++){
-            if (sim7000g.uart->ISR & USART_ISR_RXNE) return;
+        else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
+            uint32_t bit_error = 0;
+            xsprintf(sim7000g.rx_buf, "+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
         }
-        GSM_AnswerParser(); // TODO: вызывать парсер после каждой функции GSM_wait_for_answer(), а не в прерывании
-                            // тогда не нужно будет тупить десятки тысяч циклов в самом начале парсера
+        else {
+            xprintf("Unknown answer\n");
+        }
+        break;
     }
-	if(sim7000g.uart->ISR & USART_ISR_ORE){
-        (void)sim7000g.uart->RDR;
-        sim7000g.overrun_counter++;
-		sim7000g.uart->ICR |= USART_ICR_ORECF;
-		// UART_tx_array(USART1, "USART3 OVERRUN ERROR!\r\n");
-	}
-    if(sim7000g.uart->ISR & USART_ISR_FE){
-        sim7000g.uart->ICR |= USART_ICR_FECF;
-        sim7000g.status.pwr_status = 0;
-        sim7000g.frame_error_counter++;
-    }
+    memset(sim7000g.rx_buf, 0, sizeof(sim7000g.rx_buf));
+    sim7000g.rx_counter = 0;
 }
+
 
