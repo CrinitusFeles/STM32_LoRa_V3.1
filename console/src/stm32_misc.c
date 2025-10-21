@@ -16,96 +16,122 @@
 #include "ds18b20_bus.h"
 #include "system_config.h"
 #include "json.h"
+#include "gsm.h"
+#include "periph_handlers.h"
+#include "adc.h"
 
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
 
 #define _STM_DEMO_VER "1.2.0"
 
-// definition commands word
-#define _CMD_HELP "help"                      // 1
-#define _CMD_CLEAR "clear"                    // 2
-#define _CMD_ECHO "echo"                      // 3
-#define _CMD_BEEP "beep"                      // 4
-#define _CMD_RESET "reset"                    // 5
-#define _CMD_TASKS "tasks"                    // 6
-#define _CMD_XMODEM "xmodem"                  // 7
-#define _CMD_PREF_BLOCK "pref_block"          // 8
-#define _CMD_CURR_BLOCK "curr_block"          // 9
-#define _CMD_ERASE_FIRMWARE "erase_firmware"  // 10
-#define _CMD_CHECK_CRC "check_crc"            // 11
-#define _CMD_SEND_RADIO "send_radio"          // 12
-#define _CMD_RADIO_CONF "radio_conf"          // 13
-#define _CMD_SENS_MEASURE "sens_measure"      // 14
-#define _CMD_CALIB_SENSORS "calib_sensors"    // 15
-#define _CMD_SLEEP "sleep"                    // 16
-#define _CMD_TIME "time"                      // 17
-#define _CMD_DUMP_MEM "dump_mem"              // 18
-#define _CMD_MOUNT "mount"                    // 19
-#define _CMD_NEOFETCH "neofetch"              // 20
-#define _CMD_LS "ls"                          // 21
-#define _CMD_CD "cd"                          // 22
-#define _CMD_RM "rm"                          // 23
-#define _CMD_RENAME "rename"                  // 24
-#define _CMD_TOUCH "touch"                    // 25
-#define _CMD_MKDIR "mkdir"                    // 26
-#define _CMD_CAT "cat"                        // 27
-#define _CMD_TAIL "tail"                      // 28
-#define _CMD_HEAD "head"                      // 29
-#define _CMD_DF "df"                          // 30
-#define _CMD_SET_CONFIG "set_config"          // 31
-#define _CMD_SHOW_CONFIG "show_config"        // 32
-#define _CMD_SAVE_CONFIG "save_config"        // 33
-#define _CMD_CLEAR_CONFIG "clear_config"      // 34
-#define _CMD_UPLOAD_SD_FW "upload_sd_fw"      // 35
-#define _CMD_WATCHDOG "watchdog"              // 36
-#define _CMD_MOCK_CALIB "mock_calib"          // 37
 
-#define _NUM_OF_CMD 37
+#define _CMD_HELP            2090324718
+#define _CMD_CLEAR           255552908
+#define _CMD_ECHO            2090214596
+#define _CMD_BEEP            2090108865
+#define _CMD_RESET           273105544
+#define _CMD_TASKS           275333835
+#define _CMD_XMODEM          666702863
+#define _CMD_PREF_BLOCK      2687071548
+#define _CMD_CURR_BLOCK      1680347659
+#define _CMD_ERASE_FIRMWARE  3540328785
+#define _CMD_CHECK_CRC       1181315578
+#define _CMD_SEND_RADIO      2003746781
+#define _CMD_RADIO_CONF      197085785
+#define _CMD_SENS_MEASURE    1772722127
+#define _CMD_CALIB_SENSORS   1652519980
+#define _CMD_SLEEP           274527774
+#define _CMD_TIME            2090760340
+#define _CMD_DUMP_MEM        4197134393
+#define _CMD_MOUNT           267537784
+#define _CMD_NEOFETCH        1762818289
+#define _CMD_LS              5863588
+#define _CMD_CD              5863276
+#define _CMD_RM              5863780
+#define _CMD_RENAME          422364189
+#define _CMD_TOUCH           275838856
+#define _CMD_MKDIR           267375356
+#define _CMD_CAT             193488125
+#define _CMD_TAIL            2090751503
+#define _CMD_HEAD            2090324343
+#define _CMD_DF              5863311
+#define _CMD_SET_CONFIG      2302414790
+#define _CMD_SHOW_CONFIG     1288376539
+#define _CMD_SAVE_CONFIG     3276224553
+#define _CMD_CLEAR_CONFIG    4200672097
+#define _CMD_UPLOAD_SD_FW    3279612316
+#define _CMD_WATCHDOG        2398021142
+#define _CMD_TOGGLE_GSM      2531157517
+#define _CMD_GSM_CMD         278497759
+#define _CMD_TCP_INIT        1518441119
+#define _CMD_TCP_OPEN        1518658781
+#define _CMD_TCP_CLOSE       2856735873
+#define _CMD_TCP_SEND        1518790837
+
+
+#define _NUM_OF_CMD 42
 #define FILE_BUFFER 1024
+
+uint32_t hash(const char *str) {
+    uint32_t hash = 5381;
+    char c;
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c;
+    return hash;
+}
+
 
 void uart_print(int data){
     UART_tx(USART_PRINT, (uint8_t)(data));
 }
+
+
 // available  commands
-char *keyworld[] = {_CMD_HELP,              // 1
-                    _CMD_CLEAR,             // 2
-                    _CMD_ECHO,              // 3
-                    _CMD_BEEP,              // 4
-                    _CMD_RESET,             // 5
-                    _CMD_TASKS,             // 6
-                    _CMD_XMODEM,            // 7
-                    _CMD_PREF_BLOCK,        // 8
-                    _CMD_CURR_BLOCK,        // 9
-                    _CMD_TIME,              // 10
-                    _CMD_ERASE_FIRMWARE,    // 11
-                    _CMD_CHECK_CRC,         // 12
-                    _CMD_SEND_RADIO,        // 13
-                    _CMD_SENS_MEASURE,      // 14
-                    _CMD_CALIB_SENSORS,     // 15
-                    _CMD_SLEEP,             // 16
-                    _CMD_WATCHDOG,          // 16
-                    _CMD_RADIO_CONF,        // 17
-                    _CMD_DUMP_MEM,          // 18
-                    _CMD_NEOFETCH,          // 19
-                    _CMD_LS,                // 20
-                    _CMD_CD,                // 21
-                    _CMD_RM,                // 22
-                    _CMD_DF,                // 23
-                    _CMD_RENAME,            // 24
-                    _CMD_TOUCH,             // 25
-                    _CMD_MKDIR,             // 26
-                    _CMD_CAT,               // 27
-                    _CMD_TAIL,              // 28
-                    _CMD_HEAD,              // 29
-                    _CMD_MOUNT,             // 30
-                    _CMD_SET_CONFIG,        // 31
-                    _CMD_SHOW_CONFIG,       // 32
-                    _CMD_SAVE_CONFIG,       // 33
-                    _CMD_CLEAR_CONFIG,      // 34
-                    _CMD_UPLOAD_SD_FW,      // 36
-                    _CMD_MOCK_CALIB
-                    };
+char *keyword[] = {
+    "help",
+    "clear",
+    "echo",
+    "beep",
+    "reset",
+    "tasks",
+    "xmodem",
+    "pref_block",
+    "curr_block",
+    "erase_firmware",
+    "check_crc",
+    "send_radio",
+    "radio_conf",
+    "sens_measure",
+    "calib_sensors",
+    "sleep",
+    "time",
+    "dump_mem",
+    "mount",
+    "neofetch",
+    "ls",
+    "cd",
+    "rm",
+    "rename",
+    "touch",
+    "mkdir",
+    "cat",
+    "tail",
+    "head",
+    "df",
+    "set_config",
+    "show_config",
+    "save_config",
+    "clear_config",
+    "upload_sd_fw",
+    "watchdog",
+    "toggle_gsm",
+    "gsm_cmd",
+    "tcp_init",
+    "tcp_open",
+    "tcp_close",
+    "tcp_send"
+};
 
 // array for comletion
 char *compl_world[_NUM_OF_CMD + 1];
@@ -155,6 +181,8 @@ void print_help(void) {
       /*36*/  "  beep [freq] [duration]         - make beep signal certain frequency and duration\n"\
       /*37*/  "  sleep [sleep_sec]              - go to sleep mode\n"
       /*37*/  "  watchdog                       - test watchdog timer\n"
+      /*38*/  "  toggle_gsm                     - toggle GSM power\n"
+      /*39*/  "  gsm_cmd                        - send command to GSM modem\n"
       );
 }
 
@@ -400,47 +428,35 @@ char rtc_buffer[25] = {0};
 // execute callback for microrl library
 // do what you want here, but don't write to argv!!! read only!!
 int execute(int argc, const char *const *argv) {
-    // just iterate through argv word and compare it with your commands
-    if (strcmp(argv[0], _CMD_HELP) == 0) {
-        print_help();  // print help
-    } else if (strcmp(argv[0], _CMD_CLEAR) == 0) {
-        xprintf("\033[2J\033[H");  // ESC seq for clear entire screen
-    } else if (strcmp(argv[0], _CMD_ECHO) == 0) {
+    switch (hash(argv[0]))
+    {
+    case _CMD_HELP:
+        print_help();
+        break;
+    case _CMD_CLEAR:
+        xprintf("\033[2J\033[H");
+        break;
+    case _CMD_ECHO:
         if (argc > 1) {
             for (uint8_t i = 1; i < argc; i++) {
                 xprintf("%s ", argv[i]);
             }
             xprintf("\n");
         }
-    } else if (strcmp(argv[0], _CMD_TASKS) == 0) {
-        if (argc > 1) {
-            xprintf("reset cmd does not accept any arguments\n");
-        }
+        break;
+    case _CMD_TASKS:
         show_monitor();
-    } else if (strcmp(argv[0], _CMD_CURR_BLOCK) == 0) {
-        if (argc > 1) {
-            xprintf("get_curr_block cmd does not accept any arguments\n");
-        }
+        break;
+    case _CMD_CURR_BLOCK:
         xprintf("%u\n", HaveRunFlashBlockNum());
-    } else if (strcmp(argv[0], _CMD_NEOFETCH) == 0) {
-        if(argc == 1){
-            neofetch();
-        }
-    } else if (strcmp(argv[0], _CMD_PREF_BLOCK) == 0) {
-        if (argc == 1) {
-            xprintf("%u\n", HavePrefFlashBlockNum());
-        } else if (argc == 2) {
-            long block_num;
-            xatoi((char **)(&argv[1]), &block_num);
-            FLASH_status status = SetPrefferedBlockNum((uint8_t)block_num);
-            if (status != FLASH_OK) {
-                xprintf("failed to set preffered block\n");
-            }
-            system_config.pref_block = (uint64_t)HavePrefFlashBlockNum();
-        } else {
-            xprintf("pref_block cmd accepts only one argument\n");
-        }
-    } else if (strcmp(argv[0], _CMD_CHECK_CRC) == 0) {
+        break;
+    case _CMD_NEOFETCH:
+        neofetch();
+        break;
+    case _CMD_PREF_BLOCK:
+        xprintf("%u\n", HavePrefFlashBlockNum());
+        break;
+        case _CMD_CHECK_CRC:
         if (argc == 2) {
             long block_num;
             xatoi((char **)(&argv[1]), &block_num);
@@ -453,18 +469,42 @@ int execute(int argc, const char *const *argv) {
         } else {
             xprintf("check_crc cmd accepts only one argument\n");
         }
-    } else if (strcmp(argv[0], _CMD_BEEP) == 0) {
+        break;
+    case _CMD_BEEP:
         if (argc == 3) {
             long freq;
             long duration;
             xatoi((char **)(&argv[1]), &freq);
             xatoi((char **)(&argv[2]), &duration);
             BUZZ_beep(&buzzer, (uint16_t)freq, (uint16_t)duration);
-        } else {
-            xprintf("you should set only frequency and duration\n");
         }
-
-    } else if (strcmp(argv[0], _CMD_SENS_MEASURE) == 0) {
+        break;
+    case _CMD_CALIB_SENSORS:
+        if(argc == 1){
+            if(sensors_bus.is_calibrated){
+                xprintf("Temperature sensors already calibrated."\
+                        "Recalibration process started\n");
+            }
+            sensors_bus.power_on();
+            DS18B20_BUS_Status status = Calibration_routine(&sensors_bus);
+            if(status != (DS18B20_BUS_Status)OW_OK){
+                xprintf("Calibration failed: %d\n", status);
+                sensors_bus.power_off();
+                return 0;
+            }
+            for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+                xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
+            }
+            if(system_config.auto_save_config){
+                if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
+                    xprintf("Saving configuration failed!\n");
+                if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
+                    xprintf("Cant save config to SD\n");
+            }
+            sensors_bus.power_off();
+        }
+        break;
+    case _CMD_SENS_MEASURE:
         if(argc <= 9){
             #define TEMP_ONLY   1 << 0
             #define ADC_ONLY    1 << 1
@@ -649,56 +689,8 @@ int execute(int argc, const char *const *argv) {
                 vTaskDelay(meas_period > 0 ? meas_period * 1000 : 1);
             }
         }
-    } else if (strcmp(argv[0], _CMD_CALIB_SENSORS) == 0) {
-        if(argc == 1){
-            if(sensors_bus.is_calibrated){
-                xprintf("Temperature sensors already calibrated."\
-                        "Recalibration process started\n");
-            }
-            sensors_bus.power_on();
-            DS18B20_BUS_Status status = Calibration_routine(&sensors_bus);
-            if(status != (DS18B20_BUS_Status)OW_OK){
-                xprintf("Calibration failed: %d\n", status);
-                sensors_bus.power_off();
-                return 0;
-            }
-            for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
-            }
-            if(system_config.auto_save_config){
-                if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
-                    xprintf("Saving configuration failed!\n");
-                if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
-                    xprintf("Cant save config to SD\n");
-            }
-            sensors_bus.power_off();
-        }
-
-    } else if (strcmp(argv[0], _CMD_SET_CONFIG) == 0) {
-        if(argc == 3){
-            long val = 0;
-            int key_size = 0;
-            char path[30] = {0};
-            uint16_t config_len = strlen(config_json);
-            xsprintf(path, "$.%s", argv[1]);
-            if(json_get(config_json, config_len, path, &key_size) < 0){
-                xprintf("Key \'%s\' was not found\n", argv[1]);
-            } else {
-                if(xatoi((char **)(&argv[2]), &val) == 0){
-                    xprintf("Incorrect value \'%s\'. Available only integers.\n", argv[2]);
-                } else {
-                    if(json_set_num(config_json, strlen(config_json), path, val)){
-                        xprintf("Failed to set config value\n");
-                    } else {
-                        parse_system_config(&system_config, config_json, config_len);
-                    }
-                }
-            }
-
-        } else {
-            xprintf("Incorrect argument amount\n");
-        }
-    } else if (strcmp(argv[0], _CMD_SHOW_CONFIG) == 0) {
+        break;
+    case _CMD_SHOW_CONFIG:
         if(argc <= 2){
             char tmp_json[JSON_STR_CONFIG_SIZE] = {0};
             SystemConfig tmp_config;
@@ -722,19 +714,39 @@ int execute(int argc, const char *const *argv) {
                 xprintf("RAM config:\n");
                 xprintf(tmp_json);
             }
-        } else {
-            xprintf("Too many arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_SAVE_CONFIG) == 0) {
+        break;
+    case _CMD_SET_CONFIG:
+        if(argc == 3){
+            long val = 0;
+            int key_size = 0;
+            char path[30] = {0};
+            uint16_t config_len = strlen(config_json);
+            xsprintf(path, "$.%s", argv[1]);
+            if(json_get(config_json, config_len, path, &key_size) < 0){
+                xprintf("Key \'%s\' was not found\n", argv[1]);
+            } else {
+                if(xatoi((char **)(&argv[2]), &val) == 0){
+                    xprintf("Incorrect value \'%s\'. Available only integers.\n", argv[2]);
+                } else {
+                    if(json_set_num(config_json, strlen(config_json), path, val)){
+                        xprintf("Failed to set config value\n");
+                    } else {
+                        parse_system_config(&system_config, config_json, config_len);
+                    }
+                }
+            }
+        }
+        break;
+    case _CMD_SAVE_CONFIG:
         if(argc == 1){
             if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
                 xprintf("Saving configuration failed!\n");
             if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
                 xprintf("Cant save config to SD\n");
-        } else {
-            xprintf("Too many arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_CLEAR_CONFIG) == 0) {
+        break;
+    case _CMD_CLEAR_CONFIG:
         if(argc == 1){
             system_config_init(&system_config);
             system_config_to_str(&system_config, config_json);
@@ -746,10 +758,9 @@ int execute(int argc, const char *const *argv) {
             }
             if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
                 xprintf("Cant save config to SD card\n");
-        } else {
-            xprintf("Too many arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_SLEEP) == 0) {
+        break;
+    case _CMD_SLEEP:
         if(argc == 2){
             long sleep_time = 0;
             xatoi((char **)&argv[1], &sleep_time);
@@ -759,16 +770,14 @@ int execute(int argc, const char *const *argv) {
                 RTC_auto_wakeup_enable((uint16_t)sleep_time);
                 stop_cortex();
             }
-        } else {
-            xprintf("Too many arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_WATCHDOG) == 0) {
+        break;
+    case _CMD_WATCHDOG:
         if(argc == 1){
             while(1){};
-        } else {
-            xprintf("Too many arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_MOUNT) == 0) {
+        break;
+    case _CMD_MOUNT:
         if(argc == 1){
             FATFS fs;
             FRESULT result;
@@ -786,13 +795,14 @@ int execute(int argc, const char *const *argv) {
                 xprintf("Failed\n");
             }
         }
-    } else if (strcmp(argv[0], _CMD_LS) == 0) {
+        break;
+    case _CMD_LS:
         if(argc <= 2){
             ls((argc == 2) ? (char *)(argv[1]) : "");
         }
-    } else if (strcmp(argv[0], _CMD_CD) == 0) {
+        break;
+    case _CMD_CD:
         if(argc == 2){
-
             memset(curr_dir_name + 26, 0, 102);
             memcpy(curr_dir_name, rl.prompt_str, 26);
             if (f_chdir(argv[1]) != FR_OK) {
@@ -803,33 +813,31 @@ int execute(int argc, const char *const *argv) {
                 memcpy(curr_dir_name + strlen(curr_dir_name), "\033[37m$\033[0m ", 11);
                 rl.prompt_str = curr_dir_name;
             }
-        } else {
-            xprintf("You need to set only \"file_name\" argument\n");
         }
-    } else if (strcmp(argv[0], _CMD_RENAME) == 0) {
+        break;
+    case _CMD_RENAME:
         if(argc == 3){
             if(f_rename(argv[1], argv[2]) != FR_OK){
                 xprintf("Failed\n");
             }
-        } else {
-            xprintf("Incorrect arguments for \'rename\'\n");
         }
-    } else if (strcmp(argv[0], _CMD_RM) == 0) {
+        break;
+    case _CMD_RM:
         if(argc == 2){
             if (f_unlink(argv[1]) != FR_OK) {
                 xprintf("FAILED\n");
             }
-        } else {
-            xprintf("You need to set only \"file_name\" argument\n");
         }
-    } else if (strcmp(argv[0], _CMD_CAT) == 0) {
+        break;
+    case _CMD_CAT:
         if(argc == 2){
             if(file_read(argv[1], file_buff, FILE_BUFFER, 0) != FR_OK){
                 xprintf("Failed\n");
             }
             xputc('\n');
         }
-    } else if (strcmp(argv[0], _CMD_TAIL) == 0) {
+        break;
+    case _CMD_TAIL:
         if(argc == 3){
             uint32_t offset = 0;
             long str_count = 0;
@@ -843,20 +851,18 @@ int execute(int argc, const char *const *argv) {
                     xprintf("Failed\n");
                 }
             }
-        } else {
-            xprintf("Incorrect arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_HEAD) == 0) {
+        break;
+    case _CMD_HEAD:
         if(argc == 3){
             long str_count = 0;
             xatoi((char **)(&argv[2]), &str_count);
             if(str_count > 0){
                 head(argv[1], file_buff, FILE_BUFFER, str_count);
             }
-        } else {
-            xprintf("Incorrect arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_DUMP_MEM) == 0) {
+        break;
+    case _CMD_DUMP_MEM:
         if(argc == 3){
             long addr = 0;
             long len = 0;
@@ -869,31 +875,27 @@ int execute(int argc, const char *const *argv) {
                 dump_memory(addr, (uint32_t *)addr, (size_t)len);
             }
         }
-    } else if (strcmp(argv[0], _CMD_TOUCH) == 0) {
+        break;
+    case _CMD_TOUCH:
         if(argc == 2){
             if (f_open(&file, argv[1], FA_OPEN_ALWAYS | FA_READ) != FR_OK) {
                 xprintf("FAILED\n");
             } else {
                 f_close(&file);
             }
-        } else {
-            xprintf("You need to set only \"file_name\" argument\n");
         }
-    } else if (strcmp(argv[0], _CMD_MKDIR) == 0) {
+        break;
+    case _CMD_MKDIR:
         if(argc == 2){
             if(f_mkdir(argv[1]) != FR_OK){
                 xprintf("FAILED\n");
             }
-        } else {
-            xprintf("You need to set only \"dir_name\" argument\n");
         }
-    } else if (strcmp(argv[0], _CMD_RESET) == 0) {
-        if (argc == 1) {
-            __NVIC_SystemReset();
-        } else {
-            xprintf("reset cmd does not accept any arguments\n");
-        }
-    } else if (strcmp(argv[0], _CMD_TIME) == 0) {
+        break;
+    case _CMD_RESET:
+        __NVIC_SystemReset();
+        break;
+    case _CMD_TIME:
         if (argc == 1) {
             RTC_string_datetime(rtc_buffer);
             xprintf("%s\n", rtc_buffer);
@@ -911,19 +913,20 @@ int execute(int argc, const char *const *argv) {
             xatoi((char **)(&argv[5]), &minutes);
             xatoi((char **)(&argv[6]), &seconds);
             RTC_struct_brief new_time = {.years = years > 2000 ? years - 2000 : years,
-                                            .months = months,
-                                            .date = date,
-                                            .hours = hours,
-                                            .minutes = minutes,
-                                            .seconds = seconds,
-                                            .sub_seconds = 0};
-            RTC_data_update(&new_time);
-            RTC_string_datetime(rtc_buffer);
-            xprintf("%s\n", rtc_buffer);
-        } else {
-            xprintf("incorrect arguments for \'time\' cmd\n");
-        }
-    } else if (strcmp(argv[0], _CMD_RADIO_CONF) == 0) {
+                .months = months,
+                .date = date,
+                .hours = hours,
+                .minutes = minutes,
+                .seconds = seconds,
+                .sub_seconds = 0};
+                RTC_data_update(&new_time);
+                RTC_string_datetime(rtc_buffer);
+                xprintf("%s\n", rtc_buffer);
+            } else {
+                xprintf("incorrect arguments for \'time\' cmd\n");
+            }
+            break;
+    case _CMD_RADIO_CONF:
         if (argc == 1) {
             xprintf("Reg num: Value\n");
             for (uint8_t i = 0; i < 127; i++) {
@@ -951,13 +954,13 @@ int execute(int argc, const char *const *argv) {
         } else {
             xprintf("you should set only frequency and duration\n");
         }
-    } else if (strcmp(argv[0], _CMD_SEND_RADIO) == 0) {
+        break;
+    case _CMD_SEND_RADIO:
         if (argc == 2) {
             LoRa_transmit(&sx127x, (uint8_t *)argv[1], strlen(argv[1]));
-        } else {
-            xprintf("you should set only message string for transaction\n");
         }
-    } else if (strcmp(argv[0], _CMD_XMODEM) == 0) {
+        break;
+    case _CMD_XMODEM:
         if (argc == 1) {
             xmodem.save = xmodem_flash_write;
             xmodem.on_first_packet = FLASH_erase_neighbor;
@@ -978,23 +981,12 @@ int execute(int argc, const char *const *argv) {
         } else {
             xprintf("Incorrect amount of arguments\n");
         }
-    } else if (strcmp(argv[0], _CMD_MOCK_CALIB) == 0) {
-        uint64_t test_calibs[12] = {
-            0xDEADBEAF55225511, 0xDEADBEAF55225522, 0xDEADBEAF55225533,
-            0xDEADBEAF55225544, 0xDEADBEAF55225555, 0xDEADBEAF55225566,
-            0xDEADBEAF55225577, 0xDEADBEAF55225588, 0xDEADBEAF55225599,
-            0xDEADBEAF552255AA, 0xDEADBEAF552255BB, 0xDEADBEAF552255CC
-        };
-        memcpy(system_config.sensors_serials, test_calibs, sizeof(uint64_t) * 12);
-        xprintf("test sensors config successfully written\n");
-    } else if (strcmp(argv[0], _CMD_ERASE_FIRMWARE) == 0) {
-        if (argc != 1) {
-            xprintf("erase_firmware cmd does not accept any arguments\n");
-        } else {
-            FLASH_status status = FLASH_erase_firmware(HaveRunFlashBlockNum());
-            if(status != FLASH_OK) xprintf("Failed\n");
-        }
-    } else if (strcmp(argv[0], _CMD_UPLOAD_SD_FW) == 0) {
+        break;
+    case _CMD_ERASE_FIRMWARE:
+        FLASH_status status = FLASH_erase_firmware(HaveRunFlashBlockNum());
+        if(status != FLASH_OK) xprintf("Failed\n");
+        break;
+    case _CMD_UPLOAD_SD_FW:
         if (argc == 2) {
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             xprintf("Writing to address %08lX\n", write_addr);
@@ -1002,12 +994,52 @@ int execute(int argc, const char *const *argv) {
                 xprintf("Failed\n");
             }
         }
-    } else {
-        xprintf("Incorrect arguments\n");
+        break;
+    case _CMD_TOGGLE_GSM:
+        GSM_TogglePower(&sim7000g);
+        break;
+    case _CMD_TCP_INIT:
+        GSM_CheckSIM(&sim7000g);
+        sim7000g.delay_ms(500);
+        GSM_CheckGSM(&sim7000g);
+        sim7000g.delay_ms(200);
+        if(GSM_InitGPRS(&sim7000g) == 0){
+            xSemaphoreTake(xSemaphore, 1000);
+            xprintf("Successfully inited GPRS\n");
+            xSemaphoreGive(xSemaphore);
+        }
+        else {
+            xSemaphoreTake(xSemaphore, 1000);
+            xprintf("Failed GPRS initialization\n");
+            xSemaphoreGive(xSemaphore);
+        }
+        break;
+    case _CMD_TCP_OPEN:
+        if (argc == 3) {
+            GSM_OpenConnection(&sim7000g, argv[1], argv[2]);
+        }
+        break;
+    case _CMD_TCP_CLOSE:
+        GSM_CloseConnections(&sim7000g);
+        break;
+    case _CMD_TCP_SEND:
+        if (argc == 2) {
+            GSM_SendTCP(&sim7000g, argv[1], strlen(argv[1]));
+        }
+        break;
+    default:
+        if (strstr(argv[0], "at") != 0 || strstr(argv[0], "AT") != 0) {
+            if (argc == 1) {
+                GSM_SendCMD(&sim7000g, (char*)argv[0]);
+            }
+        } else {
+            xprintf("Unknown command. Type \"help\" for show list of commands\n");
+        }
+        break;
     }
-
     return 0;
 }
+
 
 #ifdef _USE_COMPLETE
 //*****************************************************************************
@@ -1024,9 +1056,9 @@ char **complet(int argc, const char *const *argv) {
         // iterate through our available token and match it
         for (int i = 0; i < _NUM_OF_CMD; i++) {
             // if token is matched (text is part of our token starting from 0 char)
-            if (strstr(keyworld[i], bit) == keyworld[i]) {
+            if (strstr(keyword[i], bit) == keyword[i]) {
                 // add it to completion set
-                compl_world[j++] = keyworld[i];
+                compl_world[j++] = keyword[i];
             }
         }
         // } else if ((argc > 1) && ((strcmp(argv[0], _CMD_SET) == 0) ||
@@ -1039,7 +1071,7 @@ char **complet(int argc, const char *const *argv) {
         //     }
     } else {  // if there is no token in cmdline, just print all available token
         for (; j < _NUM_OF_CMD; j++) {
-            compl_world[j] = keyworld[j];
+            compl_world[j] = keyword[j];
         }
     }
 
