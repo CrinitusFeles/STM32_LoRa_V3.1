@@ -45,9 +45,16 @@ file(GLOB_RECURSE SOURCES
         "XModem/*.c"
         "BootLib/*.c"
         "FAT_FS/*.c"
-        # "lua-5.4.7/src/*.c"
-        # "lua-5.4.7/*.c"
+        "lua-5.4.7/src/*.c"
+        "lua-5.4.7/*.c"
         )
+
+file(GLOB_RECURSE SIZE_OPTIMIZATION
+    "lua-5.4.7/src/*.c"
+    "lua-5.4.7/*.c"
+    "FreeRTOS/src/*.c"
+    "Middleware/src/*.c"
+)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
     message(STATUS "Linking RESERVE firmware 0x8000000")
@@ -61,6 +68,12 @@ endif ()
 set(EXECUTABLE ${PROJECT_NAME}.out)
 
 add_executable(${EXECUTABLE} ${SOURCES})
+
+set_source_files_properties(
+  ${SIZE_OPTIMIZATION}
+  PROPERTIES
+    COMPILE_OPTIONS "-Os"
+)
 # Add Include directories
 target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/ExternalDevices/Inc
@@ -74,7 +87,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/XModem
         ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
         ${CMAKE_CURRENT_SOURCE_DIR}/FAT_FS
-        # ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)
@@ -104,7 +117,6 @@ target_compile_options(${EXECUTABLE} PRIVATE
     -Wformat=0
     -O0 -g -ggdb
 )
-
 add_custom_command(TARGET ${EXECUTABLE} POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${EXECUTABLE}> ${PROJECT_NAME}.hex
         COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${EXECUTABLE}> ${PROJECT_NAME}.bin
