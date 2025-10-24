@@ -192,6 +192,7 @@ void print_help(void) {
 FRESULT res;
 FIL file;
 char file_buff[FILE_BUFFER] = {0};
+char tmp_json[JSON_STR_CONFIG_SIZE] = {0};
 
 bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
     FLASH_status status = FLASH_write(addr, (uint64_t*)&buff[0], (uint32_t)size / 8);
@@ -707,7 +708,6 @@ int execute(int argc, const char *const *argv) {
         break;
     case _CMD_SHOW_CONFIG:
         if(argc <= 2){
-            char tmp_json[JSON_STR_CONFIG_SIZE] = {0};
             SystemConfig tmp_config;
             if(argc == 2){
                 if(strcmp(argv[1], "FLASH") == 0){

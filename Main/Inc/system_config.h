@@ -3,7 +3,8 @@
 #include "stm32l4xx.h"
 #include "flash.h"
 
-#define CONFIG_SIZE_64          52  // размер конфига в словах (8 байт)
+#define CONFIG_PAGE             127
+#define CONFIG_SIZE_64          55  // размер конфига в словах (8 байт)
 #define JSON_STR_CONFIG_SIZE    2800
 #define SYSTEM_CONFIG_PATH      "system_config.json"
 
@@ -19,22 +20,24 @@ typedef enum SystemConfigStatus{
 typedef union SystemConfig{
     uint64_t FLASH_page_buffer[256];
     struct{
-        uint32_t config_addr;
-        uint32_t serials_addr;
-        uint8_t config_page;  // 1
+        char apn[20];   // 4
+        char ip[17];
+        uint16_t port;
+        uint8_t res;
         uint8_t action_mode;
         uint16_t module_id;
         uint8_t auto_save_config;
         uint8_t immediate_applying;
         uint8_t enable_beep;
         uint8_t enable_watchdog;
+        uint8_t modem_period;
 
-        uint32_t wakeup_period;  // 2
+        uint32_t wakeup_period;  // 1
         uint32_t uart_speed;
-        int32_t rtc_ppm;  // 3
+        int32_t rtc_ppm;  // 2
 
         uint32_t lora_freq;
-        uint8_t lora_sf;  // 4
+        uint8_t lora_sf;  // 3
         uint8_t lora_bw;
         uint8_t lora_cr;
         uint8_t lora_crc_en;
@@ -42,9 +45,9 @@ typedef union SystemConfig{
         uint8_t lora_sync_word;
         uint8_t lora_tx_power;
         uint8_t lora_preamble;
-        uint64_t res;  // 5
 
-        uint64_t sensors_serials[45];  // 6
+
+        uint64_t sensors_serials[45];  // 9
         uint64_t pref_block;
     };
 } SystemConfig;

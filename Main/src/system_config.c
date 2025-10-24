@@ -18,42 +18,26 @@ FLASH_status save_system_config_to_FLASH(SystemConfig *config){
     */
     uint8_t need_rewrite = 0;
     FLASH_status status = FLASH_OK;
+    uint32_t config_addr = FLASH_START_ADDR + CONFIG_PAGE * FLASH_PAGE_SIZE;
     for(uint8_t i = 0; i < CONFIG_SIZE_64; i++){
-        if(config->FLASH_page_buffer[i] != M64(config->config_addr + i * sizeof(uint64_t))){
+        if(config->FLASH_page_buffer[i] != M64(config_addr + i * sizeof(uint64_t))){
             need_rewrite = 1;
             break;
         }
     }
     config->pref_block = HavePrefFlashBlockNum();
     if(need_rewrite){
-        status = FLASH_erase_page(config->config_page);
+        status = FLASH_erase_page(CONFIG_PAGE);
         if(status != FLASH_OK) return status;
         status = SetPrefferedBlockNum(config->pref_block);
         if(status != FLASH_OK) return status;
-        status = FLASH_write(config->config_addr, config->FLASH_page_buffer, CONFIG_SIZE_64);
+        status = FLASH_write(config_addr, config->FLASH_page_buffer, CONFIG_SIZE_64);
     }
     return status;
 }
 
-uint8_t is_FLASH_config_empty(SystemConfig *config){
-    for(uint8_t i = 0; i < CONFIG_SIZE_64 - 12; i++){
-        if(M64(config->config_addr + i * sizeof(uint64_t)) != FLASH_EMPTY_CELL){
-            return 0;
-        }
-    }
-    return 1;
-}
 
 SystemConfigStatus validate_config(SystemConfig *config){
-    if(config->config_addr < 0x8008000 || config->config_addr > 0x8038000){
-        return CONFIG_VALIDATION_ERROR;
-    }
-    if(config->serials_addr < 0x8008000 || config->serials_addr > 0x8038000){
-        return CONFIG_VALIDATION_ERROR;
-    }
-    if(config->config_page < 32 || config->config_page > 253){
-        return CONFIG_VALIDATION_ERROR;
-    }
     if(config->uart_speed < 4800 || config->uart_speed > 115200){
         return CONFIG_VALIDATION_ERROR;
     }
@@ -73,9 +57,6 @@ SystemConfigStatus validate_config(SystemConfig *config){
 }
 
 void system_config_init(SystemConfig *config){
-    config->config_addr = 0x801F800;
-    config->serials_addr = 0x801F820;
-    config->config_page = 63;
     config->action_mode = 0;
     config->module_id = 0;
     config->auto_save_config = 0;
@@ -94,15 +75,16 @@ void system_config_init(SystemConfig *config){
     config->lora_sync_word = 0x12;
     config->lora_tx_power = 0xF6;
     config->lora_preamble = 8;
+    config->modem_period = 0;
+    config->port = 33012;
+    strcpy(config->apn, "internet.tele2.ru\0\0");
+    strcpy(config->ip, "84.237.52.8\0\0\0\0");
     memset(config->sensors_serials, 0xFF, TEMP_SENSOR_AMOUNT * sizeof(uint64_t));
 }
 
 void system_config_to_str(SystemConfig *config, char *buf){
     uint16_t written = xsprintf(buf,
     "{\n"\
-    "    \"config_addr\": %d,\n"\
-    "    \"serials_addr\": %d,\n"\
-    "    \"config_page\": %d,\n"\
     "    \"action_mode\": %d,\n"\
     "    \"module_id\": %d,\n"\
     "    \"auto_save_config\": %d,\n"\
@@ -120,10 +102,11 @@ void system_config_to_str(SystemConfig *config, char *buf){
     "    \"lora_ldro\": %d,\n"\
     "    \"lora_sync_word\": %d,\n"\
     "    \"lora_tx_power\": %d,\n"\
-    "    \"lora_preamble\": %d,\n",
-    config->config_addr,
-    config->serials_addr,
-    config->config_page,
+    "    \"lora_preamble\": %d,\n"\
+    "    \"modem_period\": %d,\n"\
+    "    \"apn\": %s,\n"\
+    "    \"ip\": %s,\n"\
+    "    \"port\": %d,\n",
     config->action_mode,
     config->module_id,
     config->auto_save_config,
@@ -141,7 +124,11 @@ void system_config_to_str(SystemConfig *config, char *buf){
     config->lora_ldro,
     config->lora_sync_word,
     config->lora_tx_power,
-    config->lora_preamble
+    config->lora_preamble,
+    config->modem_period,
+    config->apn,
+    config->ip,
+    config->port
     );
     for(uint8_t i = 0; i < 45; i++){
         written += xsprintf(buf + written, "    \"temp_sensor_id%d\": %llu,\n",
@@ -152,9 +139,6 @@ void system_config_to_str(SystemConfig *config, char *buf){
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     char str_buf[30] = "";
-    json_get_num(buf, buf_len, "$.config_addr", (long *)&config->config_addr);
-    json_get_num(buf, buf_len, "$.serials_addr", (long *)&config->serials_addr);
-    json_get_num(buf, buf_len, "$.config_page", (long *)&config->config_page);
     json_get_num(buf, buf_len, "$.action_mode", (long *)&config->action_mode);
     json_get_num(buf, buf_len, "$.module_id", (long *)&config->module_id);
     json_get_num(buf, buf_len, "$.auto_save_config", (long *)&config->auto_save_config);
@@ -173,6 +157,10 @@ void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     json_get_num(buf, buf_len, "$.lora_sync_word", (long *)&config->lora_sync_word);
     json_get_num(buf, buf_len, "$.lora_tx_power", (long *)&config->lora_tx_power);
     json_get_num(buf, buf_len, "$.lora_preamble", (long *)&config->lora_preamble);
+    json_get_num(buf, buf_len, "$.port", (long *)&config->port);
+    json_get_num(buf, buf_len, "$.modem_period", (long *)&config->modem_period);
+    json_get_str(buf, buf_len, "$.apn", (char *)&config->apn, 20);
+    json_get_str(buf, buf_len, "$.ip", (char *)&config->ip, 17);
     for(uint8_t i = 0; i < 45; i++){
         xsprintf(str_buf, "$.temp_sensor_id%d", i+1);
         json_get_big_num(buf, buf_len, str_buf, (long long*)&config->sensors_serials[i]);
@@ -180,12 +168,13 @@ void parse_system_config(SystemConfig *config, char *buf, int buf_len){
 }
 
 SystemConfigStatus read_FLASH_system_config(SystemConfig *config){
-    if(is_FLASH_config_empty(config)){
+    uint32_t config_addr = FLASH_START_ADDR + CONFIG_PAGE * FLASH_PAGE_SIZE;
+    if(M64(config_addr) == FLASH_EMPTY_CELL){
         return CONFIG_FLASH_EMPTY;
     }
 
     for(uint16_t i = 0; i < CONFIG_SIZE_64; i++){  // read config from FLASH
-        config->FLASH_page_buffer[i] = M64(config->config_addr + i * sizeof(uint64_t));
+        config->FLASH_page_buffer[i] = M64(config_addr + i * sizeof(uint64_t));
     }
     SystemConfigStatus status = validate_config(config);
     return status;
@@ -195,7 +184,7 @@ SystemConfigStatus read_FLASH_system_config(SystemConfig *config){
 Выполняется единожды при инициализации системы
 */
 SystemConfigStatus init_FLASH_system_config(SystemConfig *config){
-    if(is_FLASH_config_empty(config)){
+    if(M64(FLASH_START_ADDR + CONFIG_PAGE * FLASH_PAGE_SIZE) == FLASH_EMPTY_CELL){
         if(save_system_config_to_FLASH(config) != FLASH_OK)
             return CONFIG_SAVE_ERROR;
         return CONFIG_OK;
@@ -254,5 +243,8 @@ SystemConfigStatus read_config_from_SD(SystemConfig *config, char *path,
     }
     f_close(&file);
     parse_system_config(config, json, read_count);
+    if(validate_config(config) != CONFIG_OK){
+        return CONFIG_VALIDATION_ERROR;
+    }
     return CONFIG_OK;
 }

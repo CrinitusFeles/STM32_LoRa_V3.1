@@ -6,13 +6,16 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "sx127x.h"
-#include "sx126x.h"
+// #include "sx126x.h"
 #include "monitor_task.h"
 #include "xprintf.h"
 #include "iwdg.h"
 #include "stm32_misc.h"
 #include "gsm.h"
 #include "periph_handlers.h"
+#include "lua_misc.h"
+
+#define UNUSED(x) (void)(x)
 
 
 uint8_t timeout_counter = 0;
@@ -25,10 +28,7 @@ StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
 StaticTask_t xTaskBuffer_RADIO_CONSOLE;
 StackType_t xStack_RADIO [configMINIMAL_STACK_SIZE];
 StackType_t xStack_GSM_PRINT [configMINIMAL_STACK_SIZE];
-StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 10];
-
-
-#define UNUSED(x) (void)(x)
+StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 12];
 
 
 static const uint16_t crc16_ccitt_table_reverse[256] = {
@@ -104,11 +104,8 @@ unsigned long vGetTimerForRunTimeStats(void){
     return ulHighFrequencyTimerTicks;
 }
 
-
-
 void RADIO_TASK(void *pvParameters){
     UNUSED(pvParameters);
-    char new_line[] = "\n\r";
     for (;;) {
         if(sx127x.new_rx_data_flag){
             memset(sx127x.rx_data.payload, 0, 250);
@@ -119,14 +116,12 @@ void RADIO_TASK(void *pvParameters){
             uint16_t crc16 = crc16_calc(sx127x.rx_data.payload, sx127x.rx_data.dlen);
             if(crc16 != sx127x.rx_data.crc16)
                 continue;
-            // xdev_out(uart_print);
-            // xprintf((char*)sx127x.rx_data.payload);
 
             xdev_out(route_cli_to_lora);
-            // for(uint8_t i = 0; i < sx127x.rx_data.dlen; i++){
-            //     xQueueSend(cli_queue, &sx127x.rx_data.payload[i], portMAX_DELAY);
-            // }
-            // xQueueSend(cli_queue, new_line, portMAX_DELAY);
+            for(uint8_t i = 0; i < sx127x.rx_data.dlen; i++){
+                xStreamBufferSend(cli_stream, &sx127x.rx_data.payload[i], cnt, portMAX_DELAY);
+            }
+            xStreamBufferSend(cli_stream, "\n\r", 3, portMAX_DELAY);
         }
         if(sx127x.tx_data.dlen > 1){
             timeout_counter += 1;
@@ -169,6 +164,8 @@ void CONSOLE_TASK(void *pvParameters){
     vTaskDelete( NULL );
 	// Delay(1000);
 }
+
+
 
 void GSM_PRINT(void *pvParameters){
     UNUSED(pvParameters);
@@ -240,7 +237,8 @@ int main(){
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
     xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
     xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
-    xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 10, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
+    xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 12, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
+
     vTaskStartScheduler();
 }
 
