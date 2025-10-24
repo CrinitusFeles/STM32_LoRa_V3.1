@@ -72,7 +72,7 @@ FLASH_status FLASH_write_page(uint8_t page_num, uint16_t offset, uint64_t *data,
 
 FLASH_status FLASH_write(uint32_t addr, uint64_t *data, uint16_t word_length){
     uint32_t timeout = FLASH_OPERATION_TIMEOUT;
-    if(addr < FLASH_START_ADDR && addr >= FLASH_START_ADDR + FLASH_MAX_SIZE){
+    if(addr < FLASH_START_ADDR || addr >= FLASH_START_ADDR + FLASH_MAX_SIZE){
         return FLASH_INCORRECT_ADDRESS;
     }
     __disable_irq();
