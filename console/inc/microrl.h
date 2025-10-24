@@ -98,7 +98,7 @@ void microrl_init (microrl_t * pThis, void (*print)(const char*));
 // set echo mode (true/false), using for disabling echo for password input
 // echo mode will enabled after user press Enter.
 void microrl_set_echo (int);
-
+void microrl_clear_input();
 // set pointer to callback complition func, that called when user press 'Tab'
 // callback func description:
 //   param: argc - argument count, argv - pointer array to token string

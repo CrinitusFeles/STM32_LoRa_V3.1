@@ -468,6 +468,15 @@ static void microrl_get_complite(microrl_t *pThis) {
 }
 #endif
 
+void microrl_clear_input(microrl_t *pThis){
+    pThis->cmdlen = 0;
+    pThis->cursor = 0;
+    memset(pThis->cmdline, 0, _COMMAND_LINE_LEN);
+#ifdef _USE_HISTORY
+    pThis->ring_hist.cur = 0;
+#endif
+}
+
 //*****************************************************************************
 void new_line_handler(microrl_t *pThis) {
     char const *tkn_arr[_COMMAND_TOKEN_NMB];
@@ -487,12 +496,7 @@ void new_line_handler(microrl_t *pThis) {
         pThis->execute(status, tkn_arr);
     }
     print_prompt(pThis);
-    pThis->cmdlen = 0;
-    pThis->cursor = 0;
-    memset(pThis->cmdline, 0, _COMMAND_LINE_LEN);
-#ifdef _USE_HISTORY
-    pThis->ring_hist.cur = 0;
-#endif
+    microrl_clear_input(pThis);
 }
 
 //*****************************************************************************
