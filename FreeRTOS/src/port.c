@@ -325,6 +325,7 @@ BaseType_t xPortStartScheduler( void )
      * is 1, should be preferred when possible. */
     #if ( configCHECK_HANDLER_INSTALLATION == 1 )
     {
+        #pragma GCC diagnostic ignored "-Wunused-variable"
         const portISR_t * const pxVectorTable = portSCB_VTOR_REG;
 
         /* Validate that the application has correctly installed the FreeRTOS

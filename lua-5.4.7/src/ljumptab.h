@@ -9,6 +9,7 @@
 #undef vmcase
 #undef vmbreak
 
+#pragma GCC diagnostic ignored  "-Wpedantic"
 #define vmdispatch(x)     goto *disptab[x];
 
 #define vmcase(l)     L_##l:

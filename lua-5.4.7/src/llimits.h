@@ -88,6 +88,7 @@ typedef signed char ls_byte;
 #define L_P2I	size_t
 #endif
 
+#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
 #define point2uint(p)	((unsigned int)((L_P2I)(p) & UINT_MAX))
 
 

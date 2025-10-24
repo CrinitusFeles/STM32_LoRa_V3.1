@@ -19,6 +19,7 @@
 #include "gsm.h"
 #include "periph_handlers.h"
 #include "adc.h"
+#include "lua_misc.h"
 
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
@@ -68,9 +69,10 @@
 #define _CMD_TCP_OPEN        1518658781
 #define _CMD_TCP_CLOSE       2856735873
 #define _CMD_TCP_SEND        1518790837
+#define _CMD_LUA             193498567
 
 
-#define _NUM_OF_CMD 42
+#define _NUM_OF_CMD 43
 #define FILE_BUFFER 1024
 
 uint32_t hash(const char *str) {
@@ -130,7 +132,8 @@ char *keyword[] = {
     "tcp_init",
     "tcp_open",
     "tcp_close",
-    "tcp_send"
+    "tcp_send",
+    "lua"
 };
 
 // array for comletion
@@ -321,6 +324,9 @@ FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t off
         res = f_read(&file, (void *)(buff), buff_size, &read_count);
         if(res != FR_OK) break;
         for(uint16_t i = 0; i < read_count; i++){
+            if(buff[i] < 31 && (buff[i] != '\n' && buff[i] != '\r')){
+                buff[i] = 0;
+            }
             char val = buff[i];
             xputc(val);
             if(val == '\n'){
@@ -329,6 +335,7 @@ FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t off
         }
         offset += read_count;
     }
+    xputc('\n');
     f_close(&file);
     return res;
 }
@@ -443,6 +450,14 @@ int execute(int argc, const char *const *argv) {
             }
             xprintf("\n");
         }
+        break;
+    case _CMD_LUA:
+        #ifdef USE_LUA
+        if (argc == 2) {
+            file_read(argv[1], file_buff, FILE_BUFFER, 0);
+            create_lua_task(file_buff);
+        }
+        #endif
         break;
     case _CMD_TASKS:
         show_monitor();
@@ -696,7 +711,6 @@ int execute(int argc, const char *const *argv) {
             SystemConfig tmp_config;
             if(argc == 2){
                 if(strcmp(argv[1], "FLASH") == 0){
-                    tmp_config.config_addr = system_config.config_addr;
                     read_FLASH_system_config(&tmp_config);
                     xprintf("FLASH config:\n");
                     system_config_to_str(&tmp_config, tmp_json);
@@ -983,8 +997,8 @@ int execute(int argc, const char *const *argv) {
         }
         break;
     case _CMD_ERASE_FIRMWARE:
-        FLASH_status status = FLASH_erase_firmware(HaveRunFlashBlockNum());
-        if(status != FLASH_OK) xprintf("Failed\n");
+        if(FLASH_erase_firmware(HaveRunFlashBlockNum()) != FLASH_OK)
+            xprintf("Failed\n");
         break;
     case _CMD_UPLOAD_SD_FW:
         if (argc == 2) {
@@ -1083,4 +1097,13 @@ char **complet(int argc, const char *const *argv) {
 #endif
 
 //*****************************************************************************
-void sigint(void) { xprintf("^C catched!\n"); }
+void sigint(void) {
+    #ifdef USE_LUA
+    if(xTaskGetHandle( "LUA" ) != NULL){
+        vTaskDelete(lua_task);
+    }
+    #endif
+    xprintf("\n^C catched!\n\r");
+    xprintf(_PROMPT_DEFAULT);
+    microrl_clear_input(rl);
+}
