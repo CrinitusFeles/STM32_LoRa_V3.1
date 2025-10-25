@@ -134,7 +134,7 @@ void system_config_to_str(SystemConfig *config, char *buf){
         written += xsprintf(buf + written, "    \"temp_sensor_id%d\": \"0x%llX\",\n",
                            i + 1, config->sensors_serials[i]);
     }
-    xsprintf(buf + written - 2, "\n}\n");
+    xsprintf(buf + written - 3, "\n}\n");
 }
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
