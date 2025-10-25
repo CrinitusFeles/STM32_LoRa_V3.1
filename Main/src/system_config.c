@@ -104,8 +104,8 @@ void system_config_to_str(SystemConfig *config, char *buf){
     "    \"lora_tx_power\": %d,\n"\
     "    \"lora_preamble\": %d,\n"\
     "    \"modem_period\": %d,\n"\
-    "    \"apn\": %s,\n"\
-    "    \"ip\": %s,\n"\
+    "    \"apn\": \"%s\",\n"\
+    "    \"ip\": \"%s\",\n"\
     "    \"port\": %d,\n",
     config->action_mode,
     config->module_id,
@@ -131,10 +131,10 @@ void system_config_to_str(SystemConfig *config, char *buf){
     config->port
     );
     for(uint8_t i = 0; i < 45; i++){
-        written += xsprintf(buf + written, "    \"temp_sensor_id%d\": %llu,\n",
+        written += xsprintf(buf + written, "    \"temp_sensor_id%d\": \"0x%llX\",\n",
                            i + 1, config->sensors_serials[i]);
     }
-    xsprintf(buf + written, "}\n");
+    xsprintf(buf + written - 2, "\n}\n");
 }
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
@@ -162,8 +162,14 @@ void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     json_get_str(buf, buf_len, "$.apn", (char *)&config->apn, 20);
     json_get_str(buf, buf_len, "$.ip", (char *)&config->ip, 17);
     for(uint8_t i = 0; i < 45; i++){
+        uint64_t serial = 0;
+        char hex_val[20] = {0};
+        char *phex = hex_val;
+        char **pphex = &phex;
         xsprintf(str_buf, "$.temp_sensor_id%d", i+1);
-        json_get_big_num(buf, buf_len, str_buf, (long long*)&config->sensors_serials[i]);
+        json_get_str(buf, buf_len, str_buf, hex_val, 20);
+        xatoll(pphex, (long long *)(&serial));
+        config->sensors_serials[i] = serial;
     }
 }
 

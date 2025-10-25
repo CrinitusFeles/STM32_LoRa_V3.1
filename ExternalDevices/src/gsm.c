@@ -5,6 +5,7 @@
 #include "sx126x.h"
 #include "xprintf.h"
 #include "periph_handlers.h"
+#include "system_config.h"
 
 
 uint8_t GSM_Init(GSM *driver){
@@ -102,7 +103,7 @@ uint8_t GSM_InitGPRS(GSM *driver){
         for (uint8_t i = 0; i < 4; i++){
             switch(driver->ip_status){
                 case(GPRS_INITIAL):
-                    GSM_SetAPN(driver, "internet.tele2.ru");  // AT+CSTT=internet.tele2.ru
+                    GSM_SetAPN(driver, system_config.apn);  // AT+CSTT=internet.tele2.ru
                     GSM_CheckIPstatus(driver);
                     driver->delay_ms(500);
                     break;
