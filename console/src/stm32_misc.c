@@ -75,6 +75,8 @@
 #define _NUM_OF_CMD 43
 #define FILE_BUFFER 1024
 
+#define UNUSED(x) (void)(x)
+
 uint32_t hash(const char *str) {
     uint32_t hash = 5381;
     char c;
@@ -139,7 +141,8 @@ char *keyword[] = {
 // array for comletion
 char *compl_world[_NUM_OF_CMD + 1];
 
-
+StaticTask_t xCalibTaskBuffer;
+StackType_t xStack_TempCalib [configMINIMAL_STACK_SIZE];
 
 //*****************************************************************************
 /*
@@ -217,6 +220,32 @@ bool xmodem_sd_write(uint32_t addr, uint8_t *buff, uint32_t size){
 
 bool xmodem_sd_on_first_packet(){
     return true;
+}
+
+void CALIBRATION_TASK(void *pvParameters){
+    UNUSED(pvParameters);
+    if(sensors_bus.is_calibrated){
+        xprintf("Temperature sensors already calibrated."\
+                "Recalibration process started\n");
+    }
+    sensors_bus.power_on();
+    DS18B20_BUS_Status status = Calibration_routine(&sensors_bus);
+    if(status != (DS18B20_BUS_Status)OW_OK){
+        xprintf("Calibration failed: %d\n", status);
+        sensors_bus.power_off();
+        return;
+    }
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
+        xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
+    }
+    if(system_config.auto_save_config){
+        if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
+            xprintf("Saving configuration failed!\n");
+        if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
+            xprintf("Cant save config to SD\n");
+    }
+    sensors_bus.power_off();
+    vTaskDelete(NULL);
 }
 
 void neofetch(){
@@ -497,27 +526,7 @@ int execute(int argc, const char *const *argv) {
         break;
     case _CMD_CALIB_SENSORS:
         if(argc == 1){
-            if(sensors_bus.is_calibrated){
-                xprintf("Temperature sensors already calibrated."\
-                        "Recalibration process started\n");
-            }
-            sensors_bus.power_on();
-            DS18B20_BUS_Status status = Calibration_routine(&sensors_bus);
-            if(status != (DS18B20_BUS_Status)OW_OK){
-                xprintf("Calibration failed: %d\n", status);
-                sensors_bus.power_off();
-                return 0;
-            }
-            for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
-            }
-            if(system_config.auto_save_config){
-                if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
-                    xprintf("Saving configuration failed!\n");
-                if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
-                    xprintf("Cant save config to SD\n");
-            }
-            sensors_bus.power_off();
+            xTaskCreateStatic(CALIBRATION_TASK, "TEMP_CALIB", configMINIMAL_STACK_SIZE * 2, NULL, 2, xStack_TempCalib, &xCalibTaskBuffer);
         }
         break;
     case _CMD_SENS_MEASURE:
@@ -1029,7 +1038,12 @@ int execute(int argc, const char *const *argv) {
         }
         break;
     case _CMD_TCP_OPEN:
-        if (argc == 3) {
+        if(argc == 1){
+            char port[5] = {0};
+            xsprintf(port, "%d", system_config.port);
+            GSM_OpenConnection(&sim7000g, system_config.ip, port);
+        }
+        else if (argc == 3) {
             GSM_OpenConnection(&sim7000g, argv[1], argv[2]);
         }
         break;
@@ -1103,6 +1117,10 @@ void sigint(void) {
         vTaskDelete(lua_task);
     }
     #endif
+    TaskHandle_t calib_task = xTaskGetHandle("TEMP_CALIB");
+    if(calib_task != NULL){
+        vTaskDelete(calib_task);
+    }
     xprintf("\n^C catched!\n\r");
     xprintf(_PROMPT_DEFAULT);
     microrl_clear_input(rl);
