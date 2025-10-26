@@ -15,6 +15,7 @@
 #include "periph_handlers.h"
 #include "lua_misc.h"
 
+
 #define UNUSED(x) (void)(x)
 
 
@@ -233,12 +234,16 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
 
 int main(){
     System_Init();
+
+#if (USE_SEGGER == 1)
+    SEGGER_SYSVIEW_Conf();
+#endif
+
     // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
     // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
     xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
     xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
     xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 12, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
-
     vTaskStartScheduler();
 }
 

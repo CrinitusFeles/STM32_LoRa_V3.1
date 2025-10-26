@@ -21,7 +21,7 @@
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0')
 
-int _write(int file, char *ptr, int len);
+// int _write(int file, char *ptr, int len);
 void print_arr(char *arr);
 
 #endif /* CODE_HEADER_FORMATING_OUTPUT_H_ */

@@ -27,6 +27,12 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 #include "System.h"
+
+#define USE_SEGGER  0
+
+#if (USE_SEGGER == 1)
+#include "SYSVIEW_FreeRTOS.h"
+#endif
 /* Library includes. */
 
 /*-----------------------------------------------------------
@@ -61,13 +67,13 @@
 #define configUSE_TRACE_FACILITY	    1
 #define configQUEUE_REGISTRY_SIZE 10 /* 0: no queue registry; >0: queue registry size */
 
-#if configGENERATE_RUN_TIME_STATS == 1
+#if (configGENERATE_RUN_TIME_STATS == 1)
 
-void vConfigureTimerForRunTimeStats(void);
-unsigned long vGetTimerForRunTimeStats(void);
+    void vConfigureTimerForRunTimeStats(void);
+    unsigned long vGetTimerForRunTimeStats(void);
 
-#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()    vConfigureTimerForRunTimeStats()
-#define portGET_RUN_TIME_COUNTER_VALUE()            vGetTimerForRunTimeStats()
+    #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()    vConfigureTimerForRunTimeStats()
+    #define portGET_RUN_TIME_COUNTER_VALUE()            vGetTimerForRunTimeStats()
 
 #endif
 // #define configTASK_NOTIFICATION_ARRAY_ENTRIES      1
@@ -97,6 +103,8 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelay				1
 #define INCLUDE_uxTaskGetStackHighWaterMark     1
 #define INCLUDE_xTaskGetHandle                  1
+#define INCLUDE_xTaskGetIdleTaskHandle  1
+#define INCLUDE_pxTaskGetStack          1
 
 /* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
 (lowest) to 0 (1?) (highest). */
@@ -104,7 +112,6 @@ to exclude the API function. */
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191 /* equivalent to 0xb0, or priority 11. */
-
 
 #endif /* FREERTOS_CONFIG_H */
 
