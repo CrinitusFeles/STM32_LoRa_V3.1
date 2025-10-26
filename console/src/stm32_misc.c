@@ -499,9 +499,21 @@ int execute(int argc, const char *const *argv) {
         neofetch();
         break;
     case _CMD_PREF_BLOCK:
-        xprintf("%u\n", HavePrefFlashBlockNum());
+        if (argc == 1) {
+            xprintf("%u\n", HavePrefFlashBlockNum());
+        } else if (argc == 2) {
+            long block_num;
+            xatoi((char **)(&argv[1]), &block_num);
+            FLASH_status status = SetPrefferedBlockNum((uint8_t)block_num);
+            if (status != FLASH_OK) {
+                xprintf("failed to set preffered block\n");
+            }
+            system_config.pref_block = (uint64_t)HavePrefFlashBlockNum();
+        } else {
+            xprintf("pref_block cmd accepts only one argument\n");
+        }
         break;
-        case _CMD_CHECK_CRC:
+    case _CMD_CHECK_CRC:
         if (argc == 2) {
             long block_num;
             xatoi((char **)(&argv[1]), &block_num);
@@ -1039,7 +1051,7 @@ int execute(int argc, const char *const *argv) {
         break;
     case _CMD_TCP_OPEN:
         if(argc == 1){
-            char port[5] = {0};
+            char port[6] = {0};
             xsprintf(port, "%d", system_config.port);
             GSM_OpenConnection(&sim7000g, system_config.ip, port);
         }
