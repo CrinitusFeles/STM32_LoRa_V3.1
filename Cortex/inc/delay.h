@@ -13,7 +13,7 @@
 #define millisec F_CPU/1000 - 1 //milisec
 #define microsec  F_CPU/1000000-1
 
-void SysTick_Handler();
+// void SysTick_Handler();
 
 void Delay(uint32_t milli);
 void Freeze_delay(uint32_t milli);

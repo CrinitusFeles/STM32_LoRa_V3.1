@@ -4,6 +4,8 @@
 #include "stm32l4xx.h"
 #include "uart.h"
 #include "gpio.h"
+#include "stdbool.h"
+
 
 typedef struct GSM_GPIO {
     GPIO_Pin rx;  // SIM_UART_RX  <-> MCU_UART_TX
@@ -96,10 +98,10 @@ void GSM_CheckGPRS(GSM *driver);
 void GSM_CheckGSM(GSM *driver);
 void GSM_CheckSIM(GSM *driver);
 void GSM_SetAPN(GSM *driver, char *apn);
-void GSM_SendCMD(GSM *driver, char *cmd);
+bool GSM_SendCMD(GSM *driver, char *cmd);
 uint16_t GSM_GetVBAT(GSM *driver);
 void GSM_ActivateContext(GSM *driver);
-void GSM_OpenConnection(GSM *driver, const char *ip, const char *port);
+bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port);
 void GSM_CloseConnections(GSM *driver);
 void GSM_CheckIPstatus(GSM *driver);
 void GSM_TogglePower(GSM *driver);

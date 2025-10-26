@@ -36,18 +36,23 @@ uint8_t GSM_Init(GSM *driver){
     }
     return 1;
 }
-void GSM_wait_for_answer(GSM *driver, int32_t timeout_ms){
+
+bool GSM_wait_for_answer(GSM *driver, int32_t timeout_ms){
     while((timeout_ms--) && (driver->status.waiting_for_answer))
         driver->delay_ms(1);
+    if(timeout_ms == 0)
+        return false;
     if(timeout_ms == 0) driver->status.timeout_event = 1;
+    if(driver->status.last_answer == 1) return false;
+    return true;
 }
 
-void GSM_SendCMD(GSM *driver, char *cmd){
+bool GSM_SendCMD(GSM *driver, char *cmd){
     UART_tx_string(driver->uart, cmd);
     UART_tx(driver->uart, '\r');
     driver->tx_counter++;
     driver->status.waiting_for_answer = 1;
-    GSM_wait_for_answer(driver, 2000);
+    return GSM_wait_for_answer(driver, 2000);
 }
 
 void GSM_SetAPN(GSM *driver, char *apn){
@@ -99,23 +104,19 @@ uint8_t GSM_InitGPRS(GSM *driver){
     GSM_CheckGPRS(driver);
     if(driver->status.gprs_connected && driver->status.gsm_reg_status){
         GSM_CheckIPstatus(driver);
-        driver->delay_ms(500);
         for (uint8_t i = 0; i < 4; i++){
             switch(driver->ip_status){
                 case(GPRS_INITIAL):
                     GSM_SetAPN(driver, system_config.apn);  // AT+CSTT=internet.tele2.ru
                     GSM_CheckIPstatus(driver);
-                    driver->delay_ms(500);
                     break;
                 case(GPRS_START):
-                    GSM_SendCMD(driver, "AT+CIICR");
+                    if(!GSM_SendCMD(driver, "AT+CIICR")) return 1;
                     GSM_CheckIPstatus(driver);
-                    driver->delay_ms(600);
                     break;
                 case(GPRS_GPRSACT):
-                    GSM_SendCMD(driver, "AT+CIFSR");
+                    if(!GSM_SendCMD(driver, "AT+CIFSR")) return 1;
                     GSM_CheckIPstatus(driver);
-                    driver->delay_ms(600);
                     break;
                 case(GPRS_STATUS):
                     return 0;  // можно открывать TCP соединение
@@ -146,19 +147,9 @@ void GSM_SendSMS(GSM *driver, char *data, char *phone_num){
     free(buf);
 }
 
-void GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
+bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
+    GSM_CheckIPstatus(driver);
     if(driver->ip_status == GPRS_STATUS){
-        // char *cmd = "AT+CIPSTART=\"TCP\",\"";
-        // size_t ip_len = strlen(ip);
-        // size_t port_len = strlen(port);
-        // size_t cmd_len = strlen(cmd);
-        // char *buf = malloc(cmd_len + ip_len + port_len + 2);  // "AT+CIPSTART=\"TCP\",\"10.6.1.4\",80");
-        // memcpy(buf, cmd, cmd_len);
-        // memcpy(buf + cmd_len, ip, ip_len);
-        // memcpy(buf + cmd_len + ip_len, "\"", 1);
-        // memcpy(buf + cmd_len + ip_len + 1, port, port_len + 1);
-        // GSM_SendCMD(driver, buf);
-        // free(buf);
         UART_tx_string(driver->uart, "AT+CIPSTART=\"TCP\",\"");
         UART_tx_string(driver->uart, (char*)ip);
         UART_tx_string(driver->uart, "\",");
@@ -168,15 +159,15 @@ void GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
         driver->status.waiting_for_answer = 1;
         driver->status.tcp_server_answer = 0;
         GSM_wait_for_answer(driver, 2000);
-        driver->delay_ms(250);
         GSM_CheckIPstatus(driver);
+        return true;
     }
+    return false;
 }
 
 void GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
     UART_tx_string(driver->uart, "AT+CIPSEND");
     UART_tx(driver->uart, '\r');
-    driver->delay_ms(500);
     for(uint16_t i = 0; i < data_len; i++){
         UART_tx(driver->uart, data[i]);
     }
@@ -191,15 +182,11 @@ void GSM_SetDNS(GSM *driver){
 
 void GSM_CloseConnections(GSM *driver){
     GSM_SendCMD(driver, "AT+CIPCLOSE");
-    driver->delay_ms(50);
     GSM_CheckIPstatus(driver);
-    driver->delay_ms(200);
     GSM_SendCMD(driver, "AT+CIPSHUT");
     GSM_CheckIPstatus(driver);
-    driver->delay_ms(200);
     GSM_SendCMD(driver, "AT+CGATT=0");
     GSM_CheckIPstatus(driver);
-    driver->delay_ms(500);
     driver->status.gprs_connected = 0;
     driver->status.tcp_server_answer = 0;
     driver->status.tcp_server_connected = 0;
@@ -242,18 +229,17 @@ void GSM_CheckGSM(GSM *driver){
 
 void GSM_CheckGPRS(GSM *driver){
     GSM_SendCMD(driver, "AT+CGREG?");
-    driver->delay_ms(300);
     GSM_SendCMD(driver, "AT+CGATT?");
     if(!driver->status.gprs_connected){
         GSM_SendCMD(driver, "AT+CGATT=1");
-        driver->delay_ms(500);
         GSM_SendCMD(driver, "AT+CGATT?");
-        driver->delay_ms(200);
     }
 }
 
 void GSM_CheckIPstatus(GSM *driver){
     GSM_SendCMD(driver, "AT+CIPSTATUS");
+    driver->status.waiting_for_answer = 1;
+    GSM_wait_for_answer(driver, 100);
 }
 
 void GSM_ActivateContext(GSM *driver){
