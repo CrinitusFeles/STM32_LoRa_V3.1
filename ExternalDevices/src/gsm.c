@@ -6,6 +6,7 @@
 #include "xprintf.h"
 #include "periph_handlers.h"
 #include "system_config.h"
+#include "rtc.h"
 
 
 uint8_t GSM_Init(GSM *driver){
@@ -149,7 +150,7 @@ void GSM_SendSMS(GSM *driver, char *data, char *phone_num){
 
 bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
     GSM_CheckIPstatus(driver);
-    if(driver->ip_status == GPRS_STATUS){
+    if(driver->ip_status == GPRS_STATUS || driver->ip_status == GPRS_CLOSED){
         UART_tx_string(driver->uart, "AT+CIPSTART=\"TCP\",\"");
         UART_tx_string(driver->uart, (char*)ip);
         UART_tx_string(driver->uart, "\",");
@@ -257,8 +258,10 @@ void GSM_CheckMode(GSM *driver){
     GSM_SendCMD(driver, "AT+CNMP?");
 }
 
-#define GSM_SHUT_OK                 2802156163          //"SHUT OK",
-#define GSM_HINT                    5861987          //"CONNECT OK",
+#define GSM_CONNECT_FAIL            2729113387      //"CONNECT FAIL",
+#define GSM_CLOSED                  2847189343      //"CLOSED",
+#define GSM_SHUT_OK                 2802156163      //"SHUT OK",
+#define GSM_HINT                    5861987         //"CONNECT OK",
 #define GSM_PDP_DEACT               3440200933      //"STATE: PDP DEACT",
 #define GSM_CONNECT_OK              1292179753      //"CONNECT_OK",
 #define GSM_EMPTY_APN               3557573663      //"+CSTT: "CMNET","",""",
@@ -284,7 +287,7 @@ void GSM_CheckMode(GSM *driver){
 #define GSM_CNMP_GSM                2246180060      //"+CNMP: 13"",
 #define GSM_CNMP_AUTO               198216586       //"+CNMP: 2"",
 #define GSM_SENDED                  2675873545      //"SEND OK"",
-#define GSM_CLOSED                  3917737589      //"CLOSE OK"",
+#define GSM_CLOSE_OK                3917737589      //"CLOSE OK"",
 #define GSM_STATE_INITIAL           3886319939      //"STATE: IP INITIAL",
 #define GSM_STATE_START             1526169639      //"STATE: IP START",
 #define GSM_STATE_GPRSACT           1392283501      //"STATE: IP GPRSACT",
@@ -302,6 +305,55 @@ uint32_t gsm_hash(const char *str) {
     return hash;
 }
 
+uint8_t strptime_iso(char *buffer, RTC_struct_brief *ts){
+    char buff_copy[25] = {0};
+    uint8_t i = 0;
+    strcpy(buff_copy, buffer);
+    long value = 0;
+    while(buff_copy[i] != 0){
+        if(buff_copy[i] < '0' || buff_copy[i] > '9'){
+            buff_copy[i] = ' ';
+        }
+        i++;
+    }
+    i = 0;
+    while(buff_copy[i] == ' '){
+        i++;
+    }
+    i = 0;
+    if(buff_copy[i] < '0' || buff_copy[i] > '9')
+        return 0;
+    i += xatoi(&(buff_copy[i]), &value);
+    ts->years = (uint8_t)(value - 2000);
+    if(buff_copy[i] != ' ')
+        return 0;
+    i += 1;
+    i += xatoi(buff_copy + i, &value);
+    ts->months = (uint8_t)value;
+    if(buff_copy[i] != ' ')
+        return 0;
+    i += 1;
+    i += xatoi(buff_copy + i, &value);
+    ts->date = (uint8_t)value;
+    if(buff_copy[i] != ' ')
+        return 0;
+    i += 1;
+    i += xatoi(buff_copy + i, &value);
+    ts->hours = (uint8_t)value;
+    if(buff_copy[i] != ' ')
+        return 0;
+    i += 1;
+    i += xatoi(buff_copy + i, &value);
+    ts->minutes = (uint8_t)value;
+    if(buff_copy[i] != ' ')
+        return 0;
+    i += 1;
+    i += xatoi(buff_copy + i, &value);
+    ts->seconds = (uint8_t)value;
+    if(buff_copy[i] != 0)
+        return 0;
+    return 1;
+}
 
 void GSM_AnswerParser(){
     switch (gsm_hash(sim7000g.rx_buf))
@@ -334,8 +386,14 @@ void GSM_AnswerParser(){
     case GSM_CGREG:
 
         break;
+    case GSM_CLOSED:
+        sim7000g.status.tcp_server_connected = 0;
+        break;
+    case GSM_CONNECT_FAIL:
+        sim7000g.status.tcp_server_connected = 0;
+        break;
     case GSM_CONNECT_OK:
-
+        sim7000g.status.tcp_server_connected = 1;
         break;
     case GSM_HINT:
 
@@ -387,8 +445,8 @@ void GSM_AnswerParser(){
     case GSM_SENDED:
         sim7000g.status.waiting_for_answer = 0;
         break;
-    case GSM_CLOSED:
-
+    case GSM_CLOSE_OK:
+        sim7000g.status.tcp_server_connected = 0;
         break;
     case GSM_SHUT_OK:
 
@@ -426,6 +484,10 @@ void GSM_AnswerParser(){
         else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
             uint32_t bit_error = 0;
             xsprintf(sim7000g.rx_buf, "+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
+        }
+        else if(strstr(sim7000g.rx_buf, "time:") != 0){     // from TCP server
+            strptime_iso(sim7000g.rx_buf + 6, &current_rtc);
+            RTC_data_update(&current_rtc);
         }
         else {
             xprintf("Unknown answer\n");
