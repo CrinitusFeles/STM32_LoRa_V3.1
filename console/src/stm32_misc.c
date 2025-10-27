@@ -503,7 +503,7 @@ int execute(int argc, const char *const *argv) {
             xprintf("%u\n", HavePrefFlashBlockNum());
         } else if (argc == 2) {
             long block_num;
-            xatoi((char **)(&argv[1]), &block_num);
+            xatoi((char*)argv[1], &block_num);
             FLASH_status status = SetPrefferedBlockNum((uint8_t)block_num);
             if (status != FLASH_OK) {
                 xprintf("failed to set preffered block\n");
@@ -516,7 +516,7 @@ int execute(int argc, const char *const *argv) {
     case _CMD_CHECK_CRC:
         if (argc == 2) {
             long block_num;
-            xatoi((char **)(&argv[1]), &block_num);
+            xatoi((char*)argv[1], &block_num);
             uint32_t addr = block_num == 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             if(CheckBlock((uint32_t *)addr) == 0){
                 xprintf("CRC OK\n");
@@ -531,8 +531,8 @@ int execute(int argc, const char *const *argv) {
         if (argc == 3) {
             long freq;
             long duration;
-            xatoi((char **)(&argv[1]), &freq);
-            xatoi((char **)(&argv[2]), &duration);
+            uint8_t size1 = xatoi((char*)argv[1], &freq);
+            uint8_t size2 = xatoi((char*)argv[2], &duration);
             BUZZ_beep(&buzzer, (uint16_t)freq, (uint16_t)duration);
         }
         break;
@@ -578,14 +578,14 @@ int execute(int argc, const char *const *argv) {
                     }
                 } else if(strcmp(argv[i], "-n") == 0){
                     if(i < argc - 1){
-                        if(xatoi((char **)(&argv[i + 1]), &meas_amount) == 0){
+                        if(xatoi((char*)argv[i + 1], &meas_amount) == 0){
                             xprintf("Incorrect measure amount flag: %s\n", argv[i + 1]);
                             return 0;
                         }
                     }
                 } else if(strcmp(argv[i], "-t") == 0){
                     if(i < argc - 1){
-                        if(xatoi((char **)(&argv[i + 1]), &meas_period) == 0){
+                        if(xatoi((char*)argv[i + 1], &meas_period) == 0){
                             xprintf("Incorrect measure period flag: %s\n", argv[i + 1]);
                             return 0;
                         }
@@ -761,7 +761,7 @@ int execute(int argc, const char *const *argv) {
             if(json_get(config_json, config_len, path, &key_size) < 0){
                 xprintf("Key \'%s\' was not found\n", argv[1]);
             } else {
-                if(xatoi((char **)(&argv[2]), &val) == 0){
+                if(xatoi((char*)argv[2], &val) == 0){
                     xprintf("Incorrect value \'%s\'. Available only integers.\n", argv[2]);
                 } else {
                     if(json_set_num(config_json, strlen(config_json), path, val)){
@@ -798,7 +798,7 @@ int execute(int argc, const char *const *argv) {
     case _CMD_SLEEP:
         if(argc == 2){
             long sleep_time = 0;
-            xatoi((char **)&argv[1], &sleep_time);
+            xatoi((char*)argv[1], &sleep_time);
             if(sleep_time < 1 || sleep_time > 0xFFFF){
                 xprintf("Incorrect sleep time argument\n");
             } else {
@@ -876,7 +876,7 @@ int execute(int argc, const char *const *argv) {
         if(argc == 3){
             uint32_t offset = 0;
             long str_count = 0;
-            xatoi((char **)(&argv[2]), &str_count);
+            xatoi((char*)argv[2], &str_count);
             if(str_count > 0){
                 if(tail(argv[1], file_buff, FILE_BUFFER, str_count, &offset) == FR_OK){
                     if(file_read(argv[1], file_buff, FILE_BUFFER, offset) != FR_OK){
@@ -891,7 +891,7 @@ int execute(int argc, const char *const *argv) {
     case _CMD_HEAD:
         if(argc == 3){
             long str_count = 0;
-            xatoi((char **)(&argv[2]), &str_count);
+            xatoi((char *)argv[2], &str_count);
             if(str_count > 0){
                 head(argv[1], file_buff, FILE_BUFFER, str_count);
             }
@@ -901,8 +901,8 @@ int execute(int argc, const char *const *argv) {
         if(argc == 3){
             long addr = 0;
             long len = 0;
-            xatoi((char **)&argv[1], &addr);
-            xatoi((char **)&argv[2], &len);
+            xatoi((char *)argv[1], &addr);
+            xatoi((char *)argv[2], &len);
             if(addr < 0x8000000 || addr > 0x803FFFF){
                 xprintf("Address out of range\n");
             } else {
@@ -941,12 +941,12 @@ int execute(int argc, const char *const *argv) {
             long hours;
             long minutes;
             long seconds;
-            xatoi((char **)(&argv[1]), &years);
-            xatoi((char **)(&argv[2]), &months);
-            xatoi((char **)(&argv[3]), &date);
-            xatoi((char **)(&argv[4]), &hours);
-            xatoi((char **)(&argv[5]), &minutes);
-            xatoi((char **)(&argv[6]), &seconds);
+            xatoi((char *)argv[1], &years);
+            xatoi((char *)argv[2], &months);
+            xatoi((char *)argv[3], &date);
+            xatoi((char *)argv[4], &hours);
+            xatoi((char *)argv[5], &minutes);
+            xatoi((char *)argv[6], &seconds);
             RTC_struct_brief new_time = {.years = years > 2000 ? years - 2000 : years,
                 .months = months,
                 .date = date,
@@ -976,11 +976,11 @@ int execute(int argc, const char *const *argv) {
             long spredingFactor = 0;
             long codingRate = 0;
             long power = 0;
-            xatoi((char **)(&argv[1]), &bandWidth);
-            xatoi((char **)(&argv[2]), &freq_mhz);
-            xatoi((char **)(&argv[3]), &spredingFactor);
-            xatoi((char **)(&argv[4]), &codingRate);
-            xatoi((char **)(&argv[5]), &power);
+            xatoi((char *)argv[1], &bandWidth);
+            xatoi((char *)argv[2], &freq_mhz);
+            xatoi((char *)argv[3], &spredingFactor);
+            xatoi((char *)argv[4], &codingRate);
+            xatoi((char *)argv[5], &power);
             sx127x.bandWidth = (uint8_t)bandWidth;
             sx127x.freq_mhz = (uint32_t)freq_mhz;
             sx127x.spredingFactor = (uint8_t)spredingFactor;

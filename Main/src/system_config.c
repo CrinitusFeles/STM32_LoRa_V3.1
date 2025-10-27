@@ -164,11 +164,9 @@ void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     for(uint8_t i = 0; i < 45; i++){
         uint64_t serial = 0;
         char hex_val[20] = {0};
-        char *phex = hex_val;
-        char **pphex = &phex;
         xsprintf(str_buf, "$.temp_sensor_id%d", i+1);
         json_get_str(buf, buf_len, str_buf, hex_val, 20);
-        xatoll(pphex, (long long *)(&serial));
+        xatoll(hex_val, (long long *)(&serial));
         config->sensors_serials[i] = serial;
     }
 }

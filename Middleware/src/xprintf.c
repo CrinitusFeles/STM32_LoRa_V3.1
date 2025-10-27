@@ -562,62 +562,78 @@ int xgets (			/* 0:End of stream, 1:A line arrived */
 */
 
 int xatoi (			/* 0:Failed, 1:Successful */
-	char **str,		/* Pointer to pointer to the string */
+	char *str,		/* Pointer to pointer to the string */
 	long *res		/* Pointer to the valiable to store the value */
 )
 {
 	unsigned long val;
 	unsigned char c, r, s = 0;
+    unsigned int offset = 0;
 
 
 	*res = 0;
 
-	while ((c = **str) == ' ') (*str)++;	/* Skip leading spaces */
+	while ((c = *str) == ' ') {
+        (str)++;	/* Skip leading spaces */
+        offset += 1;
+    }
 
 	if (c == '-') {		/* negative? */
 		s = 1;
-		c = *(++(*str));
+		c = *(++(str));
+        offset += 1;
 	}
 
 	if (c == '0') {
-		c = *(++(*str));
+		c = *(++(str));
+        offset += 1;
 		switch (c) {
 		case 'x':		/* hexdecimal */
-			r = 16; c = *(++(*str));
+			r = 16;
+            c = *(++(str));
+            offset += 1;
 			break;
 		case 'b':		/* binary */
-			r = 2; c = *(++(*str));
+			r = 2; c = *(++(str));
+            offset += 1;
 			break;
 		default:
-			if (c <= ' ') return 1;	/* single zero */
-			if (c < '0' || c > '9') return 0;	/* invalid char */
+			if (c <= ' ')
+                return 1;	/* single zero */
+			if (c < '0' || c > '9')
+                return 0;	/* invalid char */
 			r = 8;		/* octal */
 		}
 	} else {
-		if (c < '0' || c > '9') return 0;	/* EOL or invalid char */
+		if (c < '0' || c > '9')
+            return 0;	/* EOL or invalid char */
 		r = 10;			/* decimal */
 	}
 
 	val = 0;
 	while (c > ' ') {
-		if (c >= 'a') c -= 0x20;
+		if (c >= 'a')
+            c -= 0x20;
 		c -= '0';
 		if (c >= 17) {
 			c -= 7;
-			if (c <= 9) return 0;	/* invalid char */
+			if (c <= 9)
+                return 0;	/* invalid char */
 		}
-		if (c >= r) return 0;		/* invalid char for current radix */
+		if (c >= r)
+            return 0;		/* invalid char for current radix */
 		val = val * r + c;
-		c = *(++(*str));
+		c = *(++(str));
+        offset += 1;
 	}
 	if (s) val = 0 - val;			/* apply sign if needed */
 
 	*res = val;
-	return 1;
+	return offset;
 }
 
 int xatoll (			/* 0:Failed, 1:Successful */
-	char **str,		/* Pointer to pointer to the string */
+	char *str,		/* Pointer to pointer to the string */
 	long long *res		/* Pointer to the valiable to store the value */
 )
 {
@@ -627,21 +643,21 @@ int xatoll (			/* 0:Failed, 1:Successful */
 
 	*res = 0;
 
-	while ((c = **str) == ' ') (*str)++;	/* Skip leading spaces */
+	while ((c = *str) == ' ') (str)++;	/* Skip leading spaces */
 
 	if (c == '-') {		/* negative? */
 		s = 1;
-		c = *(++(*str));
+		c = *(++(str));
 	}
 
 	if (c == '0') {
-		c = *(++(*str));
+		c = *(++(str));
 		switch (c) {
 		case 'x':		/* hexdecimal */
-			r = 16; c = *(++(*str));
+			r = 16; c = *(++(str));
 			break;
 		case 'b':		/* binary */
-			r = 2; c = *(++(*str));
+			r = 2; c = *(++(str));
 			break;
 		default:
 			if (c <= ' ') return 1;	/* single zero */
@@ -663,7 +679,7 @@ int xatoll (			/* 0:Failed, 1:Successful */
 		}
 		if (c >= r) return 0;		/* invalid char for current radix */
 		val = val * r + c;
-		c = *(++(*str));
+		c = *(++(str));
 	}
 	if (s) val = 0 - val;			/* apply sign if needed */
 
@@ -679,7 +695,7 @@ int xatoll (			/* 0:Failed, 1:Successful */
 */
 
 int xatof (			/* 0:Failed, 1:Successful */
-	char **str,		/* Pointer to pointer to the string */
+	char *str,		/* Pointer to pointer to the string */
 	double *res		/* Pointer to the valiable to store the value */
 )
 {
@@ -691,15 +707,15 @@ int xatof (			/* 0:Failed, 1:Successful */
 	*res = 0;
 	s = f = 0;
 
-	while ((c = **str) == ' ') (*str)++;	/* Skip leading spaces */
+	while ((c = *str) == ' ') (str)++;	/* Skip leading spaces */
 	if (c == '-') {			/* Negative? */
-		c = *(++(*str)); s = 1;
+		c = *(++(str)); s = 1;
 	} else if (c == '+') {	/* Positive? */
-		c = *(++(*str));
+		c = *(++(str));
 	}
 	if (c == XF_DPC) {		/* Leading dp? */
 		f = -1; 			/* Start at fractional part */
-		c = *(++(*str));
+		c = *(++(str));
 	}
 	if (c <= ' ') return 0;	/* Wrong termination? */
 	val = 0;
@@ -716,15 +732,15 @@ int xatof (			/* 0:Failed, 1:Successful */
 				val += i10x(f--) * c;
 			}
 		}
-		c = *(++(*str));
+		c = *(++(str));
 	}
 	if (c > ' ') {	/* It may be an exponent */
 		if (c != 'e' && c != 'E') return 0;	/* Wrong character? */
-		c = *(++(*str));
+		c = *(++(str));
 		if (c == '-') {
-			c = *(++(*str)); s |= 2;	/* Negative exponent */
+			c = *(++(str)); s |= 2;	/* Negative exponent */
 		} else if (c == '+') {
-			c = *(++(*str));			/* Positive exponent */
+			c = *(++(str));			/* Positive exponent */
 		}
 		if (c <= ' ') return 0;	/* Wrong termination? */
 		e = 0;
@@ -732,7 +748,7 @@ int xatof (			/* 0:Failed, 1:Successful */
 			c -= '0';
 			if (c > 9) return 0;	/* Not a numeral? */
 			e = e * 10 + c;
-			c = *(++(*str));
+			c = *(++(str));
 		}
 		val *= i10x((s & 2) ? -e : e);	/* Apply exponent */
 	}

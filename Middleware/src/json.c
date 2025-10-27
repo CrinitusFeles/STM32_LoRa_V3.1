@@ -199,8 +199,6 @@ static int json_unescape(const char *buf, size_t len, char *to, size_t n) {
 
 int json_get_num(const char *buf, int len, const char *path, long *v) {
     int found = 0, n = 0, off = json_get(buf, len, path, &n);
-    char **pptr;
-    char *ptr;
     char int_buf[20] = {0};
     if (off >= 0 && (buf[off] == '-' || (buf[off] >= '0' && buf[off] <= '9'))) {
         if (v != NULL) {
@@ -208,9 +206,7 @@ int json_get_num(const char *buf, int len, const char *path, long *v) {
             for(int i = 0; i < off + 20 && buf[i + off] != '\0' && buf[i + off] != ',' && buf[i + off] != ']'; i++){
                 int_buf[i] = buf[i + off];
             }
-            ptr =(char*) int_buf;
-            pptr = &ptr;
-            xatoi(pptr, v);
+            xatoi(int_buf, v);
         }
         found = 1;
     }
@@ -219,8 +215,6 @@ int json_get_num(const char *buf, int len, const char *path, long *v) {
 
 int json_get_big_num(const char *buf, int len, const char *path, long long *v) {
     int found = 0, n = 0, off = json_get(buf, len, path, &n);
-    char **pptr;
-    char *ptr;
     char int_buf[25] = {0};
     if (off >= 0 && (buf[off] == '-' || (buf[off] >= '0' && buf[off] <= '9'))) {
         if (v != NULL) {
@@ -228,9 +222,7 @@ int json_get_big_num(const char *buf, int len, const char *path, long long *v) {
             for(int i = 0; i < off + 25 && buf[i + off] != '\0' && buf[i + off] != ',' && buf[i + off] != ']'; i++){
                 int_buf[i] = buf[i + off];
             }
-            ptr =(char*) int_buf;
-            pptr = &ptr;
-            xatoll(pptr, v);
+            xatoll(int_buf, v);
         }
         found = 1;
     }
