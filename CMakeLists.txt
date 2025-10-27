@@ -46,14 +46,21 @@ file(GLOB_RECURSE SOURCES
         "BootLib/*.c"
         "FAT_FS/*.c"
         "lua-5.4.7/src/*.c"
-        "lua-5.4.7/*.c"
+        "SEGGER/*.c"
+        "SEGGER/OS/*.c"
+        "SEGGER/Config/*.c"
+        "SEGGER/RTT/*.c"
+        "SEGGER/RTT/RTT_ASM_ARMv7M.S"
         )
 
 file(GLOB_RECURSE SIZE_OPTIMIZATION
     "lua-5.4.7/src/*.c"
-    "lua-5.4.7/*.c"
     "FreeRTOS/src/*.c"
     "Middleware/src/*.c"
+    "SEGGER/*.c"
+    "SEGGER/OS/*.c"
+    "SEGGER/RTT/*.c"
+    "SEGGER/Config/*.c"
 )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug_800")
@@ -88,6 +95,10 @@ target_include_directories(${EXECUTABLE} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/BootLib
         ${CMAKE_CURRENT_SOURCE_DIR}/FAT_FS
         ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.4.7/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/SEGGER/Config
+        ${CMAKE_CURRENT_SOURCE_DIR}/SEGGER/RTT
+        ${CMAKE_CURRENT_SOURCE_DIR}/SEGGER/OS
+        ${CMAKE_CURRENT_SOURCE_DIR}/SEGGER
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE -DSTM32L431xx)
@@ -113,6 +124,17 @@ target_compile_options(${EXECUTABLE} PRIVATE
     -Wpedantic
     # -Wno-unused-parameter
     # Full debug configuration
+    -Warray-bounds=1
+    -Wlogical-op
+    -Waddress
+    -Wunsafe-loop-optimizations
+    -Wbool-operation
+    -Wbool-compare
+    -Wmisleading-indentation
+    -Wmultistatement-macros
+    -Wparentheses
+    -Wsign-compare
+    -Wswitch
     -fstack-usage
     -Wformat=0
     -O0 -g -ggdb
