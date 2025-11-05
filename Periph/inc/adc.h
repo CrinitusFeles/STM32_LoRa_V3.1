@@ -165,6 +165,7 @@ typedef struct ADC{
     // uint8_t __ch_counter;
     uint16_t vdda_mvolt;
     uint8_t measure_process;
+    uint8_t vref_ch_num;
     void (*delay_ms)(uint32_t);
 } ADC;
 
@@ -176,7 +177,7 @@ void ADC_Start(ADC *ADC_struct);
 uint8_t ADC_WaitMeasures(ADC *adc, uint32_t timeout);
 void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, ADC_CH_SMP_Time smp_time);
 // void adc_single_conversion( ADC_TypeDef* ADCx, uint16_t* adc_data_arr );
-float ADC_internal_temp(uint16_t adc_data);
+float ADC_internal_temp(uint16_t adc_data, uint16_t vref_mv);
 void ADC_Handler();
 
 extern ADC adc;

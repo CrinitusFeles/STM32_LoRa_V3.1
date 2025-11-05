@@ -69,13 +69,16 @@ void ADC_Init(ADC *ADC_struct){
 
 }
 
-float ADC_internal_temp(uint16_t adc_data){
-    return (float)(100.0 / ((*(uint16_t*)TS_CAL2) - (*(uint16_t*)TS_CAL1))) * (adc_data - (*(uint16_t*)TS_CAL1)) + 30;
+float ADC_internal_temp(uint16_t adc_data, uint16_t vref_mv){
+    return (float)(100.0 / ((*(uint16_t*)TS_CAL2) - (*(uint16_t*)TS_CAL1))) * ((adc_data * vref_mv / 3000) - (*(uint16_t*)TS_CAL1)) + 30;
 }
 
 void ADC_InitRegChannel(ADC *ADC_struct, ADC_ChannelNum ch_num, GPIO_Pin gpio, ADC_CH_SMP_Time smp_time){
 	if(gpio != uninitialized)
         gpio_init(gpio, Analog_mode, Open_drain, no_pull, Input);
+    if(ch_num == VREF){
+        ADC_struct->vref_ch_num = ADC_struct->reg_ch_amount;
+    }
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].ch_num = ch_num;
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].pin = gpio;
     ADC_struct->reg_channel_queue[ADC_struct->reg_ch_amount].group = ADC_CH_Regular;
@@ -121,7 +124,7 @@ void ADC_Handler(){
     }
     if(adc.ADCx->ISR & ADC_ISR_EOS){  // After the regular sequence is complete
         adc.reg_ch_queue_pointer = 0;
-        adc.vdda_mvolt = adc.vrefinternal_cal / (float)(adc.reg_channel_queue[11].result);
+        adc.vdda_mvolt = adc.vrefinternal_cal / (float)(adc.reg_channel_queue[adc.vref_ch_num].result);
         for(uint8_t i = 0; i < adc.reg_ch_amount; i++){
             adc.reg_channel_queue[i].result_mv = adc.reg_channel_queue[i].result * adc.vdda_mvolt / 4095;
         }
