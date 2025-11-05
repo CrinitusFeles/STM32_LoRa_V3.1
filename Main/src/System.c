@@ -1,44 +1,3 @@
-// 0x2102187c0e64ff28
-// 0x6e6f0c7c0e64ff28
-// 0x753a097c0e64ff28
-// 0x796a1d7c0e64ff28
-// 0xc4711d7c0e64ff28
-// 0xbf84037c0e64ff28
-// 0x2bd915720e64ff28
-// 0xc70403720e64ff28
-// 0x6fd51f720e64ff28
-// 0xd2ca246a0e64ff28
-// 0xb01a1b6a0e64ff28
-// 0xd544ba710e64ff28
-// 0xe67381710e64ff28
-// 0x4b5fb1710e64ff28
-// 0xa243a5710e64ff28
-// 0x69c5bd710e64ff28
-// 0xfde3607d0e64ff28
-// 0x9de487d0e64ff28
-// 0xe315487d0e64ff28
-// 0xa7064c7d0e64ff28
-// 0xc787457d0e64ff28
-// 0x4cd5557d0e64ff28
-// 0xe82a577d0e64ff28
-// 0x8d95f7d0e64ff28
-// 0x509986730e64ff28
-// 0x33528b730e64ff28
-// 0x85aa8b730e64ff28
-// 0x517dd46b0e64ff28
-// 0x9b9cc66b0e64ff28
-// 0x2d10366b0e64ff28
-// 0xf51abb6b0e64ff28
-// 0x2f7c376b0e64ff28
-// 0x7639287f0e64ff28
-// 0xd56e547f0e64ff28
-// 0x45e6ea7f0e64ff28
-// 0x83f5f97f0e64ff28
-// 0x342ae57f0e64ff28
-// 0xeebee37f0e64ff28
-// 0xbdd97b7f0e64ff28
-// 0xa8ae77f0e64ff28
-
 #include "FreeRTOS.h"
 #include "buzzer.h"
 #include "ds18b20_bus.h"
@@ -58,10 +17,10 @@
 #include "flash.h"
 #include "gsm.h"
 #include "queue.h"
+#include "adc.h"
 #include "periph_handlers.h"
 
 #define WATCHDOG_PERIOD_MS 5000
-#define WAKEUP_PERIOD_SEC 60 * 20
 
 void _close_r(void) {}
 void _lseek_r(void) {}
@@ -81,8 +40,8 @@ tBuzzer buzzer;
 microrl_t rl;
 static uint8_t gsm_stream_storage[65];
 static uint8_t cli_stream_storage[257];
-StaticStreamBuffer_t  gsm_static_queue;
-StaticStreamBuffer_t  cli_static_queue;
+StaticStreamBuffer_t  gsm_static_stream;
+StaticStreamBuffer_t  cli_static_stream;
 StaticSemaphore_t xSemaphoreBuffer;
 // logging_init_t logger;
 LoRa sx127x;
@@ -97,6 +56,7 @@ DS18B20_BUS sensors_bus;
 OneWire ow;
 SystemConfig system_config;
 char config_json[JSON_STR_CONFIG_SIZE] = {0};
+char file_buff[FILE_BUFFER] = {0};
 
 void on_greetings() {
     if (system_config.enable_beep) {
@@ -147,8 +107,8 @@ void System_Init() {
     // NVIC_SetPriorityGrouping(0x07);
     xSemaphore = xSemaphoreCreateBinaryStatic( &xSemaphoreBuffer );
     xSemaphoreGive(xSemaphore);
-    gsm_stream = xStreamBufferCreateStatic(64, 1, gsm_stream_storage, &gsm_static_queue);
-    cli_stream = xStreamBufferCreateStatic(256, 1, cli_stream_storage, &cli_static_queue);
+    gsm_stream = xStreamBufferCreateStatic(64, 1, gsm_stream_storage, &gsm_static_stream);
+    cli_stream = xStreamBufferCreateStatic(256, 1, cli_stream_storage, &cli_static_stream);
     // vQueueAddToRegistry(gsm_queue, "GSM_QUEUE");
     // vQueueAddToRegistry(cli_queue, "CLI_QUEUE");
     vStreamBufferSetStreamBufferNumber(gsm_stream, 1);
@@ -190,6 +150,7 @@ void System_Init() {
     gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, no_pull, Input);
     gpio_init(GSM_PWR, General_output, Push_pull, pull_up, Low_speed);
 
+    gpio_state(LED, HIGH);
     gpio_state(GSM_PWR, HIGH);
     gpio_state(EN_SD, LOW);
     gpio_state(EN_LORA, LOW);
@@ -231,7 +192,8 @@ void System_Init() {
     } else {
         xprintf("Incorrect init_result! %d\n", config_status);
     }
-
+    write_single_bkp_reg(BCKP_RESET_AMOUNT, RTC->BKP0R + 1);
+    xprintf("Amount of resets: %d\n", RTC->BKP0R);
     if (system_config.enable_watchdog) {
         FLASH_disable_iwdg_stby();
     }
@@ -294,7 +256,11 @@ void System_Init() {
     //     .tx_data = {0},
     // };
 
-    buzzer = (tBuzzer){.channel = PWM_CH2, .TIMx = TIM15, .delay = DWT_Delay_ms};
+    buzzer = (tBuzzer){
+        .channel = PWM_CH2,
+        .TIMx = TIM15,
+        .delay = DWT_Delay_ms
+    };
     if (system_config.enable_beep) {
         BUZZ_beep(&buzzer, 500, 50);
     }
@@ -342,23 +308,24 @@ void System_Init() {
     // }
     // xprintf("founded %d devices", devices_count);
 
-    // adc = (ADC){
-    //     .ADCx = ADC1,
-    //     .clk_devider = ADC_ClockDevider_1,
-    //     .internal_channels = {.temp = false, .vbat = false, .vref = true},
-    //     .resolution = ADC_12bit,
-    //     .mode = ADC_SINGLE_MODE,
-    //     .trigger.polarity = ADC_Software_trigger,
-    //     .ovrsmpl_ratio = OVRSMPL_32x,
-    //     .delay_ms = DWT_Delay_ms,
-    // };
+    adc = (ADC){
+        .ADCx = ADC1,
+        .clk_devider = ADC_ClockDevider_1,
+        .internal_channels = {.temp = true, .vbat = false, .vref = true},
+        .resolution = ADC_12bit,
+        .mode = ADC_SINGLE_MODE,
+        .trigger.polarity = ADC_Software_trigger,
+        .ovrsmpl_ratio = OVRSMPL_32x,
+        .delay_ms = DWT_Delay_ms,
+    };
 
-    // ADC_Init(&adc);
+    ADC_Init(&adc);
     /*
-                                    6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1
-    (0cm)     VCC  GND (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4) VCC
-    GND TMP_S NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND (CH6,
-    PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
+                    6 (50cm)        5 (40cm)        4 (30cm)        3 (20cm)        2 (10cm)        1 (0cm)     VCC  GND
+                    (CH14, PC5)     (CH15, PB0)     (CH13, PC4)     (CH12, PA7)     (CH10, PA5)     (CH9, PA4)
+    VCC GND TMP_S
+                    NC              11 (100cm)      10 (90cm)       9 (80cm)        8 (75cm)        7 (60cm)    VCC  GND
+                    (CH6, PA1)      (CH1, PC0)      (CH2, PC1)      (CH3, PC2)      (CH4, PC3)      (CH5, PA0)
     */
     // ADC_InitRegChannel(&adc, CH9, PA4, SMP_92);
     // ADC_InitRegChannel(&adc, CH10, PA5, SMP_92);
@@ -372,12 +339,12 @@ void System_Init() {
     // ADC_InitRegChannel(&adc, CH3, PC2, SMP_92);
     // ADC_InitRegChannel(&adc, CH4, PC3, SMP_92);
     // ADC_InitRegChannel(&adc, CH5, PA0, SMP_92);
-    // ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
+    ADC_InitRegChannel(&adc, VREF, uninitialized, SMP_92);
     // ADC_InitRegChannel(&adc, VBAT, uninitialized, SMP_92);
-    //     // ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
-    // ADC_Enable(&adc);
+    ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
+    ADC_Enable(&adc);
+    ADC_Start(&adc);
 
-    // vQueueAddToRegistry(queue, "GSM_QUEUE");
     sim7000g = (GSM){
         .uart = LPUART1,
         .gpio.pwr = GSM_PWR,
@@ -389,15 +356,10 @@ void System_Init() {
 
 
     SDMMC_INIT();
-    UINT written_count = 0;
     FATFS fs;
     FRESULT result;
-    FIL _file;
     SystemConfigStatus status;
-    OW_Status ow_status;
     SystemConfig flash_config;
-    char sd_log[1024] = {0};
-    uint16_t sd_ptr = 0;
 
     if (SD_Init() == SDR_Success) {
         xprintf("SD Card initialization completed\n");
@@ -437,72 +399,9 @@ void System_Init() {
     } else {
         xprintf("SD Card initialization failed\n");
     }
-
-    if (system_config.action_mode == 1) {
-        RTC_auto_wakeup_enable(system_config.wakeup_period);
-        sensors_bus.power_on();
-        DWT_Delay_ms(50);
-        // ADC_Start(&adc);
-        if (sensors_bus.found_amount == 0) {
-            ow_status = OW_EMPTY_BUS;
-        } else {
-            ow_status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
-        }
-        // ADC_WaitMeasures(&adc, 10000);
-        sensors_bus.power_off();
-
-        f_open(&_file, "measures.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-        if (f_size(&_file) == 0) {
-            sd_ptr += xsprintf(sd_log + sd_ptr, "Module id: %d\n\n", system_config.module_id);
-            for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "T%02d: [0x%016llX]\n", i + 1,
-                                   sensors_bus.is_calibrated ? sensors_bus.serials[i]
-                                                             : sensors_bus.sensors[i].serialNumber->serial_code);
-            }
-            sd_ptr += xsprintf(sd_log + sd_ptr, "\n");
-            sd_ptr += xsprintf(sd_log + sd_ptr, "%-25s", "Timestamp");
-            for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "T%02d    ", i + 1);
-            }
-            // for (uint8_t i = 0; i < 11; i++) {
-            //     sd_ptr += xsprintf(sd_log + sd_ptr, "A%02d   ", i + 1);
-            // }
-            sd_ptr += xsprintf(sd_log + sd_ptr, "VDDA\n");
-        }
-
-        sd_ptr += RTC_string_datetime(sd_log + sd_ptr);
-        sd_ptr += xsprintf(sd_log + sd_ptr, "  ");
-        for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-            sd_ptr += xsprintf(sd_log + sd_ptr, "%.2f  ", sensors_bus.sensors[i].temperature);
-        }
-        // for (uint8_t i = 0; i < 11; i++) {
-        //     sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d  ", adc.reg_channel_queue[i].result_mv);
-        // }
-        // sd_ptr += xsprintf(sd_log + sd_ptr, "%-4d\n", adc.vdda_mvolt);
-        f_lseek(&_file, _file.obj.objsize);
-        f_write(&_file, sd_log, sd_ptr, &written_count);
-        f_close(&_file);
-
-        if (ow_status != OW_OK) {
-            f_open(&_file, "errors.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-            f_lseek(&_file, _file.obj.objsize);
-            sd_ptr += RTC_string_datetime(sd_log + sd_ptr);
-            sd_ptr += xsprintf(sd_log + sd_ptr, "  ");
-            if (ow_status == OW_EMPTY_BUS) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "Empty bus\n");
-            } else if (ow_status == OW_TIMEOUT) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "Timeout\n");
-            } else if (ow_status == OW_ROM_FINDING_ERROR) {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "ROM_FINDING_ERROR\n");
-            } else {
-                sd_ptr += xsprintf(sd_log + sd_ptr, "ERROR\n");
-            }
-            f_write(&_file, sd_log, strlen(sd_log), &written_count);
-            f_close(&_file);
-        }
-        f_mount(0, "", 1);
-        stop_cortex();
-    }
+    int16_t temp = ADC_internal_temp(adc.reg_channel_queue[1].result, adc.vdda_mvolt);
+    xprintf("Vref: %d mv\n", adc.vdda_mvolt);
+    xprintf("Temp: %d C\n", temp);
 
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;

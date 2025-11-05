@@ -245,7 +245,7 @@ void rtc_writeToBkp(uint32_t *val, uint8_t size){
 	RTC->WPR = 0xCA;                             //Unlock write protection
 	RTC->WPR = 0x53;                             //Unlock write protection
 
-	for(uint8_t i = 0; i < size; i++){
+	for(uint8_t i = 0; i < size; i+=4){
 		*(uint32_t*)(RTC_BASE + (uint32_t)(0x50 + i)) = val[i];
 	}
 

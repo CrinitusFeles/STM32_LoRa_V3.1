@@ -14,10 +14,13 @@
 #include "gsm.h"
 #include "periph_handlers.h"
 #include "lua_misc.h"
-
+#include "action_task.h"
+#include "system_config.h"
 
 #define UNUSED(x) (void)(x)
-
+#define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 12
+#define GSM_SIZE                configMINIMAL_STACK_SIZE
+#define RADIO_SIZE              configMINIMAL_STACK_SIZE
 
 uint8_t timeout_counter = 0;
 uint8_t self_addr = 31;
@@ -27,9 +30,9 @@ SemaphoreHandle_t xSemaphore;
 StaticTask_t xTaskBuffer_RADIO;
 StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
 StaticTask_t xTaskBuffer_RADIO_CONSOLE;
-StackType_t xStack_RADIO [configMINIMAL_STACK_SIZE];
-StackType_t xStack_GSM_PRINT [configMINIMAL_STACK_SIZE];
-StackType_t xStack_CONSOLE [configMINIMAL_STACK_SIZE * 12];
+StackType_t xStack_RADIO [RADIO_SIZE];
+StackType_t xStack_GSM_PRINT [GSM_SIZE];
+StackType_t xStack_CONSOLE [CONSOLE_SIZE];
 
 
 static const uint16_t crc16_ccitt_table_reverse[256] = {
@@ -163,7 +166,6 @@ void CONSOLE_TASK(void *pvParameters){
         }
     }
     vTaskDelete( NULL );
-	// Delay(1000);
 }
 
 
@@ -187,6 +189,9 @@ void GSM_PRINT(void *pvParameters){
             else if(gsm_output[i] != 0){
                 sim7000g.rx_buf[sim7000g.rx_counter] = gsm_output[i];
                 sim7000g.rx_counter += 1;
+            }
+            if(strstr(sim7000g.rx_buf, "> ") != 0){
+                sim7000g.status.tcp_ready_to_send = 1;
             }
         }
         xSemaphoreGive(xSemaphore);
@@ -239,11 +244,12 @@ int main(){
     SEGGER_SYSVIEW_Conf();
 #endif
 
-    // xTaskCreate( MonitorTask, "TRACE", configMINIMAL_STACK_SIZE, NULL, 1, ( xTaskHandle * ) NULL);
-    // xTaskCreate( PERIPH_TOGGLE, "PERIPH_TOGGLE", configMINIMAL_STACK_SIZE, NULL, 2, ( xTaskHandle * ) NULL);
-    xTaskCreateStatic( RADIO_TASK, "RADIO", configMINIMAL_STACK_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
-    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", configMINIMAL_STACK_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
-    xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", configMINIMAL_STACK_SIZE * 12, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
+    if(system_config.action_mode){
+        create_action_task();
+    }
+    xTaskCreateStatic( RADIO_TASK, "RADIO", RADIO_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
+    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", GSM_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
+    xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", CONSOLE_SIZE, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
     vTaskStartScheduler();
 }
 

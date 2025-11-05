@@ -7,6 +7,7 @@
 #define CONFIG_SIZE_64          55  // размер конфига в словах (8 байт)
 #define JSON_STR_CONFIG_SIZE    2800
 #define SYSTEM_CONFIG_PATH      "system_config.json"
+#define FILE_BUFFER             4096
 
 typedef enum SystemConfigStatus{
     CONFIG_OK,
@@ -65,5 +66,5 @@ SystemConfigStatus read_config_from_SD(SystemConfig *config, char *path,
                                        char *json, uint16_t json_size);
 extern SystemConfig system_config;
 extern char config_json[JSON_STR_CONFIG_SIZE];
-
+extern char file_buff[FILE_BUFFER];
 #endif

@@ -1,6 +1,6 @@
 #include "stm32_misc.h"
 #include <string.h>
-#include <xprintf.h>
+#include "xprintf.h"
 #include "main.h"
 #include "config.h"
 #include "buzzer.h"
@@ -20,6 +20,9 @@
 #include "periph_handlers.h"
 #include "adc.h"
 #include "lua_misc.h"
+#include "action_task.h"
+#include "console_utils.h"
+#include "sensors_task.h"
 
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
@@ -70,12 +73,12 @@
 #define _CMD_TCP_CLOSE       2856735873
 #define _CMD_TCP_SEND        1518790837
 #define _CMD_LUA             193498567
+#define _CMD_RUN_ACTION      1038971383
+#define _CMD_DUMP_FILE       1066234362
 
 
-#define _NUM_OF_CMD 43
-#define FILE_BUFFER 1024
+#define _NUM_OF_CMD 45
 
-#define UNUSED(x) (void)(x)
 
 uint32_t hash(const char *str) {
     uint32_t hash = 5381;
@@ -93,56 +96,56 @@ void uart_print(int data){
 
 // available  commands
 char *keyword[] = {
-    "help",
-    "clear",
-    "echo",
-    "beep",
-    "reset",
-    "tasks",
-    "xmodem",
-    "pref_block",
-    "curr_block",
-    "erase_firmware",
-    "check_crc",
-    "send_radio",
-    "radio_conf",
-    "sens_measure",
-    "calib_sensors",
-    "sleep",
-    "time",
-    "dump_mem",
-    "mount",
-    "neofetch",
-    "ls",
-    "cd",
-    "rm",
-    "rename",
-    "touch",
-    "mkdir",
-    "cat",
-    "tail",
-    "head",
-    "df",
-    "set_config",
-    "show_config",
-    "save_config",
-    "clear_config",
-    "upload_sd_fw",
-    "watchdog",
-    "toggle_gsm",
-    "gsm_cmd",
-    "tcp_init",
-    "tcp_open",
-    "tcp_close",
-    "tcp_send",
-    "lua"
+    "help",                 //  1
+    "clear",                //  2
+    "echo",                 //  3
+    "beep",                 //  4
+    "reset",                //  5
+    "tasks",                //  6
+    "xmodem",               //  7
+    "pref_block",           //  8
+    "curr_block",           //  9
+    "erase_firmware",       //  10
+    "check_crc",            //  11
+    "send_radio",           //  12
+    "radio_conf",           //  13
+    "sens_measure",         //  14
+    "calib_sensors",        //  15
+    "sleep",                //  16
+    "time",                 //  17
+    "dump_mem",             //  18
+    "mount",                //  19
+    "neofetch",             //  20
+    "ls",                   //  21
+    "cd",                   //  22
+    "rm",                   //  23
+    "rename",               //  24
+    "touch",                //  25
+    "mkdir",                //  26
+    "cat",                  //  27
+    "tail",                 //  28
+    "head",                 //  29
+    "df",                   //  30
+    "set_config",           //  31
+    "show_config",          //  32
+    "save_config",          //  33
+    "clear_config",         //  34
+    "upload_sd_fw",         //  35
+    "watchdog",             //  36
+    "toggle_gsm",           //  37
+    "gsm_cmd",              //  38
+    "tcp_init",             //  39
+    "tcp_open",             //  40
+    "tcp_close",            //  41
+    "tcp_send",             //  42
+    "lua",                  //  43
+    "run_action",           //  44
+    "dump_file",            //  45
 };
 
 // array for comletion
-char *compl_world[_NUM_OF_CMD + 1];
+char *compl_word[_NUM_OF_CMD + 1];
 
-StaticTask_t xCalibTaskBuffer;
-StackType_t xStack_TempCalib [configMINIMAL_STACK_SIZE];
 
 //*****************************************************************************
 /*
@@ -192,10 +195,6 @@ void print_help(void) {
       );
 }
 
-FRESULT res;
-FIL file;
-char file_buff[FILE_BUFFER] = {0};
-char tmp_json[JSON_STR_CONFIG_SIZE] = {0};
 
 bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
     FLASH_status status = FLASH_write(addr, (uint64_t*)&buff[0], (uint32_t)size / 8);
@@ -206,14 +205,15 @@ bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
 
 bool xmodem_sd_write(uint32_t addr, uint8_t *buff, uint32_t size){
     static size_t written_amount = 0;
-    res = f_lseek(&file, addr);
+    FIL file;
+    FRESULT res = f_lseek(&file, addr);
     if(res != FR_OK){
         f_close(&file);
         xprintf("Failed seek file. Written %d bytes\n", written_amount);
         return false;
     }
-    FRESULT result = f_write(&file, buff, size, &written_amount);
-    if(result == FR_OK)
+    res = f_write(&file, buff, size, &written_amount);
+    if(res == FR_OK)
         return true;
     return false;
 }
@@ -222,245 +222,11 @@ bool xmodem_sd_on_first_packet(){
     return true;
 }
 
-void CALIBRATION_TASK(void *pvParameters){
-    UNUSED(pvParameters);
-    if(sensors_bus.is_calibrated){
-        xprintf("Temperature sensors already calibrated."\
-                "Recalibration process started\n");
-    }
-    sensors_bus.power_on();
-    DS18B20_BUS_Status status = Calibration_routine(&sensors_bus);
-    if(status != (DS18B20_BUS_Status)OW_OK){
-        xprintf("Calibration failed: %d\n", status);
-        sensors_bus.power_off();
-        return;
-    }
-    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-        xprintf("T%02d id: [0x%016llX]\n", i + 1, sensors_bus.serials[i]);
-    }
-    if(system_config.auto_save_config){
-        if(save_system_config_to_FLASH(&system_config) != FLASH_OK)
-            xprintf("Saving configuration failed!\n");
-        if(save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json) != CONFIG_OK)
-            xprintf("Cant save config to SD\n");
-    }
-    sensors_bus.power_off();
-    vTaskDelete(NULL);
-}
 
-void neofetch(){
-    xprintf(
-"\033[33m              .,-:;//;:=,                 \033[32m root\033[0m@\033[32mstm32\n"\
-"\033[33m          . :H@@@MM@M#H/.,+%%;,           \033[0m  -----------\n"\
-"\033[33m       ,/X+ +M@@M@MM%%=,-%%HMMM@X/,       \033[36m   OS\033[0m: FreeRTOS \n"\
-"\033[33m     -+@MM; $M@@MH+-,;XMMMM@MMMM@+-       \033[36m Host\033[0m: STM32\n"\
-"\033[33m    ;@M@@M- XM@X;. -+XXXXXHHH@M@M#@/.     \033[36m Kernel\033[0m: V202212.01\n"\
-"\033[33m  ,%%MM@@MH ,@%%=             .---=-=:=,. \033[36m   Uptime\033[0m: \n"\
-"\033[33m  =@#@@@MX.,                -%%HX$$%%%%:; \033[36m    Shell\033[0m: microrl v." MICRORL_LIB_VER "\n"\
-"\033[33m =-./@M@M$                   .;@MMMM@MM:  \033[36m MCU\033[0m: STM32L431RCT6\n"\
-"\033[33m X@/ -$MM/                    . +MM@@@M$  \033[36m Memory\033[0m: 71KB/128KB\n"\
-"\033[33m,@M@H: :@:                    . =X#@@@@-  \033[36m Battery\033[0m: 100%%\n"\
-"\033[33m,@@@MMX, .                    /H- ;@M@M=   \033[0m\n"\
-"\033[33m.H@@@@M@+,                    %%MM+..%%#$.   \033[40m   \033[41m   \033[42m   \033[43m   \033[44m   \033[45m   \033[46m   \033[47m   \033[0m\n"\
-"\033[33m /MMMM@MMH/.                  XM@MH; =;    \033[100m   \033[101m   \033[102m   \033[103m   \033[104m   \033[105m   \033[106m   \033[107m   \033[0m\n"\
-"\033[33m  /%%+%%$XHH@$=              , .H@@@@MX,\033[0m\n"\
-"\033[33m   .=--------.           -%%H.,@@@@@MX,\033[0m\n"\
-"\033[33m   .%%MM@@@HHHXX$$$%%+- .:$MMX =M@@MM%%.\033[0m\n"\
-"\033[33m     =XMMM@MM@MM#H;,-+HMM@M+ /MMMX=\033[0m\n"\
-"\033[33m       =%%@M@M#@$-.=$@MM@@@M; %%M%%=\033[0m\n"\
-"\033[33m         ,:+$+-,/H#MMMMMMM@= =,\033[0m\n"\
-"\033[33m              =++%%%%+/:-.\033[0m\n"\
-);
-}
-
-void ls(const char *path) {
-    DIR dir;
-    res = f_opendir(&dir, path);
-
-    if (res == FR_OK) {
-        xprintf("Mode            Last write       Size   Name\n");
-        while (1) {
-            FILINFO fno;
-
-            res = f_readdir(&dir, &fno);
-            if(res == FR_DISK_ERR){
-                xprintf("DISK ERROR\n");
-                break;
-            }
-
-            if ((res != FR_OK) || (fno.fname[0] == 0))
-                break;
-            char file_label[128] = " ";
-            // xsprintf(string, "%c%c%c%c%c %u/%02u/%02u %02u:%02u %10d %s/%s\n",
-            if((fno.fattrib & AM_DIR)){
-                memmove(file_label, "\033[36m", 5);
-                memmove(file_label + 5,  fno.fname, strlen(fno.fname));
-                memmove(file_label + 5 + strlen(fno.fname), "\033[0m", 4);
-            }
-            xprintf("%c%c%c%c%c     %u/%02u/%02u %02u:%02u %10d   %s\n",
-                     ((fno.fattrib & AM_DIR) ? 'D' : '-'),
-                     ((fno.fattrib & AM_RDO) ? 'R' : '-'),
-                     ((fno.fattrib & AM_SYS) ? 'S' : '-'),
-                     ((fno.fattrib & AM_HID) ? 'H' : '-'),
-                     ((fno.fattrib & AM_ARC) ? 'A' : '-'),
-                     (fno.fdate >> 9) + 1980, (fno.fdate >> 5) & 15,
-                     fno.fdate & 31, (fno.ftime >> 11), (fno.ftime >> 5) & 63,
-                    //  (int)fno.fsize, path, fno.fname);
-                     (int)fno.fsize, (fno.fattrib & AM_DIR) ? file_label : fno.fname);
-        }
-    } else {
-        xprintf("Can\'t open dir\n");
-    }
-}
-
-void dump_memory(unsigned long addr, uint32_t *ptr, size_t len){
-    xprintf("%10s | %-8s | %-8s | %-8s | %-8s | %-16s\n", "Address", "0", "4", "8", "C", "ASCII");
-    for(uint32_t i = 0; i < len; i += 4){
-        // xprintf("0x%08lX | %08lX | %08lX | %08lX | %08lX | ",
-        //         addr + (i << 2), *(ptr + i), *(ptr + i + 1), *(ptr + i + 2), *(ptr + i + 3));
-        xprintf("0x%08lX | ", addr + (i << 2));
-        for(uint8_t c = 0; c < 4; c++){
-            unsigned long val = *(ptr + i + c);
-            if(val == 0){
-                xprintf("\033[36m");
-            } else if (val == 0xFFFFFFFF){
-                xprintf("\033[33m");
-            }
-            xprintf("%08lX", val);
-            if(val == 0 || val == 0xFFFFFFFF){
-                xprintf("\033[0m");
-            }
-            xprintf(" | ");
-        }
-        for (uint8_t j = 0; j < 16; j++) {		/* ASCII dump */
-            char sym = ((char *)(ptr + i))[j];
-			xputc((unsigned char)((sym >= ' ' && sym <= '~') ? sym : '.'));
-		}
-        xprintf("\n");
-    }
-}
-
-FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t offset) {
-    UINT read_count = 0;
-    res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
-    if(res != FR_OK){
-        f_close(&file);
-        return res;
-    }
-    while(f_size(&file) > offset){
-        memset(buff, 0, buff_size);
-        res = f_lseek(&file, offset);
-        if(res != FR_OK) break;
-        res = f_read(&file, (void *)(buff), buff_size, &read_count);
-        if(res != FR_OK) break;
-        for(uint16_t i = 0; i < read_count; i++){
-            if(buff[i] < 31 && (buff[i] != '\n' && buff[i] != '\r')){
-                buff[i] = 0;
-            }
-            char val = buff[i];
-            xputc(val);
-            if(val == '\n'){
-                xputc('\r');
-            }
-        }
-        offset += read_count;
-    }
-    xputc('\n');
-    f_close(&file);
-    return res;
-}
-
-FRESULT copy_to_flash(const char *path, char *buff, uint16_t buff_size, uint32_t addr) {
-    UINT read_count = 0;
-    uint32_t offset = 0;
-    res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
-    if(res != FR_OK){
-        f_close(&file);
-        return res;
-    }
-    while(f_size(&file) > offset){
-        memset(buff, 0, buff_size);
-        res = f_lseek(&file, offset);
-        if(res != FR_OK) break;
-        res = f_read(&file, (void *)(buff), buff_size, &read_count);
-        if(res != FR_OK) break;
-        if(FLASH_write(addr + offset, (uint64_t *)buff, (uint16_t)(read_count / 8)) != 0){
-            res = FR_INT_ERR;
-            break;
-        }
-        offset += read_count;
-    }
-    f_close(&file);
-    return res;
-}
-
-FRESULT tail(const char *path, char *buff, size_t buff_size, uint32_t str_count, uint32_t *offset){
-    uint32_t counter = 0;
-    UINT read_count = 0;
-    int32_t read_ptr;
-    res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
-    if(res != FR_OK){
-        f_close(&file);
-        return res;
-    }
-    read_ptr = f_size(&file);
-    while(read_ptr > 0){
-        memset(buff, 0, buff_size);
-        read_ptr -= buff_size;
-        if(read_ptr < 0){
-            read_ptr = 0;
-        }
-        res = f_lseek(&file, (uint32_t)read_ptr);
-        if(res != FR_OK) break;
-        res = f_read(&file, (void *)(buff), buff_size, &read_count);
-        if(res != FR_OK) break;
-        for(uint32_t i = buff_size; i > 0; i--){
-            if(buff[i] == '\n'){
-                counter++;
-                if(counter >= str_count + 1){
-                    *offset = (uint32_t)read_ptr + i + 1;
-                    f_close(&file);
-                    return res;
-                }
-            }
-        }
-    }
-    f_close(&file);
-    return res;
-}
-
-FRESULT head(const char *path, char *buff, size_t buff_size, uint32_t str_count){
-    UINT read_count = 0;
-    uint32_t read_count_sum = 0;
-    res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
-    if(res != FR_OK){
-        f_close(&file);
-        return res;
-    }
-    while(read_count_sum < f_size(&file) && str_count){
-        memset(buff, 0, buff_size);
-        res = f_lseek(&file, read_count_sum);
-        if(res != FR_OK) break;
-        res = f_read(&file, (void *)(buff), buff_size, &read_count);
-        if(res != FR_OK) break;
-        for(uint16_t i = 0; i < read_count; i++){
-            char val = buff[i];
-            xputc(val);
-            if(val == '\n'){
-                str_count--;
-                xputc('\r');
-                if(str_count == 0) break;
-            }
-        }
-        read_count_sum += read_count;
-    }
-    f_close(&file);
-    return res;
-}
 
 char curr_dir_name[128] = "";
 char rtc_buffer[25] = {0};
-
+Args args;
 //*****************************************************************************
 // execute callback for microrl library
 // do what you want here, but don't write to argv!!! read only!!
@@ -531,200 +297,20 @@ int execute(int argc, const char *const *argv) {
         if (argc == 3) {
             long freq;
             long duration;
-            uint8_t size1 = xatoi((char*)argv[1], &freq);
-            uint8_t size2 = xatoi((char*)argv[2], &duration);
+            xatoi((char*)argv[1], &freq);
+            xatoi((char*)argv[2], &duration);
             BUZZ_beep(&buzzer, (uint16_t)freq, (uint16_t)duration);
         }
         break;
     case _CMD_CALIB_SENSORS:
         if(argc == 1){
-            xTaskCreateStatic(CALIBRATION_TASK, "TEMP_CALIB", configMINIMAL_STACK_SIZE * 2, NULL, 2, xStack_TempCalib, &xCalibTaskBuffer);
+            create_calibration_task();
         }
         break;
     case _CMD_SENS_MEASURE:
         if(argc <= 9){
-            #define TEMP_ONLY   1 << 0
-            #define ADC_ONLY    1 << 1
-            uint8_t save_to_sd = 0;
-            uint8_t meas_mode = 3;  // 3 - adc and temp; 2 - adc only; 1 - temp only
-            long meas_amount = 1;
-            long meas_period = 0;
-            OW_Status status = OW_OK;
-            int buffer_ptr = 0;
-            FSIZE_t file_size = 0;
-            UINT written_count = 0;
-
-            for(uint8_t i = 1; i < argc; i++){
-                if(strcmp(argv[i], "-m") == 0){
-                    if(i < argc - 1){
-                        if(strcmp(argv[i + 1], "ADC") == 0){
-                            meas_mode = 2;
-                        } else if(strcmp(argv[i + 1], "TEMP") == 0){
-                            meas_mode = 1;
-                        } else {
-                            xprintf("Incorrect mode flag: %s\n", argv[i + 1]);
-                            return 0;
-                        }
-                    }
-                } else if(strcmp(argv[i], "-f") == 0){
-                    if(i < argc - 1){
-                        res = f_open(&file, argv[i + 1], FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-                        if(res == FR_OK){
-                            save_to_sd = 1;
-                        } else {
-                            xprintf("Can not open file %s\n", argv[i + 1]);
-                            return 0;
-                        }
-                    }
-                } else if(strcmp(argv[i], "-n") == 0){
-                    if(i < argc - 1){
-                        if(xatoi((char*)argv[i + 1], &meas_amount) == 0){
-                            xprintf("Incorrect measure amount flag: %s\n", argv[i + 1]);
-                            return 0;
-                        }
-                    }
-                } else if(strcmp(argv[i], "-t") == 0){
-                    if(i < argc - 1){
-                        if(xatoi((char*)argv[i + 1], &meas_period) == 0){
-                            xprintf("Incorrect measure period flag: %s\n", argv[i + 1]);
-                            return 0;
-                        }
-                    }
-                }
-            }
-
-            if(meas_mode & TEMP_ONLY){
-                if(!sensors_bus.is_calibrated){
-                    xprintf("Start measure uncalibrated sensors\n");
-                }
-            }
-
-            for(long meas_num = 0; meas_num < meas_amount; meas_num++){
-                sensors_bus.power_on();
-                if(meas_mode & TEMP_ONLY){
-                    if(sensors_bus.found_amount == 0){
-                        xprintf("Start searching sensors\n");
-                        status = OW_SearchDevices(sensors_bus.ow, &sensors_bus.found_amount);
-                        if(status != OW_OK){
-                            if(status == OW_EMPTY_BUS){
-                                xprintf("Not found connected sensors. Check the power supply.\n");
-                            } else if(status == OW_ROM_FINDING_ERROR){
-                                xprintf("OneWire reading error\n");
-                            } else if(status == OW_TIMEOUT){
-                                xprintf("OneWire TIMEOUT\n");
-                            }
-                            sensors_bus.power_off();
-                            return 0;
-                        }
-                        for(uint8_t i = 0; i < sensors_bus.connected_amount; i++){
-                            sensors_bus.sensors[i].serialNumber = &(sensors_bus.ow->ids[i]);
-                        }
-                        if(status == OW_OK && sensors_bus.found_amount > 0){
-                            xprintf("Founded sensors: %d\n", sensors_bus.found_amount + 1);
-                        } else {
-                            if(status == OW_EMPTY_BUS){
-                                xprintf("Not found connected sensors. Check the power supply.\n");
-                            } else if(status == OW_ROM_FINDING_ERROR){
-                                xprintf("OneWire reading error\n");
-                            } else if(status == OW_TIMEOUT){
-                                xprintf("OneWire TIMEOUT\n");
-                            }
-                            sensors_bus.power_off();
-                            return 0;
-                        }
-                    }
-                    status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
-                }
-                if(meas_mode & ADC_ONLY){
-                    vTaskDelay(50);
-                    ADC_Start(&adc);
-                    if(ADC_WaitMeasures(&adc, 1000000)){
-                        xprintf("ADC timeout\n");
-                    }
-                }
-                sensors_bus.power_off();
-                memset(file_buff, 0, FILE_BUFFER);
-                buffer_ptr = 0;
-                if(save_to_sd){
-                    file_size = f_size(&file);
-                }
-                if(meas_mode & TEMP_ONLY){
-                    if(status != OW_OK){
-                        if(status == OW_EMPTY_BUS){
-                            xprintf("Not found connected sensors. "\
-                                    "Check the power supply.\n");
-                        } else if(status == OW_ROM_FINDING_ERROR){
-                            xprintf("OneWire reading error\n");
-                        } else if(status == OW_TIMEOUT){
-                            xprintf("OneWire TIMEOUT\n");
-                        }
-                        return 0;
-                    }
-                    if(meas_num == 0 && file_size == 0){
-                        buffer_ptr += xsprintf(file_buff + buffer_ptr, "Module id: %d\n\n", system_config.module_id);
-                        for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                            buffer_ptr += xsprintf(file_buff + buffer_ptr, "T%02d: [0x%016llX]\n", i + 1,
-                                                sensors_bus.is_calibrated ?
-                                                sensors_bus.serials[i] :
-                                                sensors_bus.sensors[i].serialNumber->serial_code);
-                        }
-                        buffer_ptr += xsprintf(file_buff + buffer_ptr, "\n");
-                    }
-                }
-                if(meas_num == 0 && file_size == 0){
-                    buffer_ptr += xsprintf(file_buff + buffer_ptr, "%-25s", "Timestamp");
-                }
-
-                if(meas_mode & TEMP_ONLY){
-                    if(meas_num == 0 && file_size == 0){
-                        for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                            buffer_ptr += xsprintf(file_buff + buffer_ptr, "T%02d    ", i + 1);
-                        }
-                    }
-                }
-
-                if(meas_mode & ADC_ONLY){
-                    if(meas_num == 0 && file_size == 0){
-                        for(uint8_t i = 0; i < 11; i++){
-                            buffer_ptr += xsprintf(file_buff + buffer_ptr, "A%02d   ", i + 1);
-                        }
-                        buffer_ptr += xsprintf(file_buff + buffer_ptr, "VDDA");
-                    }
-                }
-                if(meas_num == 0 && file_size == 0){
-                    buffer_ptr += xsprintf(file_buff + buffer_ptr, "\n");
-                }
-
-                buffer_ptr += RTC_string_datetime(file_buff + buffer_ptr);
-                buffer_ptr += xsprintf(file_buff + buffer_ptr, "  ");
-
-                if(meas_mode & TEMP_ONLY){
-                    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
-                        buffer_ptr += xsprintf(file_buff + buffer_ptr, "%.2f  ",
-                                               sensors_bus.sensors[i].temperature);
-                    }
-                }
-                if(meas_mode & ADC_ONLY){
-                    for(uint8_t i = 0; i < 11; i++){
-                        buffer_ptr += xsprintf(file_buff + buffer_ptr, "%-4d  ",
-                                               adc.reg_channel_queue[i].result_mv);
-                    }
-                    buffer_ptr += xsprintf(file_buff + buffer_ptr, "%-4d", adc.vdda_mvolt);
-                }
-                buffer_ptr += xsprintf(file_buff + buffer_ptr, "\n");
-
-                xprintf(file_buff);
-
-                if(save_to_sd){
-                    res = f_lseek(&file, file_size);
-                    res = f_write(&file, file_buff, buffer_ptr, &written_count);
-                    if(res != FR_OK || (int)written_count < buffer_ptr){
-                        xprintf("Failed to write to SD card\n");
-                    }
-                    f_close(&file);
-                }
-                vTaskDelay(meas_period > 0 ? meas_period * 1000 : 1);
-            }
+            args = (Args){.argc = argc, .argv = argv};
+            create_sensors_measure_task((void*)(&args));
         }
         break;
     case _CMD_SHOW_CONFIG:
@@ -734,20 +320,20 @@ int execute(int argc, const char *const *argv) {
                 if(strcmp(argv[1], "FLASH") == 0){
                     read_FLASH_system_config(&tmp_config);
                     xprintf("FLASH config:\n");
-                    system_config_to_str(&tmp_config, tmp_json);
-                    xprintf(tmp_json);
+                    system_config_to_str(&tmp_config, config_json);
+                    xprintf(config_json);
                 } else if(strcmp(argv[1], "DEFAULT") == 0){
                     system_config_init(&tmp_config);
-                    system_config_to_str(&tmp_config, tmp_json);
+                    system_config_to_str(&tmp_config, config_json);
                     xprintf("DEFAULT config:\n");
-                    xprintf(tmp_json);
+                    xprintf(config_json);
                 } else {
                     xprintf("Incorrect argument.\n");
                 }
             } else {
-                system_config_to_str(&system_config, tmp_json);
+                system_config_to_str(&system_config, config_json);
                 xprintf("RAM config:\n");
-                xprintf(tmp_json);
+                xprintf(config_json);
             }
         }
         break;
@@ -911,8 +497,16 @@ int execute(int argc, const char *const *argv) {
             }
         }
         break;
+    case _CMD_DUMP_FILE:
+        if(argc == 3){
+            long offset = 0;
+            xatoi((char *)argv[2], &offset);
+            dump_file(argv[1], file_buff, FILE_BUFFER, offset);
+        }
+        break;
     case _CMD_TOUCH:
         if(argc == 2){
+            FIL file;
             if (f_open(&file, argv[1], FA_OPEN_ALWAYS | FA_READ) != FR_OK) {
                 xprintf("FAILED\n");
             } else {
@@ -1002,9 +596,10 @@ int execute(int argc, const char *const *argv) {
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             xmodem_receive(&xmodem, write_addr);
         } else if (argc == 2){
+            FIL file;
             xmodem.save = xmodem_sd_write;
             xmodem.on_first_packet = xmodem_sd_on_first_packet;
-            res = f_open(&file, argv[1], FA_CREATE_NEW | FA_WRITE);
+            FRESULT res = f_open(&file, argv[1], FA_CREATE_NEW | FA_WRITE);
             if(res != FR_OK){
                 f_close(&file);
                 xprintf("Failed to create file\n");
@@ -1025,7 +620,7 @@ int execute(int argc, const char *const *argv) {
         if (argc == 2) {
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             xprintf("Writing to address %08lX\n", write_addr);
-            if(copy_to_flash(argv[1], file_buff, 512, write_addr) != FR_OK){
+            if(copy_to_flash(argv[1], file_buff, FILE_BUFFER, write_addr) != FR_OK){
                 xprintf("Failed\n");
             }
         }
@@ -1062,9 +657,16 @@ int execute(int argc, const char *const *argv) {
     case _CMD_TCP_CLOSE:
         GSM_CloseConnections(&sim7000g);
         break;
+    case _CMD_RUN_ACTION:
+        create_action_task();
+        break;
     case _CMD_TCP_SEND:
         if (argc == 2) {
             GSM_SendTCP(&sim7000g, argv[1], strlen(argv[1]));
+        } else if (argc == 3){
+            long size = 0;
+            xatoi((char*)argv[2], &size);
+            GSM_SendFile(&sim7000g, (char*)argv[1], size);
         }
         break;
     default:
@@ -1087,7 +689,7 @@ int execute(int argc, const char *const *argv) {
 char **complet(int argc, const char *const *argv) {
     int j = 0;
 
-    compl_world[0] = NULL;
+    compl_word[0] = NULL;
 
     // if there is token in cmdline
     if (argc == 1) {
@@ -1098,7 +700,7 @@ char **complet(int argc, const char *const *argv) {
             // if token is matched (text is part of our token starting from 0 char)
             if (strstr(keyword[i], bit) == keyword[i]) {
                 // add it to completion set
-                compl_world[j++] = keyword[i];
+                compl_word[j++] = keyword[i];
             }
         }
         // } else if ((argc > 1) && ((strcmp(argv[0], _CMD_SET) == 0) ||
@@ -1111,27 +713,32 @@ char **complet(int argc, const char *const *argv) {
         //     }
     } else {  // if there is no token in cmdline, just print all available token
         for (; j < _NUM_OF_CMD; j++) {
-            compl_world[j] = keyword[j];
+            compl_word[j] = keyword[j];
         }
     }
 
     // note! last ptr in array always must be NULL!!!
-    compl_world[j] = NULL;
+    compl_word[j] = NULL;
     // return set of variants
-    return compl_world;
+    return compl_word;
 }
 #endif
 
 //*****************************************************************************
 void sigint(void) {
-    #ifdef USE_LUA
-    if(xTaskGetHandle( "LUA" ) != NULL){
-        vTaskDelete(lua_task);
-    }
-    #endif
-    TaskHandle_t calib_task = xTaskGetHandle("TEMP_CALIB");
-    if(calib_task != NULL){
-        vTaskDelete(calib_task);
+    char *tasks[] = {
+        "TEMP_CALIB",
+        "LUA",
+        "SENS_MEASURE",
+        "TEMP_CALIB",
+        // "ACTION_TASK"
+    };
+    for(uint8_t i = 0; i < 4; i++){
+        TaskHandle_t task_handle = xTaskGetHandle(tasks[i]);
+        if(task_handle != NULL){
+            vTaskDelete(task_handle);
+            xprintf("\n%d cancelled!\n\r", tasks[i]);
+        }
     }
     xprintf("\n^C catched!\n\r");
     xprintf(_PROMPT_DEFAULT);

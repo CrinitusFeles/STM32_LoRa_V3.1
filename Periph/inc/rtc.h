@@ -3,6 +3,10 @@
 
 #include "stm32l4xx.h"
 
+#define BCKP_RESET_AMOUNT   0
+#define BCKP_SEND_SIZE      1
+#define BCKP_MEAS_AMOUNT    2
+
 typedef struct s_RTC_struct_full {
 	uint8_t year_tens;		// 20[1]9
 	uint8_t year_units;		// 201[9]
