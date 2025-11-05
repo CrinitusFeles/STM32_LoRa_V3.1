@@ -64,6 +64,8 @@ typedef struct GSM_Status {
     uint8_t last_answer: 1;         // 0 - OK, 1 - ERROR
     uint8_t tcp_server_answer: 1;   // server receive data acknoledge
     uint8_t tcp_server_connected: 1;
+    uint8_t tcp_ready_to_send: 1;
+    uint8_t critical_error: 1;
 } GSM_Status;
 
 typedef struct GSM {
@@ -85,6 +87,7 @@ typedef struct GSM {
     uint8_t sms_counter;
     uint8_t call_counter;
     uint8_t timeout_sec;
+    uint16_t MTU;
     void(*delay_ms)(uint32_t);
     void (*ll_send)(char *);
 } GSM;
@@ -96,18 +99,19 @@ void GSM_DisableEcho(GSM *driver);
 void GSM_CheckSignal(GSM *driver);
 void GSM_CheckGPRS(GSM *driver);
 void GSM_CheckGSM(GSM *driver);
-void GSM_CheckSIM(GSM *driver);
+bool GSM_CheckSIM(GSM *driver);
 void GSM_SetAPN(GSM *driver, char *apn);
 bool GSM_SendCMD(GSM *driver, char *cmd);
 uint16_t GSM_GetVBAT(GSM *driver);
 void GSM_ActivateContext(GSM *driver);
 bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port);
+void GSM_RequestMTU(GSM *driver);
 void GSM_CloseConnections(GSM *driver);
 void GSM_CheckIPstatus(GSM *driver);
 void GSM_TogglePower(GSM *driver);
 void GSM_PowerOFF(GSM *driver);
 void GSM_SendSMS(GSM *driver, char *data, char *phone_num);
-void GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len);
+bool GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len);
 void GSM_SaveSettings(GSM *driver);
 uint8_t GSM_isAlive(GSM *driver);
 uint8_t GSM_WaitTCPServerAcknowledge(GSM *driver, uint16_t timeout_ms);

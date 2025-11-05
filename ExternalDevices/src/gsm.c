@@ -39,7 +39,7 @@ uint8_t GSM_Init(GSM *driver){
 }
 
 bool GSM_wait_for_answer(GSM *driver, int32_t timeout_ms){
-    while((timeout_ms--) && (driver->status.waiting_for_answer))
+    while((--timeout_ms) && (driver->status.waiting_for_answer))
         driver->delay_ms(1);
     if(timeout_ms == 0)
         return false;
@@ -85,16 +85,16 @@ uint16_t GSM_GetVBAT(GSM *driver){
 uint8_t GSM_isAlive(GSM *driver){
     GSM_SendCMD(driver, "AT");
     if(driver->status.timeout_event){
-        driver->status.pwr_status = 0;
+        // driver->status.pwr_status = 0;
         return 1;
     }
-    if(driver->status.last_answer == 0)
-        driver->status.pwr_status = 1;
+    // if(driver->status.last_answer == 0)
+        // driver->status.pwr_status = 1;
     return 0;
 }
 void GSM_TogglePower(GSM *driver){
     gpio_state(driver->gpio.pwr, LOW);
-    driver->delay_ms(900);
+    driver->delay_ms(300);
     gpio_state(driver->gpio.pwr, HIGH);
     // driver->delay_ms(5000);
 }
@@ -116,7 +116,7 @@ uint8_t GSM_InitGPRS(GSM *driver){
                     GSM_CheckIPstatus(driver);
                     break;
                 case(GPRS_GPRSACT):
-                    if(!GSM_SendCMD(driver, "AT+CIFSR")) return 1;
+                    GSM_SendCMD(driver, "AT+CIFSR");
                     GSM_CheckIPstatus(driver);
                     break;
                 case(GPRS_STATUS):
@@ -148,6 +148,10 @@ void GSM_SendSMS(GSM *driver, char *data, char *phone_num){
     free(buf);
 }
 
+void GSM_RequestMTU(GSM *driver){
+    GSM_SendCMD(driver, "AT+CIPSEND?");
+}
+
 bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
     GSM_CheckIPstatus(driver);
     if(driver->ip_status == GPRS_STATUS || driver->ip_status == GPRS_CLOSED){
@@ -160,21 +164,55 @@ bool GSM_OpenConnection(GSM *driver, const char *ip, const char *port){
         driver->status.waiting_for_answer = 1;
         driver->status.tcp_server_answer = 0;
         GSM_wait_for_answer(driver, 2000);
-        GSM_CheckIPstatus(driver);
-        return true;
+        for(uint8_t i = 0; i < 10; i++){
+            GSM_CheckIPstatus(driver);
+            if(driver->status.tcp_server_connected){
+                vTaskDelay(300);
+                GSM_RequestMTU(&sim7000g);
+                return true;
+            }
+            vTaskDelay(300);
+        }
+        return false;
     }
     return false;
 }
 
-void GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
-    UART_tx_string(driver->uart, "AT+CIPSEND");
-    UART_tx(driver->uart, '\r');
-    for(uint16_t i = 0; i < data_len; i++){
-        UART_tx(driver->uart, data[i]);
+bool GSM_WaitServer(GSM *driver){
+    for(uint16_t i = 0; i < 2000; i++){
+        if(driver->status.tcp_ready_to_send) return true;
+        vTaskDelay(1);
     }
-    UART_tx(driver->uart, 0x1A);
-    UART_tx(driver->uart, '\r');
-    GSM_wait_for_answer(driver, 2000);
+    return false;
+}
+
+bool GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
+    if(driver->MTU == 0){
+        xprintf("TCP MTU = 0\n");
+        return false;
+    }
+    while(data_len){
+        // char cmd[25] = {0};
+        uint16_t chunk_size = data_len > driver->MTU ? 1300 : data_len;
+        // xsprintf(cmd, "AT+CIPSEND=%d", chunk_size);
+        GSM_SendCMD(driver, "AT+CIPSEND");
+        if(GSM_WaitServer(driver) == false) {
+            return false;
+        }
+        sim7000g.status.tcp_server_answer = 0;
+        for(uint16_t i = 0; i < chunk_size; i++){
+            UART_tx(driver->uart, data[i]);
+        }
+        UART_tx(driver->uart, 0x1A);
+        UART_tx(driver->uart, '\r');
+        GSM_wait_for_answer(driver, 2000);
+        for(uint16_t i = 0; i < 2000; i++){
+            if(sim7000g.status.tcp_server_answer == 1) break;
+            vTaskDelay(1);
+        }
+        data_len -= chunk_size;
+    }
+    return (bool)sim7000g.status.tcp_server_answer;
 }
 
 void GSM_SetDNS(GSM *driver){
@@ -220,8 +258,8 @@ void GSM_DisableEcho(GSM *driver){
 void GSM_SaveSettings(GSM *driver){
     GSM_SendCMD(driver, "AT&W");
 }
-void GSM_CheckSIM(GSM *driver){
-    GSM_SendCMD(driver, "AT+CPIN?");
+bool GSM_CheckSIM(GSM *driver){
+    return GSM_SendCMD(driver, "AT+CPIN?");
 }
 
 void GSM_CheckGSM(GSM *driver){
@@ -229,8 +267,14 @@ void GSM_CheckGSM(GSM *driver){
 }
 
 void GSM_CheckGPRS(GSM *driver){
-    GSM_SendCMD(driver, "AT+CGREG?");
+    for(uint8_t i = 0; i < 30; i++){
+        GSM_SendCMD(driver, "AT+CGREG?");
+        if(driver->status.gprs_reg_status == 1) break;
+        vTaskDelay(300);
+        if(driver->status.critical_error) return;
+    }
     GSM_SendCMD(driver, "AT+CGATT?");
+    GSM_SendCMD(driver, "AT+CREG?");
     if(!driver->status.gprs_connected){
         GSM_SendCMD(driver, "AT+CGATT=1");
         GSM_SendCMD(driver, "AT+CGATT?");
@@ -261,7 +305,7 @@ void GSM_CheckMode(GSM *driver){
 #define GSM_CONNECT_FAIL            2729113387      //"CONNECT FAIL",
 #define GSM_CLOSED                  2847189343      //"CLOSED",
 #define GSM_SHUT_OK                 2802156163      //"SHUT OK",
-#define GSM_HINT                    5861987         //"CONNECT OK",
+#define GSM_HINT                    5861987         //"> ",
 #define GSM_PDP_DEACT               3440200933      //"STATE: PDP DEACT",
 #define GSM_CONNECT_OK              1292179753      //"CONNECT_OK",
 #define GSM_EMPTY_APN               3557573663      //"+CSTT: "CMNET","",""",
@@ -278,7 +322,8 @@ void GSM_CheckMode(GSM *driver){
 #define GSM_CPIN                    2968058089      //"+CPIN: READY",
 #define GSM_CREG                    1985516344      //"+CREG: 0,1",
 #define GSM_CGREG                   3314961631      //"+CGREG: 0,1",
-#define GSM_CGREG2                  1985516345      //"+CGREG: 0,2",
+#define GSM_CGREG2                  3314961632      //"+CGREG: 0,2",
+#define GSM_CGREG6                  3314961636      //"+CGREG: 0,6",
 #define GSM_CGATT                   1331919950      //"+CGATT: 1"",
 #define GSM_CGATT0                  1331919949      //"+CGATT: 0"",
 #define GSM_PDP                     456551535       //"+PDP: DEACT"",
@@ -320,7 +365,6 @@ uint8_t strptime_iso(char *buffer, RTC_struct_brief *ts){
     while(buff_copy[i] == ' '){
         i++;
     }
-    i = 0;
     if(buff_copy[i] < '0' || buff_copy[i] > '9')
         return 0;
     i += xatoi(&(buff_copy[i]), &value);
@@ -369,13 +413,19 @@ void GSM_AnswerParser(){
         sim7000g.error_answer_counter++;
         break;
     case GSM_RDY:
-        sim7000g.status.pwr_status = 1;
+        if(sim7000g.status.pwr_status == 1){
+            xprintf("GSM Power critical error!");
+            sim7000g.status.critical_error = 1;
+        } else {
+            sim7000g.status.pwr_status = 1;
+        }
         break;
     case GSM_SMS_READY:
         sim7000g.status.sim_status = 1;
         break;
     case GSM_POWER_DOWN:
         sim7000g.status.waiting_for_answer = 0;
+        sim7000g.status.pwr_status = 0;
         break;
     case GSM_EMPTY_APN:
         // sim7000g.ip_status = GPRS_INITIAL;
@@ -384,7 +434,7 @@ void GSM_AnswerParser(){
         // sim7000g.ip_status = GPRS_START;
         break;
     case GSM_CGREG:
-
+        sim7000g.status.gprs_reg_status = 1;
         break;
     case GSM_CLOSED:
         sim7000g.status.tcp_server_connected = 0;
@@ -396,7 +446,7 @@ void GSM_AnswerParser(){
         sim7000g.status.tcp_server_connected = 1;
         break;
     case GSM_HINT:
-
+        sim7000g.status.tcp_ready_to_send = 1;
         break;
     case GSM_ate0:
 
@@ -410,12 +460,16 @@ void GSM_AnswerParser(){
 
         break;
     case GSM_CPIN:
-        sim7000g.status.sim_status = 1;
+        // sim7000g.status.sim_status = 1;
         break;
     case GSM_CREG:
         sim7000g.status.gsm_reg_status = 1;
         break;
     case GSM_CGREG2:
+        sim7000g.status.gprs_reg_status = 0;
+        break;
+    case GSM_CGREG6:
+        sim7000g.status.gprs_reg_status = 0;
         break;
     case GSM_CGATT:
         sim7000g.status.gprs_connected = 1;
@@ -444,6 +498,7 @@ void GSM_AnswerParser(){
         break;
     case GSM_SENDED:
         sim7000g.status.waiting_for_answer = 0;
+        sim7000g.status.tcp_server_answer = 1;
         break;
     case GSM_CLOSE_OK:
         sim7000g.status.tcp_server_connected = 0;
@@ -474,22 +529,40 @@ void GSM_AnswerParser(){
         break;
 
     default:
-        if(strstr(sim7000g.rx_buf, "+CBC:") != 0){
-            uint32_t charger_status = 0;
-            uint32_t percent = 0;
-            uint32_t vbat = 0;
-            xsprintf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
-            sim7000g.vbat = (uint16_t)vbat;
+        if(sim7000g.rx_buf[0] == '+'){
+            if(strstr(sim7000g.rx_buf, "+CBC:") != 0){
+                uint32_t charger_status = 0;
+                uint32_t percent = 0;
+                uint32_t vbat = 0;
+                xsprintf(sim7000g.rx_buf, "\r\n+CBC: %d,%d,%d", &charger_status, &percent, &vbat);
+                sim7000g.vbat = (uint16_t)vbat;
+            }
+            else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
+                uint32_t bit_error = 0;
+                xsprintf(sim7000g.rx_buf, "+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
+            }
+            else if(strstr(sim7000g.rx_buf, "+CIPSEND:") != 0){
+                long val = 0;
+                xatoi(sim7000g.rx_buf + 10, &val);
+                sim7000g.MTU = (uint16_t)(val);
+            }
+            else if(strstr(sim7000g.rx_buf, "+CMTI: \"SM\",") != 0){
+                long sms_index = 0;
+                xatoi(sim7000g.rx_buf + 12, &sms_index);
+                xprintf("Got SMS\n");
+            }
         }
-        else if(strstr(sim7000g.rx_buf, "+CSQ:") != 0){
-            uint32_t bit_error = 0;
-            xsprintf(sim7000g.rx_buf, "+CSQ: %d,%d", &sim7000g.signal_level, &bit_error);
-        }
-        else if(strstr(sim7000g.rx_buf, "time:") != 0){     // from TCP server
-            strptime_iso(sim7000g.rx_buf + 6, &current_rtc);
-            RTC_data_update(&current_rtc);
+        else if(sim7000g.rx_buf[0] >= '0' && sim7000g.rx_buf[0] <= '9'){
+            xprintf("Got IP\n");
         }
         else {
+            if(strstr(sim7000g.rx_buf, "AT") != 0 || strstr(sim7000g.rx_buf, "at") != 0){
+                break;
+            }
+            uint8_t data_len = strlen(sim7000g.rx_buf);
+            sim7000g.rx_buf[data_len] = '\r';
+            xStreamBufferSend(cli_stream, ( void * )(sim7000g.rx_buf),
+                              data_len + 1, portMAX_DELAY);
             xprintf("Unknown answer\n");
         }
         break;
