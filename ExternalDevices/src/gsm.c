@@ -191,6 +191,7 @@ bool GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
         xprintf("TCP MTU = 0\n");
         return false;
     }
+    uint16_t write_ptr = 0;
     while(data_len){
         // char cmd[25] = {0};
         uint16_t chunk_size = data_len > driver->MTU ? 1300 : data_len;
@@ -201,7 +202,7 @@ bool GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
         }
         sim7000g.status.tcp_server_answer = 0;
         for(uint16_t i = 0; i < chunk_size; i++){
-            UART_tx(driver->uart, data[i]);
+            UART_tx(driver->uart, *(uint8_t *)(data + write_ptr + i));
         }
         UART_tx(driver->uart, 0x1A);
         UART_tx(driver->uart, '\r');
@@ -211,6 +212,7 @@ bool GSM_SendTCP(GSM *driver, const char *data, uint16_t data_len){
             vTaskDelay(1);
         }
         data_len -= chunk_size;
+        write_ptr += chunk_size;
     }
     return (bool)sim7000g.status.tcp_server_answer;
 }
