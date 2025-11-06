@@ -35,7 +35,6 @@ typedef union Measures{
 } Measures;
 
 
-FIL _file;
 StackType_t xStack_action [TASK_SIZE];
 StaticTask_t xTaskBuffer_action;
 TaskHandle_t action_task;
@@ -48,13 +47,13 @@ UINT read_count = 0;
 void log_error(char *msg){
     uint16_t sd_ptr = 0;
     UINT _written_count = 0;
-    f_open(&_file, "errors.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-    f_lseek(&_file, _file.obj.objsize);
+    f_open(&file, "errors.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+    f_lseek(&file, file.obj.objsize);
     sd_ptr += RTC_string_datetime(file_buff + sd_ptr);
     sd_ptr += xsprintf(file_buff + sd_ptr, "  ");
     sd_ptr += xsprintf(file_buff + sd_ptr, msg);
-    f_write(&_file, file_buff, strlen(file_buff), &_written_count);
-    f_close(&_file);
+    f_write(&file, file_buff, strlen(file_buff), &_written_count);
+    f_close(&file);
 }
 
 
@@ -104,9 +103,9 @@ uint32_t calc_crc(uint32_t *buffer, uint32_t word_amount){
 
 void write_txt_log(){
     uint16_t sd_ptr = 0;
-    FRESULT res = f_open(&_file, LOG_FILENAME, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+    FRESULT res = f_open(&file, LOG_FILENAME, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
     if(res == FR_OK){
-        if (f_size(&_file) == 0) {
+        if (f_size(&file) == 0) {
             sd_ptr += xsprintf(file_buff + sd_ptr, "Module id: %d\n\n", system_config.module_id);
             for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
                 sd_ptr += xsprintf(file_buff + sd_ptr, "T%02d: [0x%016llX]\n", i + 1,
@@ -127,10 +126,10 @@ void write_txt_log(){
             sd_ptr += xsprintf(file_buff + sd_ptr, "%.2f  ", sensors_bus.sensors[i].temperature);
         }
         sd_ptr += xsprintf(file_buff + sd_ptr, "%d\n", adc.vdda_mvolt);
-        f_lseek(&_file, _file.obj.objsize);
-        f_write(&_file, file_buff, sd_ptr, &written_count);
+        f_lseek(&file, file.obj.objsize);
+        f_write(&file, file_buff, sd_ptr, &written_count);
     }
-    f_close(&_file);
+    f_close(&file);
 }
 
 
@@ -146,15 +145,15 @@ void write_bin_log(){
     measures.voltage = adc.vdda_mvolt;
     measures.measure_num = RTC->BKP0R;
     measures.module_id = system_config.module_id;
-    FRESULT res = f_open(&_file, BIN_FILENAME, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+    FRESULT res = f_open(&file, BIN_FILENAME, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
     if(res == FR_OK){
-        f_lseek(&_file, _file.obj.objsize);
-        res = f_write(&_file, measures.data, MEASURES_SIZE, &written_count);
+        f_lseek(&file, file.obj.objsize);
+        res = f_write(&file, measures.data, MEASURES_SIZE, &written_count);
         if(res == FR_OK){
             send_size += written_count;
         }
     }
-    f_close(&_file);
+    f_close(&file);
 }
 
 
@@ -193,7 +192,7 @@ void ACTION_TASK(void *pvParameters){
     }
 
     write_single_bkp_reg(BCKP_MEAS_AMOUNT, RTC->BKP2R + 1);
-    if(RTC->BKP2R > system_config.modem_period){
+    if(RTC->BKP2R > (uint32_t)system_config.modem_period){
         if(GSM_Routine(send_size)){
 
         } else {

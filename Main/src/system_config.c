@@ -82,107 +82,58 @@ void system_config_init(SystemConfig *config){
     memset(config->sensors_serials, 0xFF, TEMP_SENSOR_AMOUNT * sizeof(uint64_t));
 }
 
-void system_config_to_str(SystemConfig *config, char *buf){
-    uint16_t written = xsprintf(buf,
-    "{\n"\
-    "    \"action_mode\": %d,\n"\
-    "    \"module_id\": %d,\n"\
-    "    \"auto_save_config\": %d,\n"\
-    "    \"immediate_applying\": %d,\n"\
-    "    \"enable_beep\": %d,\n"\
-    "    \"enable_watchdog\": %d,\n"\
-    "    \"wakeup_period\": %d,\n"\
-    "    \"uart_speed\": %d,\n"\
-    "    \"rtc_ppm\": %d,\n"\
-    "    \"lora_freq\": %d,\n"\
-    "    \"lora_sf\": %d,\n"\
-    "    \"lora_bw\": %d,\n"\
-    "    \"lora_cr\": %d,\n"\
-    "    \"lora_crc_en\": %d,\n"\
-    "    \"lora_ldro\": %d,\n"\
-    "    \"lora_sync_word\": %d,\n"\
-    "    \"lora_tx_power\": %d,\n"\
-    "    \"lora_preamble\": %d,\n"\
-    "    \"modem_period\": %d,\n"\
-    "    \"apn\": \"%s\",\n"\
-    "    \"ip\": \"%s\",\n"\
-    "    \"port\": %d,\n",
-    config->action_mode,
-    config->module_id,
-    config->auto_save_config,
-    config->immediate_applying,
-    config->enable_beep,
-    config->enable_watchdog,
-    config->wakeup_period,
-    config->uart_speed,
-    config->rtc_ppm,
-    config->lora_freq,
-    config->lora_sf,
-    config->lora_bw,
-    config->lora_cr,
-    config->lora_crc_en,
-    config->lora_ldro,
-    config->lora_sync_word,
-    config->lora_tx_power,
-    config->lora_preamble,
-    config->modem_period,
-    config->apn,
-    config->ip,
-    config->port
-    );
-    for(uint8_t i = 0; i < 45; i++){
+char *config_fields[] = {
+    "port",                  // 20
+    "action_mode",          // 1
+    "module_id",            // 2
+    "auto_save_config",     // 3
+    "immediate_applying",   // 4
+    "enable_beep",          // 5
+    "enable_watchdog",      // 6
+    "modem_period",        // 7
+    "wakeup_period",           // 8
+    "uart_speed",              // 9
+    "rtc_ppm",            // 10
+    "lora_freq",              // 11
+    "lora_sf",              // 12
+    "lora_bw",              // 13
+    "lora_cr",          // 14
+    "lora_crc_en",            // 15
+    "lora_ldro",       // 16
+    "lora_sync_word",        // 17
+    "lora_tx_power",        // 18
+    "lora_preamble",         // 19
+};
+
+
+uint16_t system_config_to_str(SystemConfig *config, char *buf){
+    uint16_t written = xsprintf(buf,  "{\n");
+    for(uint8_t i = 0; i < 20; i++){
+        written +=  xsprintf(buf + written,  "    \"%s\": %d,\n",
+                             config_fields[i], *((int32_t *)(&config->port) + i));
+    }
+    written += xsprintf(buf + written,  "    \"apn\": \"%s\",\n", config->apn);
+    written += xsprintf(buf + written,  "    \"ip\": \"%s\",\n", config->ip);
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
         written += xsprintf(buf + written, "    \"temp_sensor_id%d\": \"0x%llX\",\n",
-                           i + 1, config->sensors_serials[i]);
+                            i + 1, config->sensors_serials[i]);
     }
     xsprintf(buf + written - 3, "\n}\n");
+    return written;
 }
 
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     char str_buf[30] = "";
     long val = 0;
-    json_get_num(buf, buf_len, "$.action_mode", &val);
-    config->action_mode = val;
-    json_get_num(buf, buf_len, "$.module_id", &val);
-    config->module_id = val;
-    json_get_num(buf, buf_len, "$.auto_save_config", &val);
-    config->auto_save_config = val;
-    json_get_num(buf, buf_len, "$.immediate_applying", &val);
-    config->immediate_applying = val;
-    json_get_num(buf, buf_len, "$.enable_beep", &val);
-    config->enable_beep = val;
-    json_get_num(buf, buf_len, "$.enable_watchdog", &val);
-    config->enable_watchdog = val;
-    json_get_num(buf, buf_len, "$.wakeup_period", &val);
-    config->wakeup_period = val;
-    json_get_num(buf, buf_len, "$.uart_speed", &val);
-    config->uart_speed = val;
-    json_get_num(buf, buf_len, "$.rtc_ppm", &val);
-    config->rtc_ppm = val;
-    json_get_num(buf, buf_len, "$.lora_freq", &val);
-    config->lora_freq = val;
-    json_get_num(buf, buf_len, "$.lora_sf", &val);
-    config->lora_sf = val;
-    json_get_num(buf, buf_len, "$.lora_bw", &val);
-    config->lora_bw = val;
-    json_get_num(buf, buf_len, "$.lora_cr", &val);
-    config->lora_cr = val;
-    json_get_num(buf, buf_len, "$.lora_crc_en", &val);
-    config->lora_crc_en = val;
-    json_get_num(buf, buf_len, "$.lora_ldro", &val);
-    config->lora_ldro = val;
-    json_get_num(buf, buf_len, "$.lora_sync_word", &val);
-    config->lora_sync_word = val;
-    json_get_num(buf, buf_len, "$.lora_tx_power", &val);
-    config->lora_tx_power = val;
-    json_get_num(buf, buf_len, "$.lora_preamble", &val);
-    config->lora_preamble = val;
-    json_get_num(buf, buf_len, "$.port", &val);
-    config->port = val;
-    json_get_num(buf, buf_len, "$.modem_period", &val);
-    config->modem_period = val;
+    for(uint8_t i = 0; i < 20; i++){
+        int written = xsprintf(str_buf, "$.%s", config_fields[i]);
+        json_get_num(buf, buf_len, str_buf, &val);
+        *((int32_t *)(&config->port) + i) = val;
+        if(written > 0) memset(str_buf, 0, written);
+    }
     json_get_str(buf, buf_len, "$.apn", (char *)&config->apn, 20);
     json_get_str(buf, buf_len, "$.ip", (char *)&config->ip, 17);
-    for(uint8_t i = 0; i < 45; i++){
+    for(uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++){
         uint64_t serial = 0;
         char hex_val[20] = {0};
         xsprintf(str_buf, "$.temp_sensor_id%d", i+1);
@@ -220,24 +171,21 @@ SystemConfigStatus init_FLASH_system_config(SystemConfig *config){
 
 SystemConfigStatus save_config_to_SD(SystemConfig *config, char *path,
                                      char *json){
-    FIL file;
     UINT written_count = 0;
     UINT read_count = 0;
-    uint16_t json_len;
-    char json_old[JSON_STR_CONFIG_SIZE] = {0};
+    uint16_t json_len = 0;
 
     if(validate_config(config) != CONFIG_OK){
         return CONFIG_VALIDATION_ERROR;
     }
-    system_config_to_str(config, json);
-    json_len = strlen(json);
+    json_len = system_config_to_str(config, json);
     if(f_open(&file, path, FA_OPEN_ALWAYS | FA_WRITE | FA_READ) != FR_OK)
         return CONFIG_SD_ERROR;
-    if(f_read(&file, json_old, JSON_STR_CONFIG_SIZE, &read_count) != FR_OK){
+    if(f_read(&file, file_buff, JSON_STR_CONFIG_SIZE, &read_count) != FR_OK){
         f_close(&file);
         return CONFIG_SD_ERROR;
     }
-    if(memcmp(json_old, json, json_len)){
+    if(read_count == 0 || memcmp(file_buff, json, json_len)){
         f_lseek(&file, 0);
         if(f_write(&file, json, json_len, &written_count) != FR_OK){
             f_close(&file);
@@ -254,7 +202,6 @@ SystemConfigStatus save_config_to_SD(SystemConfig *config, char *path,
 
 SystemConfigStatus read_config_from_SD(SystemConfig *config, char *path,
                                        char *json, uint16_t json_size){
-    FIL file;
     UINT read_count = 0;
     if(f_open(&file, path, FA_OPEN_ALWAYS | FA_READ) != FR_OK)
         return CONFIG_SD_ERROR;

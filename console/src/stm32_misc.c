@@ -196,6 +196,11 @@ void print_help(void) {
 }
 
 
+char curr_dir_name[128] = "";
+char rtc_buffer[25] = {0};
+Args args;
+
+
 bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
     FLASH_status status = FLASH_write(addr, (uint64_t*)&buff[0], (uint32_t)size / 8);
     if(status == FLASH_OK)
@@ -205,7 +210,6 @@ bool xmodem_flash_write(uint32_t addr, uint8_t *buff, uint32_t size){
 
 bool xmodem_sd_write(uint32_t addr, uint8_t *buff, uint32_t size){
     static size_t written_amount = 0;
-    FIL file;
     FRESULT res = f_lseek(&file, addr);
     if(res != FR_OK){
         f_close(&file);
@@ -224,9 +228,8 @@ bool xmodem_sd_on_first_packet(){
 
 
 
-char curr_dir_name[128] = "";
-char rtc_buffer[25] = {0};
-Args args;
+
+
 //*****************************************************************************
 // execute callback for microrl library
 // do what you want here, but don't write to argv!!! read only!!
@@ -506,7 +509,6 @@ int execute(int argc, const char *const *argv) {
         break;
     case _CMD_TOUCH:
         if(argc == 2){
-            FIL file;
             if (f_open(&file, argv[1], FA_OPEN_ALWAYS | FA_READ) != FR_OK) {
                 xprintf("FAILED\n");
             } else {
@@ -596,7 +598,6 @@ int execute(int argc, const char *const *argv) {
             uint32_t write_addr = HaveRunFlashBlockNum() != 0 ? MAIN_FW_ADDR : RESERVE_FW_ADDR;
             xmodem_receive(&xmodem, write_addr);
         } else if (argc == 2){
-            FIL file;
             xmodem.save = xmodem_sd_write;
             xmodem.on_first_packet = xmodem_sd_on_first_packet;
             FRESULT res = f_open(&file, argv[1], FA_CREATE_NEW | FA_WRITE);
@@ -606,8 +607,12 @@ int execute(int argc, const char *const *argv) {
                 return 1;
             }
             xmodem_receive(&xmodem, 0);
-            xprintf("Written %d bytes to file\n", f_size(&file));
+            uint32_t file_size = f_size(&file);
+            xprintf("Written %d bytes to file\n", file_size);
             f_close(&file);
+            if(file_size == 0){
+                f_unlink(argv[1]);
+            }
         } else {
             xprintf("Incorrect amount of arguments\n");
         }

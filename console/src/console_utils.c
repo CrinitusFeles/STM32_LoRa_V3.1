@@ -102,7 +102,6 @@ void dump_memory(unsigned long addr, uint32_t *ptr, size_t len){
 
 FRESULT dump_file(const char *path, char *buff, uint16_t buff_size, uint32_t offset) {
     UINT read_count = 0;
-    FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
         f_close(&file);
@@ -149,7 +148,6 @@ FRESULT dump_file(const char *path, char *buff, uint16_t buff_size, uint32_t off
 
 FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t offset) {
     UINT read_count = 0;
-    FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
         f_close(&file);
@@ -181,7 +179,6 @@ FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t off
 FRESULT copy_to_flash(const char *path, char *buff, uint16_t buff_size, uint32_t addr) {
     UINT read_count = 0;
     uint32_t offset = 0;
-    FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
         f_close(&file);
@@ -207,7 +204,6 @@ FRESULT tail(const char *path, char *buff, size_t buff_size, uint32_t str_count,
     uint32_t counter = 0;
     UINT read_count = 0;
     int32_t read_ptr;
-    FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
         f_close(&file);
@@ -242,7 +238,6 @@ FRESULT tail(const char *path, char *buff, size_t buff_size, uint32_t str_count,
 FRESULT head(const char *path, char *buff, size_t buff_size, uint32_t str_count){
     UINT read_count = 0;
     uint32_t read_count_sum = 0;
-    FIL file;
     FRESULT res = f_open(&file, path, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
         f_close(&file);
@@ -271,42 +266,39 @@ FRESULT head(const char *path, char *buff, size_t buff_size, uint32_t str_count)
 
 
 void _log_error(char *msg){
-    FIL _file;
     uint16_t sd_ptr = 0;
     UINT _written_count = 0;
-    f_open(&_file, "errors.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-    f_lseek(&_file, _file.obj.objsize);
+    f_open(&file, "errors.log", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+    f_lseek(&file, file.obj.objsize);
     sd_ptr += RTC_string_datetime(file_buff + sd_ptr);
     sd_ptr += xsprintf(file_buff + sd_ptr, "  ");
     sd_ptr += xsprintf(file_buff + sd_ptr, msg);
-    f_write(&_file, file_buff, strlen(file_buff), &_written_count);
-    f_close(&_file);
+    f_write(&file, file_buff, strlen(file_buff), &_written_count);
+    f_close(&file);
 }
 
 bool GSM_SendFile(GSM *driver, char *filename, uint32_t read_amount){
-    FIL _file;
     UINT read_count = 0;
-    FRESULT res = f_open(&_file, filename, FA_OPEN_EXISTING | FA_READ);
+    FRESULT res = f_open(&file, filename, FA_OPEN_EXISTING | FA_READ);
     if(res != FR_OK){
-        f_close(&_file);
+        f_close(&file);
         _log_error("Failed to read SD measures\n");
         return false;
     }
-    if(read_amount > _file.obj.objsize)
-        read_amount = _file.obj.objsize;
-    while(f_size(&_file) > _file.obj.objsize - read_amount){
-        memset(file_buff, 0, FILE_BUFFER);
-        res = f_lseek(&_file, _file.obj.objsize - read_amount);
+    if(read_amount > file.obj.objsize)
+        read_amount = file.obj.objsize;
+    while(f_size(&file) > file.obj.objsize - read_amount){
+        res = f_lseek(&file, file.obj.objsize - read_amount);
         if(res != FR_OK) break;
-        res = f_read(&_file, (void *)(file_buff), FILE_BUFFER, &read_count);
+        res = f_read(&file, (void *)(file_buff), FILE_BUFFER, &read_count);
         if(res != FR_OK) break;
         if(GSM_SendTCP(driver, file_buff, read_count) == 0){
-            f_close(&_file);
+            f_close(&file);
             _log_error("Failed send data to server\n");
             return false;
         }
         read_amount -= read_count;
     }
-    f_close(&_file);
+    f_close(&file);
     return true;
 }
