@@ -35,6 +35,7 @@ void _times_r(void) {}
 void _unlink_r(void) {}
 
 // void _write_r(void) {}
+FIL file;
 
 tBuzzer buzzer;
 microrl_t rl;
@@ -147,7 +148,7 @@ void System_Init() {
     gpio_init(UART3_TX, PB10_USART3_TX, Open_drain, no_pull, High_speed);
 
     gpio_init(GSM_TX, PC1_LPUART1_TX, Push_pull, pull_up, High_speed);
-    gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, no_pull, Input);
+    gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, pull_up, Input);
     gpio_init(GSM_PWR, General_output, Push_pull, pull_up, Low_speed);
 
     gpio_state(LED, HIGH);
