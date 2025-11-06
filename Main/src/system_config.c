@@ -8,7 +8,7 @@
 #include "ff.h"
 #include "ds18b20_bus.h"
 
-
+#define  NUM_FIELD_AMOUNT   22
 
 FLASH_status save_system_config_to_FLASH(SystemConfig *config){
     /*
@@ -77,38 +77,42 @@ void system_config_init(SystemConfig *config){
     config->lora_preamble = 8;
     config->modem_period = 0;
     config->port = 33012;
+    config->lora_enable = 1;
+    config->upload_firmware = 0;
     strcpy(config->apn, "internet.tele2.ru\0\0");
     strcpy(config->ip, "84.237.52.8\0\0\0\0");
     memset(config->sensors_serials, 0xFF, TEMP_SENSOR_AMOUNT * sizeof(uint64_t));
 }
 
 char *config_fields[] = {
-    "port",                  // 20
-    "action_mode",          // 1
-    "module_id",            // 2
-    "auto_save_config",     // 3
-    "immediate_applying",   // 4
-    "enable_beep",          // 5
-    "enable_watchdog",      // 6
-    "modem_period",        // 7
-    "wakeup_period",           // 8
-    "uart_speed",              // 9
-    "rtc_ppm",            // 10
-    "lora_freq",              // 11
-    "lora_sf",              // 12
-    "lora_bw",              // 13
-    "lora_cr",          // 14
-    "lora_crc_en",            // 15
-    "lora_ldro",       // 16
-    "lora_sync_word",        // 17
-    "lora_tx_power",        // 18
-    "lora_preamble",         // 19
+    "port",                 // 1
+    "action_mode",          // 2
+    "module_id",            // 3
+    "auto_save_config",     // 4
+    "immediate_applying",   // 5
+    "enable_beep",          // 6
+    "enable_watchdog",      // 7
+    "modem_period",         // 8
+    "wakeup_period",        // 9
+    "uart_speed",           // 10
+    "rtc_ppm",              // 11
+    "lora_freq",            // 12
+    "lora_sf",              // 13
+    "lora_bw",              // 14
+    "lora_cr",              // 15
+    "lora_crc_en",          // 16
+    "lora_ldro",            // 17
+    "lora_sync_word",       // 18
+    "lora_tx_power",        // 19
+    "lora_preamble",        // 20
+    "lora_enable",          // 21
+    "upload_firmware"       // 22  NUM_FIELD_AMOUNT
 };
 
 
 uint16_t system_config_to_str(SystemConfig *config, char *buf){
     uint16_t written = xsprintf(buf,  "{\n");
-    for(uint8_t i = 0; i < 20; i++){
+    for(uint8_t i = 0; i < NUM_FIELD_AMOUNT; i++){
         written +=  xsprintf(buf + written,  "    \"%s\": %d,\n",
                              config_fields[i], *((int32_t *)(&config->port) + i));
     }
@@ -125,7 +129,7 @@ uint16_t system_config_to_str(SystemConfig *config, char *buf){
 void parse_system_config(SystemConfig *config, char *buf, int buf_len){
     char str_buf[30] = "";
     long val = 0;
-    for(uint8_t i = 0; i < 20; i++){
+    for(uint8_t i = 0; i < NUM_FIELD_AMOUNT; i++){
         int written = xsprintf(str_buf, "$.%s", config_fields[i]);
         json_get_num(buf, buf_len, str_buf, &val);
         *((int32_t *)(&config->port) + i) = val;

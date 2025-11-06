@@ -104,6 +104,51 @@ void sensors_on() { gpio_state(EN_PERIPH, LOW); }
 
 void sensors_off() { gpio_state(EN_PERIPH, HIGH); }
 
+void initSD_config(){
+    FATFS fs;
+    FRESULT result;
+    SystemConfigStatus status;
+    SystemConfig flash_config;
+    if (SD_Init() == SDR_Success) {
+        xprintf("SD Card initialization completed\n");
+        result = f_mount(&fs, "", 1);
+        if (result == FR_OK) {
+            xprintf("SD Card mounted\n");
+
+            memcpy(flash_config.FLASH_page_buffer, system_config.FLASH_page_buffer, CONFIG_SIZE_64 * sizeof(uint64_t));
+
+            status = read_config_from_SD(&system_config, SYSTEM_CONFIG_PATH, config_json, JSON_STR_CONFIG_SIZE);
+            if (status == CONFIG_SD_EMPTY) {
+                status = save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json);
+                if (status != CONFIG_OK) {
+                    xprintf("Cant save system config to SD card\n");
+                } else {
+                    xprintf("System config saved to SD card\n");
+                }
+            } else {
+                if (memcmp(system_config.FLASH_page_buffer, flash_config.FLASH_page_buffer,
+                           CONFIG_SIZE_64 * sizeof(uint64_t))) {
+                    xprintf("System config loaded from SD card\n");
+                    save_system_config_to_FLASH(&system_config);
+                    if (system_config.immediate_applying) {
+                        xprintf(
+                            "Immediately applying option has been activated."
+                            "\nFor applying new config the system will be restarted\n");
+                        DWT_Delay_ms(1);
+                        __NVIC_SystemReset();
+                    } else {
+                        xprintf("For applying new config restart system\n");
+                    }
+                }
+            }
+        } else {
+            xprintf("SD Card not mounted\n");
+        }
+    } else {
+        xprintf("SD Card initialization failed\n");
+    }
+}
+
 void System_Init() {
     // NVIC_SetPriorityGrouping(0x07);
     xSemaphore = xSemaphoreCreateBinaryStatic( &xSemaphoreBuffer );
@@ -154,9 +199,9 @@ void System_Init() {
     gpio_state(LED, HIGH);
     gpio_state(GSM_PWR, HIGH);
     gpio_state(EN_SD, LOW);
-    gpio_state(EN_LORA, LOW);
     gpio_state(LoRa_NSS, HIGH);
     gpio_state(EN_PERIPH, LOW);
+    gpio_state(EN_LORA, system_config.lora_enable == 1 ? LOW : HIGH);
 
     gpio_exti_init(LoRa_DIO0, 0);
     // gpio_exti_init(LoRa_DIO1, 0);
@@ -217,12 +262,15 @@ void System_Init() {
         .new_rx_data_flag = 0,
         .delay = DWT_Delay_ms,
     };
-    if (LoRa_init(&sx127x) == LORA_OK) {
-        xprintf("Radio inited\n");
-        LoRa_gotoMode(&sx127x, RXCONTIN_MODE);
-        sx127x.delay = vTaskDelay;
+    if (system_config.lora_enable == 1){
+        if (LoRa_init(&sx127x) == LORA_OK) {
+            xprintf("Radio inited\n");
+            LoRa_gotoMode(&sx127x, RXCONTIN_MODE);
+        } else {
+            xprintf("Radio initialization failed!\n");
+        }
     } else {
-        xprintf("Radio initialization failed!\n");
+        xprintf("Radio disabled in config\n");
     }
     // SX1268 = (SX126x){
     //     .gpio = (SX126x_GPIO){
@@ -357,51 +405,9 @@ void System_Init() {
 
 
     SDMMC_INIT();
-    FATFS fs;
-    FRESULT result;
-    SystemConfigStatus status;
-    SystemConfig flash_config;
-
-    if (SD_Init() == SDR_Success) {
-        xprintf("SD Card initialization completed\n");
-        result = f_mount(&fs, "", 1);
-        if (result == FR_OK) {
-            xprintf("SD Card mounted\n");
-
-            memcpy(flash_config.FLASH_page_buffer, system_config.FLASH_page_buffer, CONFIG_SIZE_64 * sizeof(uint64_t));
-
-            status = read_config_from_SD(&system_config, SYSTEM_CONFIG_PATH, config_json, JSON_STR_CONFIG_SIZE);
-            if (status == CONFIG_SD_EMPTY) {
-                status = save_config_to_SD(&system_config, SYSTEM_CONFIG_PATH, config_json);
-                if (status != CONFIG_OK) {
-                    xprintf("Cant save system config to SD card\n");
-                } else {
-                    xprintf("System config saved to SD card\n");
-                }
-            } else {
-                if (memcmp(system_config.FLASH_page_buffer, flash_config.FLASH_page_buffer,
-                           CONFIG_SIZE_64 * sizeof(uint64_t))) {
-                    xprintf("System config loaded from SD card\n");
-                    save_system_config_to_FLASH(&system_config);
-                    if (system_config.immediate_applying) {
-                        xprintf(
-                            "Immediately applying option has been activated."
-                            "\nFor applying new config the system will be restarted\n");
-                        DWT_Delay_ms(1);
-                        __NVIC_SystemReset();
-                    } else {
-                        xprintf("For applying new config restart system\n");
-                    }
-                }
-            }
-        } else {
-            xprintf("SD Card not mounted\n");
-        }
-    } else {
-        xprintf("SD Card initialization failed\n");
-    }
+    initSD_config();
     int16_t temp = ADC_internal_temp(adc.reg_channel_queue[1].result, adc.vdda_mvolt);
-    xprintf("Vref: %d mv\n", adc.vdda_mvolt);
+    xprintf("Vref: %d mV\n", adc.vdda_mvolt);
     xprintf("Temp: %d C\n", temp);
 
     rl.print(rl.prompt_str);

@@ -5,7 +5,7 @@
 #include "ff.h"
 
 #define CONFIG_PAGE             127
-#define CONFIG_SIZE_64          61  // размер конфига в словах (8 байт)
+#define CONFIG_SIZE_64          62  // размер конфига в словах (8 байт)
 #define JSON_STR_CONFIG_SIZE    2800
 #define SYSTEM_CONFIG_PATH      "system_config.json"
 #define FILE_BUFFER             4096
@@ -44,6 +44,8 @@ typedef union SystemConfig{
         int32_t lora_sync_word;  // 14
         int32_t lora_tx_power;
         int32_t lora_preamble;  // 15
+        int32_t lora_enable;
+        int32_t upload_firmware;  // 16
 
         uint64_t sensors_serials[45];
         uint64_t pref_block;
