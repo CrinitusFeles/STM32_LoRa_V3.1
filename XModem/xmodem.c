@@ -17,14 +17,27 @@ static uint16_t xmodem_calc_crc(uint8_t *data, uint16_t length);
 static xmodem_status xmodem_handle_packet(XModem *xmodem,  uint8_t size);
 static xmodem_status xmodem_error_handler(uint8_t *error_number, uint8_t max_error_number);
 
+uint8_t remain[10] = {0};
+uint8_t remain_size = 0;
 
 uint8_t read_data(uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
     uint16_t i = 0;
     uint8_t rsize = 0;
     while (i < size) {
-        rsize = xStreamBufferReceive(cli_stream, &(buffer[i]), size, timeout_ms);
+        if(remain_size){
+            memcpy(buffer, remain, remain_size);
+            i += remain_size;
+            remain_size = 0;
+        }
+        rsize = xStreamBufferReceive(cli_stream, buffer + i, size, timeout_ms);
         i += rsize;
-        if(rsize == 0) return 1;
+        if(rsize == 0)
+            return 1;
+        if(i > size){
+            remain_size = i - size;
+            memcpy(remain, buffer + size, remain_size);
+            return 0;
+        }
     }
     return 0;
 }
