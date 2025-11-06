@@ -10,7 +10,7 @@
 #include "flash.h"
 #include "rtc.h"
 
-#define TASK_SIZE               configMINIMAL_STACK_SIZE * 2
+#define TASK_SIZE               configMINIMAL_STACK_SIZE * 4
 StaticTask_t xTaskBuffer;
 StackType_t xStack [TASK_SIZE];
 
@@ -63,7 +63,6 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
     int buffer_ptr = 0;
     FSIZE_t file_size = 0;
     UINT written_count = 0;
-    FIL file;
     FRESULT res;
 
     for(uint8_t i = 1; i < args->argc; i++){

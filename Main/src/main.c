@@ -18,7 +18,7 @@
 #include "system_config.h"
 
 #define UNUSED(x) (void)(x)
-#define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 12
+#define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 10
 #define GSM_SIZE                configMINIMAL_STACK_SIZE
 #define RADIO_SIZE              configMINIMAL_STACK_SIZE
 
@@ -205,8 +205,8 @@ void GSM_PRINT(void *pvParameters){
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
 {
-    UNUSED(xTask);
     xprintf("\nKERNEL PANIC! STACK OVERFLOW AT TASK %s\n", pcTaskName);
+    UNUSED(xTask);
     while (1){};
 }
 
