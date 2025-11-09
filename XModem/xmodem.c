@@ -27,6 +27,10 @@ uint8_t read_data(uint8_t *buffer, uint16_t size, uint32_t timeout_ms) {
         if(remain_size){
             memcpy(buffer, remain, remain_size);
             i += remain_size;
+            if(remain_size == size){
+                remain_size = 0;
+                return 0;
+            }
             remain_size = 0;
         }
         rsize = xStreamBufferReceive(cli_stream, buffer + i, size, timeout_ms);
