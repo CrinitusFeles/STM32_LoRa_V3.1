@@ -1,21 +1,25 @@
 #include "low_power.h"
 #include "delay.h"
+#include "main.h"
 
+// Переходит в сон только при отключенном программаторе
 void stop_cortex(void){
     if(!(RCC->APB1ENR1 & RCC_APB1ENR1_PWREN)){
         RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;
     }
+    // gpio_init(UART1_TX, Analog_mode, Open_drain, pull_down, Input);
+    // gpio_init(UART1_RX, Analog_mode, Open_drain, pull_down, Input);
         /* флаг PDDS определяет выбор между Stop и Standby, его надо сбросить */
     // EXTI->PR1 |= 0x0DFFFFF; //clear all interrupt flags
     // EXTI->PR2 |= 0x00000F0;
     /* флаг Wakeup должн быть очищен, иначе есть шанс проснуться немедленно */
     // PWR->CR3 &= ~PWR_CR3_EIWUL;  // enable or disable Internal wakeup line.
     PWR->SCR |= 0x9F; //clear all wakeup flags
-    PWR->PDCRB |= PWR_PDCRB_PB8;  // MOSI and SCL pull down
-    // PWR->PDCRC |= PWR_PUCRC_PC6 | PWR_PDCRC_PC13; // NSS pull up
-    // PWR->PDCRC |= PWR_PDCRC_PC7;  // soil sensor power pull down
-    // PWR->PDCRA |= PWR_PUCRA_PA15;  // LoRa Reset pull up
-    PWR->PDCRA |= PWR_PDCRA_PA2;  // temp sensor power pull down
+    // PWR->PDCRB |= PWR_PDCRB_PB10 | PWR_PDCRB_PB8 | PWR_PDCRB_PB7 | PWR_PDCRB_PB6;  // MOSI and SCL pull down
+    // PWR->PDCRC |= PWR_PDCRC_PC0 | PWR_PDCRC_PC1;
+    // // PWR->PDCRC |= PWR_PDCRC_PC7;  // soil sensor power pull down
+    // PWR->PUCRA |= PWR_PUCRA_PA5;  // LoRa Reset pull up
+    // PWR->PDCRA |= PWR_PDCRA_PA2;  // temp sensor power pull down
     /* стабилизатор питания в low-power режим, у нас в Stop потребления-то почти не будет */
     // PWR->CR1 |= PWR_CR1_LPSDSR;
 
@@ -28,7 +32,7 @@ void stop_cortex(void){
     (void)PWR->CR1; // Ensure that the previous PWR register operations have been completed
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 // #ifdef NDEBUG
-    // DBGMCU->CR = 0; // Disable debug, trace and IWDG in low-power modes
+    DBGMCU->CR = 0; // Disable debug, trace and IWDG in low-power modes
 // #endif
     /* выключили прерывания; пробуждению по ним это не помешает */
     __disable_irq();
@@ -36,6 +40,6 @@ void stop_cortex(void){
     /* завершили незавершённые операция сохранения данных */
         __DSB();
         __WFI();
-        Delay(10);
+        // Delay(10);
     }
 }
