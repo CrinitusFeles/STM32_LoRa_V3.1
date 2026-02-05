@@ -188,7 +188,7 @@ uint8_t RTC_Init(int16_t ppm){
 	RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;
 
 	if((RCC->BDCR & RCC_BDCR_RTCEN) == 0){
-        uint16_t timeout = 1000;
+        uint16_t timeout = 10000;
 		// check the INITS status flag in RTC_ISR register to verify if the calendar is already initialized
 		if (RTC->ISR & RTC_ISR_INITS)
             return 0;
@@ -202,7 +202,7 @@ uint8_t RTC_Init(int16_t ppm){
 		RCC->BDCR |= RCC_BDCR_RTCSEL_0;
 		RCC->BDCR &= ~RCC_BDCR_RTCSEL_1;
 		RCC->BDCR |= RCC_BDCR_LSEON;  // enable LSE - Low-speed external oscillator
-		while (!(RCC->BDCR & RCC_BDCR_LSERDY) && timeout--);  // wait for being ready by polling
+		while (!(RCC->BDCR & RCC_BDCR_LSERDY) && --timeout);  // wait for being ready by polling
         if(timeout == 0) return -1;
         RCC->BDCR |= RCC_BDCR_RTCEN;  // RTC clock on
 		// RTC_auto_wakeup_enable();
@@ -212,7 +212,7 @@ uint8_t RTC_Init(int16_t ppm){
         RTC->WPR = 0x53;
         // initialization mode on (INITF == 1) - calendar counter is stopped, can update now
         RTC->ISR |= RTC_ISR_INIT;
-        while (!(RTC->ISR & RTC_ISR_INITF) && timeout--);  // INITF polling
+        while (!(RTC->ISR & RTC_ISR_INITF) && --timeout);  // INITF polling
         if(timeout == 0) return -2;
         // Fck_spre = RTCCLK / (PREDIV_S+1)*(PREDIV_A+1)
         RTC->PRER = 0xFF;  // (0x7F+1) * (0xFF + 1) = 32768
@@ -221,11 +221,11 @@ uint8_t RTC_Init(int16_t ppm){
         RTC->CR |= RTC_CR_BYPSHAD;
         RTC->CR &= ~RTC_CR_FMT;  // 24h format == 0
 
-        if(ppm > 0){
-            RTC->CALR |= (1 << 15) | ppm;  // CALP
-        } else {
-            RTC->CALR |= (ppm * -1);
-        }
+        // if(ppm > 0){
+        //     RTC->CALR |= (1 << 15) | ppm;  // CALP
+        // } else {
+        //     RTC->CALR |= (ppm * -1);
+        // }
         RTC->ISR &= ~RTC_ISR_INIT;  // exit from the init mode
         // lock write protection - writing a wrong key reactivates the write protection
         RTC->WPR = 0xFF;
