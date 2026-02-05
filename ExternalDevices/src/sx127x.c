@@ -210,9 +210,9 @@ uint16_t LoRa_init(LoRa* _LoRa){
 		read = LoRa_readRegister(_LoRa, RegOpMode);
 		if((read & 0x07) != 0x00){
 			LoRa_reset(_LoRa);
-			LoRa_Delay(_LoRa, 50);
+			LoRa_Delay(_LoRa, 5);
 			LoRa_gotoMode(_LoRa, SLEEP_MODE);
-			LoRa_Delay(_LoRa, 50);
+			LoRa_Delay(_LoRa, 5);
 		}
 		else{
 			break;
@@ -223,12 +223,12 @@ uint16_t LoRa_init(LoRa* _LoRa){
 			}
 		}
 	}
-	LoRa_Delay(_LoRa, 10);
+	// LoRa_Delay(_LoRa, 10);
 
 // turn on lora mode:
 	read = LoRa_readRegister(_LoRa, RegOpMode);
 	LoRa_writeRegister(_LoRa, RegOpMode, 0x88);
-	LoRa_Delay(_LoRa, 50);
+	// LoRa_Delay(_LoRa, 50);
 	read = LoRa_readRegister(_LoRa, RegOpMode);
 	if(read != 0x88){
 		LoRa_writeRegister(_LoRa, RegOpMode, 0x88);
