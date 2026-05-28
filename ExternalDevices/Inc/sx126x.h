@@ -193,7 +193,7 @@ typedef struct SX126x{
     // ------- rx_packet data -----
     uint8_t new_rx_data_flag;
     uint8_t rssi;
-    uint8_t snr;
+    int8_t snr;
     uint8_t signal_rssi;
     uint8_t rx_pkt_len;
     uint8_t rx_buf_ptr;
