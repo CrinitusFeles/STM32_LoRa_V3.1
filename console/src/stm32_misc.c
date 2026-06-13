@@ -747,5 +747,5 @@ void sigint(void) {
     }
     xprintf("\n^C catched!\n\r");
     xprintf(_PROMPT_DEFAULT);
-    microrl_clear_input(rl);
+    microrl_clear_input(&rl);
 }
