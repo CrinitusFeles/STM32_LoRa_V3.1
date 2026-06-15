@@ -6,9 +6,28 @@
             "defines": [
                 "STM32L431xx"
             ],
-            "includePath": [],
-            "cStandard": "gnu11",
-            "cppStandard": "c++17",
+            "includePath": [
+                "${workspaceFolder}/Main/Inc",
+                "${workspaceFolder}/CMSIS_L431/inc",
+                "${workspaceFolder}/ExternalDevices/Inc",
+                "${workspaceFolder}/Main/Inc",
+                "${workspaceFolder}/CMSIS_L431/inc",
+                "${workspaceFolder}/Middleware/inc",
+                "${workspaceFolder}/Periph/inc",
+                "${workspaceFolder}/Cortex/inc",
+                "${workspaceFolder}/console/inc",
+                "${workspaceFolder}/FreeRTOS/inc",
+                "${workspaceFolder}/XModem",
+                "${workspaceFolder}/BootLib",
+                "${workspaceFolder}/FAT_FS",
+                "${workspaceFolder}/lua-5.4.7/src",
+                "${workspaceFolder}/SEGGER/Config",
+                "${workspaceFolder}/SEGGER/RTT",
+                "${workspaceFolder}/SEGGER/OS",
+                "${workspaceFolder}/SEGGER"
+            ],
+            "cStandard": "c23",
+            "cppStandard": "c++23",
             "intelliSenseMode": "gcc-arm",
             "configurationProvider": "ms-vscode.cmake-tools"
         }

@@ -9,20 +9,27 @@
 #include "uart.h"
 #include "monitor_task.h"
 #include "rtc.h"
-#include "sx127x.h"
-#include "sx127x_misc.h"
 #include "system_select.h"
 #include "xmodem.h"
 #include "ds18b20_bus.h"
 #include "system_config.h"
 #include "json.h"
-#include "gsm.h"
 #include "periph_handlers.h"
 #include "adc.h"
-#include "lua_misc.h"
 #include "action_task.h"
 #include "console_utils.h"
 #include "sensors_task.h"
+#include "LoRa.h"
+
+#ifdef USE_GSM
+#include "gsm.h"
+#endif
+
+#ifdef USE_LUA
+#include "lua_misc.h"
+#endif
+
+
 
 #define MOD(x, y) (x & (y - 1))  // y must be power of 2!
 
@@ -558,37 +565,37 @@ int execute(int argc, const char *const *argv) {
             }
             break;
     case _CMD_RADIO_CONF:
-        if (argc == 1) {
-            xprintf("Reg num: Value\n");
-            for (uint8_t i = 0; i < 127; i++) {
-                uint8_t reg = LoRa_readRegister(&sx127x, i);
-                xprintf("0x%0X: 0x%0X\n", i, reg);
-            }
-            xprintf("LoRa settings:\nFrequency: %d\nSF: %d\nBW: %d\nCR: %d\nOutPow: %d\n",
-                    sx127x.freq_mhz, sx127x.spredingFactor, sx127x.bandWidth, sx127x.codingRate, sx127x.power);
-        } else if (argc == 7) {
-            long bandWidth = 0;
-            long freq_mhz = 0;
-            long spredingFactor = 0;
-            long codingRate = 0;
-            long power = 0;
-            xatoi((char *)argv[1], &bandWidth);
-            xatoi((char *)argv[2], &freq_mhz);
-            xatoi((char *)argv[3], &spredingFactor);
-            xatoi((char *)argv[4], &codingRate);
-            xatoi((char *)argv[5], &power);
-            sx127x.bandWidth = (uint8_t)bandWidth;
-            sx127x.freq_mhz = (uint32_t)freq_mhz;
-            sx127x.spredingFactor = (uint8_t)spredingFactor;
-            sx127x.codingRate = (uint8_t)codingRate;
-            sx127x.power = (uint8_t)power;
-        } else {
-            xprintf("you should set only frequency and duration\n");
-        }
+        // if (argc == 1) {
+        //     xprintf("Reg num: Value\n");
+        //     for (uint8_t i = 0; i < 127; i++) {
+        //         uint8_t reg = SX127x_Read(&SX1278, i);
+        //         xprintf("0x%0X: 0x%0X\n", i, reg);
+        //     }
+        //     xprintf("LoRa settings:\nFrequency: %d\nSF: %d\nBW: %d\nCR: %d\nOutPow: %d\n",
+        //             SX1278.frequency, SX1278.spreadingFactor, SX1278.bandWidth, SX1278.coding_rate, SX1278.power);
+        // } else if (argc == 7) {
+        //     long bandWidth = 0;
+        //     long frequency = 0;
+        //     long spreadingFactor = 0;
+        //     long coding_rate = 0;
+        //     long power = 0;
+        //     xatoi((char *)argv[1], &bandWidth);
+        //     xatoi((char *)argv[2], &frequency);
+        //     xatoi((char *)argv[3], &spreadingFactor);
+        //     xatoi((char *)argv[4], &coding_rate);
+        //     xatoi((char *)argv[5], &power);
+        //     SX1278.bandWidth = (uint8_t)bandWidth;
+        //     SX1278.frequency = (uint32_t)frequency;
+        //     SX1278.spreadingFactor = (uint8_t)spreadingFactor;
+        //     SX1278.coding_rate = (uint8_t)coding_rate;
+        //     SX1278.power = (uint8_t)power;
+        // } else {
+        //     xprintf("you should set only frequency and duration\n");
+        // }
         break;
     case _CMD_SEND_RADIO:
         if (argc == 2) {
-            LoRa_transmit(&sx127x, (uint8_t *)argv[1], strlen(argv[1]));
+            LoRa_Transmit((uint8_t *)argv[1], strlen(argv[1]));
         }
         break;
     case _CMD_XMODEM:
@@ -630,6 +637,7 @@ int execute(int argc, const char *const *argv) {
             }
         }
         break;
+#ifdef USE_GSM
     case _CMD_TOGGLE_GSM:
         GSM_TogglePower(&sim7000g);
         break;
@@ -662,10 +670,7 @@ int execute(int argc, const char *const *argv) {
     case _CMD_TCP_CLOSE:
         GSM_CloseConnections(&sim7000g);
         break;
-    case _CMD_RUN_ACTION:
-        create_action_task();
-        break;
-    case _CMD_TCP_SEND:
+        case _CMD_TCP_SEND:
         if (argc == 2) {
             GSM_SendTCP(&sim7000g, argv[1], strlen(argv[1]));
         } else if (argc == 3){
@@ -674,7 +679,12 @@ int execute(int argc, const char *const *argv) {
             GSM_SendFile(&sim7000g, (char*)argv[1], size);
         }
         break;
+#endif
+    case _CMD_RUN_ACTION:
+        create_action_task();
+        break;
     default:
+        #ifdef USE_GSM
         if (strstr(argv[0], "at") != 0 || strstr(argv[0], "AT") != 0) {
             if (argc == 1) {
                 GSM_SendCMD(&sim7000g, (char*)argv[0]);
@@ -682,6 +692,7 @@ int execute(int argc, const char *const *argv) {
         } else {
             xprintf("Unknown command. Type \"help\" for show list of commands\n");
         }
+        #endif
         break;
     }
     return 0;

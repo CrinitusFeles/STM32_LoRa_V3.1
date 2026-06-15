@@ -3,7 +3,6 @@
 #include "flash.h"
 #include "xprintf.h"
 #include "system_config.h"
-#include "gsm.h"
 #include "rtc.h"
 #include <string.h>
 
@@ -277,6 +276,7 @@ void _log_error(char *msg){
     f_close(&file);
 }
 
+#ifdef USE_GSM
 bool GSM_SendFile(GSM *driver, char *filename, uint32_t read_amount){
     UINT read_count = 0;
     FRESULT res = f_open(&file, filename, FA_OPEN_EXISTING | FA_READ);
@@ -302,3 +302,4 @@ bool GSM_SendFile(GSM *driver, char *filename, uint32_t read_amount){
     f_close(&file);
     return true;
 }
+#endif

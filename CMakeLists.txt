@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_C_STANDARD 23)
 
 project(STM32_LoRa_v3.1)
 enable_language(C CXX ASM)

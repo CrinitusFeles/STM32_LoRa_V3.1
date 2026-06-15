@@ -3,7 +3,8 @@
 
 #include "stm32l4xx.h"
 #include "radio_protocol.h"
-#include "gpio.h"
+#include "LoRa.h"
+
 /***************************   Opcodes  ************************************/
 #define OPCODE_RESET_STATS              0x00
 #define OPCODE_CLEAR_IRQ_STATUS         0x02
@@ -51,8 +52,8 @@
 #define SX126X_PACKET_TYPE_GFSK                       0
 #define SX126X_PACKET_TYPE_LORA                       1
 
-#define SX126X_HEADER_TYPE_VARIABLE_LENGTH            0
-#define SX126X_HEADER_TYPE_FIXED_LENGTH               1
+#define SX126X_EXPLICIT_HEADER                        0
+#define SX126X_IMPLICIT_HEADER                        1
 
 #define SX126X_CRC_OFF                                0
 #define SX126X_CRC_ON                                 1
@@ -60,7 +61,7 @@
 #define SX126X_STANDARD_IQ                            0
 #define SX126X_INVERTED_IQ                            1
 
-// SX126X register map
+// LoRa_t register map
 #define SX126X_REG_WHITENING_INITIAL_MSB              0x06B8
 #define SX126X_REG_WHITENING_INITIAL_LSB              0x06B9
 #define SX126X_REG_CRC_INITIAL_MSB                    0x06BC
@@ -114,18 +115,7 @@
 #define SX126X_CR_4_7                                 3
 #define SX126X_CR_4_8                                 4
 
-typedef struct SX126x_GPIO{
-    GPIO_Pin MOSI_pin;
-    GPIO_Pin MISO_pin;
-    GPIO_Pin SCK_pin;
-    GPIO_Pin CS_pin;
-	GPIO_Pin reset_pin;
-    GPIO_Pin busy_pin;
-	GPIO_Pin DIO1_pin;
-    GPIO_Mode __MOSI_AF_pin;
-    GPIO_Mode __MISO_AF_pin;
-    GPIO_Mode __SCK_AF_pin;
-} SX126x_GPIO;
+
 
 typedef enum SX126x_ModeStatus{
     SX126x_RFU_Mode = 1,
@@ -137,16 +127,16 @@ typedef enum SX126x_ModeStatus{
 } SX126x_ModeStatus;
 
 typedef struct SX126x_IRQ_Status{
-    uint8_t TxDone;  // Packet transmission completed
-    uint8_t RxDone;  // Packet received
-    uint8_t PreambleDetected;  //  Preamble detected
-    uint8_t SyncWordValid;  //  Valid sync word detected
-    uint8_t HeaderValid;  // Valid LoRa header received
-    uint8_t HeaderErr;  // LoRa header CRC error
-    uint8_t CRC_Err;  //  Wrong CRC received
-    uint8_t CadDone;  // Channel activity detection finished
-    uint8_t CadDetected;  //  Channel activity detected
-    uint8_t Timeout;  // Rx or Tx timeout
+    uint8_t TxDone: 1;  // Packet transmission completed
+    uint8_t RxDone: 1;  // Packet received
+    uint8_t PreambleDetected: 1;  //  Preamble detected
+    uint8_t SyncWordValid: 1;  //  Valid sync word detected
+    uint8_t HeaderValid: 1;  // Valid LoRa header received
+    uint8_t HeaderErr: 1;  // LoRa header CRC error
+    uint8_t CRC_Err: 1;  //  Wrong CRC received
+    uint8_t CadDone: 1;  // Channel activity detection finished
+    uint8_t CadDetected: 1;  //  Channel activity detected
+    uint8_t Timeout: 1;  // Rx or Tx timeout
 } SX126x_IRQ_Status;
 
 typedef enum SX126x_CMD_Status{
@@ -163,52 +153,16 @@ typedef struct SX126x_Mode{
     SX126x_CMD_Status cmd : 3;
 } SX126x_Mode;
 
-typedef struct SX126x_Config{
-    uint8_t packet_type;
-	uint32_t frequency;
-    uint8_t header_type;
-    uint8_t crc_on_off;
-	uint8_t	spreadingFactor;
-	uint8_t	bandWidth;
-	uint8_t	crcRate;
-	uint16_t preamble_len;
-	uint8_t	power_dbm;
-    uint8_t ramping_time;
-	uint8_t overCurrentProtection;
-    uint8_t low_data_rate_optim;
-    uint8_t iq_polarity;
-    uint16_t sync_word;
- } SX126x_Config;
 
 typedef struct SX126x{
-
-	// Hardware setings:
-    SX126x_GPIO gpio;
-
-	SPI_TypeDef *spi;
-
-	// Module  gs:
-    SX126x_Mode mode;
-    SX126x_Config config;
-    // ------- rx_packet data -----
-    uint8_t new_rx_data_flag;
-    uint8_t rssi;
-    int8_t snr;
-    uint8_t signal_rssi;
-    uint8_t rx_pkt_len;
-    uint8_t rx_buf_ptr;
     SX126x_IRQ_Status irq_status;
-    uint8_t busy_issues;
-    RadioProtocol rx_data;
-    RadioProtocol tx_data;
-    uint8_t packet_configured;
-    uint8_t transmitting_progress;
+    SX126x_Mode status;
+    LoRa_t base;
 } SX126x;
 
-void SX126x_Init(SX126x *driver);
+uint8_t SX126x_Init(SX126x *driver);
 void SX126x_SendData(SX126x *driver, uint8_t *data, uint16_t data_len);
 void SX126x_RxHandler(SX126x *driver);
-void SX126x_RxDataParse(SX126x *driver);
 
 void SX126x_GetStatus(SX126x *driver);
 void SX126x_GetRxBufferStatus(SX126x *driver);
@@ -229,7 +183,7 @@ void SX126x_SetBufferBaseAddress(SX126x *driver, uint8_t tx_buf_addr, uint8_t rx
 void SX126x_SetTxParams(SX126x *driver, uint8_t power_dbm, uint8_t ramp_time);
 // 1 - Lora; 0 - GFSK
 
-void SX126x_SetPacketType(SX126x *driver, uint8_t packet_type);
+void SX126x_SetPacketType(SX126x *driver, uint8_t mode);
 uint8_t SX126x_GetPacketType(SX126x *driver);
 void SX126x_SetRfFrequency(SX126x *driver, uint32_t freq_hz);
 void SX126x_ReadBuffer(SX126x *driver, uint8_t offset, uint8_t *data, uint8_t len);

@@ -11,27 +11,29 @@
 #include "xprintf.h"
 #include "iwdg.h"
 #include "stm32_misc.h"
-#include "gsm.h"
 #include "periph_handlers.h"
 #include "lua_misc.h"
 #include "action_task.h"
 #include "system_config.h"
-
 #define UNUSED(x) (void)(x)
 #define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 10
-#define GSM_SIZE                configMINIMAL_STACK_SIZE
 #define RADIO_SIZE              configMINIMAL_STACK_SIZE
+
+#ifdef USE_GSN
+#define GSM_SIZE                configMINIMAL_STACK_SIZE
+#include "gsm.h"
+StreamBufferHandle_t  gsm_stream;
+StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
+StackType_t xStack_GSM_PRINT [GSM_SIZE];
+SemaphoreHandle_t xSemaphore;
+#endif
 
 uint8_t timeout_counter = 0;
 uint8_t self_addr = 31;
 StreamBufferHandle_t  cli_stream;
-StreamBufferHandle_t  gsm_stream;
-SemaphoreHandle_t xSemaphore;
 StaticTask_t xTaskBuffer_RADIO;
-StaticTask_t xTaskBuffer_RADIO_GSM_PRINT;
 StaticTask_t xTaskBuffer_RADIO_CONSOLE;
 StackType_t xStack_RADIO [RADIO_SIZE];
-StackType_t xStack_GSM_PRINT [GSM_SIZE];
 StackType_t xStack_CONSOLE [CONSOLE_SIZE];
 
 
@@ -78,17 +80,17 @@ uint16_t crc16_calc(uint8_t *buffer, uint16_t len){
 }
 
 
-void route_cli_to_lora(uint8_t data){
-    while(sx127x.transmitting_progress)
-        vTaskDelay(1);
-    sx127x.tx_data.payload[sx127x.tx_data.dlen] = data;
-    timeout_counter = 0;
-    sx127x.tx_data.dlen++;
-    if(sx127x.tx_data.dlen == 250){
-        sx127x.transmitting_progress = 1;
-        return;
-    }
-}
+// void route_cli_to_lora(uint8_t data){
+//     while(SX1278.transmitting_progress)
+//         vTaskDelay(1);
+//     SX1278.tx_data.payload[SX1278.tx_data.dlen] = data;
+//     timeout_counter = 0;
+//     SX1278.tx_data.dlen++;
+//     if(SX1278.tx_data.dlen == 250){
+//         SX1278.transmitting_progress = 1;
+//         return;
+//     }
+// }
 
 void vConfigureTimerForRunTimeStats(void){
     RCC->APB1ENR1 |= RCC_APB1ENR1_TIM7EN;
@@ -108,39 +110,39 @@ unsigned long vGetTimerForRunTimeStats(void){
     return ulHighFrequencyTimerTicks;
 }
 
-void RADIO_TASK(void *pvParameters){
-    UNUSED(pvParameters);
-    for (;;) {
-        if(sx127x.new_rx_data_flag){
-            memset(sx127x.rx_data.payload, 0, 250);
-            uint8_t cnt = LoRa_receive(&sx127x, sx127x.rx_data.buffer, 255);
-            sx127x.new_rx_data_flag = 0;
-            if(sx127x.rx_data.dst_addr != self_addr)
-                continue;
-            uint16_t crc16 = crc16_calc(sx127x.rx_data.payload, sx127x.rx_data.dlen);
-            if(crc16 != sx127x.rx_data.crc16)
-                continue;
+// void RADIO_TASK(void *pvParameters){
+//     UNUSED(pvParameters);
+//     for (;;) {
+//         if(SX1278.new_rx_data_flag){
+//             memset(SX1278.rx_data.payload, 0, 250);
+//             uint8_t cnt = SX1278_receive(&SX1278, SX1278.rx_data.buffer, 255);
+//             SX1278.new_rx_data_flag = 0;
+//             if(SX1278.rx_data.dst_addr != self_addr)
+//                 continue;
+//             uint16_t crc16 = crc16_calc(SX1278.rx_data.payload, SX1278.rx_data.dlen);
+//             if(crc16 != SX1278.rx_data.crc16)
+//                 continue;
 
-            xdev_out(route_cli_to_lora);
-            for(uint8_t i = 0; i < sx127x.rx_data.dlen; i++){
-                xStreamBufferSend(cli_stream, &sx127x.rx_data.payload[i], cnt, portMAX_DELAY);
-            }
-            xStreamBufferSend(cli_stream, "\n\r", 3, portMAX_DELAY);
-        }
-        if(sx127x.tx_data.dlen > 1){
-            timeout_counter += 1;
-        }
-        if((sx127x.tx_data.dlen == 250) || timeout_counter >= 10){
-            sx127x.tx_data.crc16 = crc16_calc(sx127x.tx_data.payload, sx127x.tx_data.dlen);
-            sx127x.tx_data.src_addr = self_addr;
-            sx127x.tx_data.dst_addr = sx127x.rx_data.src_addr;
-            LoRa_transmit(&sx127x, sx127x.tx_data.buffer, sx127x.tx_data.dlen + 5);
-            timeout_counter = 0;
-        }
-        vTaskDelay(15);
-    }
-    vTaskDelete( NULL );
-}
+//             xdev_out(route_cli_to_lora);
+//             for(uint8_t i = 0; i < SX1278.rx_data.dlen; i++){
+//                 xStreamBufferSend(cli_stream, &SX1278.rx_data.payload[i], cnt, portMAX_DELAY);
+//             }
+//             xStreamBufferSend(cli_stream, "\n\r", 3, portMAX_DELAY);
+//         }
+//         if(SX1278.tx_data.dlen > 1){
+//             timeout_counter += 1;
+//         }
+//         if((SX1278.tx_data.dlen == 250) || timeout_counter >= 10){
+//             SX1278.tx_data.crc16 = crc16_calc(SX1278.tx_data.payload, SX1278.tx_data.dlen);
+//             SX1278.tx_data.src_addr = self_addr;
+//             SX1278.tx_data.dst_addr = SX1278.rx_data.src_addr;
+//             SX1278_transmit(&SX1278, SX1278.tx_data.buffer, SX1278.tx_data.dlen + 5);
+//             timeout_counter = 0;
+//         }
+//         vTaskDelay(15);
+//     }
+//     vTaskDelete( NULL );
+// }
 
 void CONSOLE_TASK(void *pvParameters){
     UNUSED(pvParameters);
@@ -169,7 +171,7 @@ void CONSOLE_TASK(void *pvParameters){
 }
 
 
-
+#ifdef USE_GSM
 void GSM_PRINT(void *pvParameters){
     UNUSED(pvParameters);
     char gsm_output[64] = {0};
@@ -202,7 +204,7 @@ void GSM_PRINT(void *pvParameters){
     vTaskDelete( NULL );
 	// Delay(1000);
 }
-
+#endif
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
 {
     xprintf("\nKERNEL PANIC! STACK OVERFLOW AT TASK %s\n", pcTaskName);
@@ -247,8 +249,8 @@ int main(){
     if(system_config.action_mode){
         create_action_task();
     }
-    xTaskCreateStatic( RADIO_TASK, "RADIO", RADIO_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
-    xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", GSM_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
+    // xTaskCreateStatic( RADIO_TASK, "RADIO", RADIO_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
+    // xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", GSM_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
     xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", CONSOLE_SIZE, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
     vTaskStartScheduler();
 }

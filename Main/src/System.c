@@ -8,17 +8,26 @@
 #include "spi.h"
 #include "stm32_misc.h"
 #include "string.h"
-// #include "sx126x.h"
-#include "sx127x.h"
 #include "system_config.h"
 #include "task.h"
 #include "xprintf.h"
 #include "xmodem.h"
 #include "flash.h"
-#include "gsm.h"
 #include "queue.h"
 #include "adc.h"
+
 #include "periph_handlers.h"
+
+
+#ifdef USE_GSM
+    #include "gsm.h"
+#endif
+
+#ifdef USE_SX126x
+    #include "sx126x.h"
+#elif defined USE_SX127x
+    #include "sx127x.h"
+#endif
 
 #define WATCHDOG_PERIOD_MS 5000
 
@@ -39,14 +48,21 @@ FIL file;
 
 tBuzzer buzzer;
 microrl_t rl;
+
+#ifdef USE_GSM
 static uint8_t gsm_stream_storage[65];
-static uint8_t cli_stream_storage[257];
 StaticStreamBuffer_t  gsm_static_stream;
-StaticStreamBuffer_t  cli_static_stream;
 StaticSemaphore_t xSemaphoreBuffer;
+#endif
+
+static uint8_t cli_stream_storage[257];
+StaticStreamBuffer_t  cli_static_stream;
 // logging_init_t logger;
-LoRa sx127x;
-// SX126x SX1268;
+#ifdef USE_SX126x
+SX126x SX1268;
+#elif USE_SX127x
+SX127x sx127x;
+#endif
 XModem xmodem = {
     .delay = vTaskDelay,
     .on_first_packet = FLASH_erase_neighbor,
@@ -95,9 +111,13 @@ void notification(int founded_count) {
 }
 
 void print(const char *buf) {
+    #ifdef USE_GSM
     xSemaphoreTake(xSemaphore, 1000);
     xprintf(buf);
     xSemaphoreGive(xSemaphore);
+    #else
+    xprintf(buf);
+    #endif
 }
 
 void sensors_on() { gpio_state(EN_PERIPH, LOW); }
@@ -151,13 +171,15 @@ void initSD_config(){
 
 void System_Init() {
     // NVIC_SetPriorityGrouping(0x07);
+#ifdef USE_GSM
     xSemaphore = xSemaphoreCreateBinaryStatic( &xSemaphoreBuffer );
     xSemaphoreGive(xSemaphore);
     gsm_stream = xStreamBufferCreateStatic(64, 1, gsm_stream_storage, &gsm_static_stream);
+    vStreamBufferSetStreamBufferNumber(gsm_stream, 1);
+#endif
     cli_stream = xStreamBufferCreateStatic(256, 1, cli_stream_storage, &cli_static_stream);
     // vQueueAddToRegistry(gsm_queue, "GSM_QUEUE");
     // vQueueAddToRegistry(cli_queue, "CLI_QUEUE");
-    vStreamBufferSetStreamBufferNumber(gsm_stream, 1);
     vStreamBufferSetStreamBufferNumber(cli_stream, 2);
 
     xdev_out(uart_print);
@@ -192,12 +214,13 @@ void System_Init() {
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(UART3_TX, PB10_USART3_TX, Open_drain, no_pull, High_speed);
 
+    #ifdef USE_GSM
     gpio_init(GSM_TX, PC1_LPUART1_TX, Push_pull, pull_up, High_speed);
     gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, pull_up, Input);
     gpio_init(GSM_PWR, General_output, Push_pull, pull_up, Low_speed);
-
-    gpio_state(LED, HIGH);
     gpio_state(GSM_PWR, HIGH);
+    #endif
+    gpio_state(LED, HIGH);
     gpio_state(EN_SD, LOW);
     gpio_state(LoRa_NSS, HIGH);
     gpio_state(EN_PERIPH, LOW);
@@ -246,64 +269,22 @@ void System_Init() {
 
     spi_init(LoRa_SPI, div_4, Mode_0, data_8_bit, MSB);
 
-    sx127x = (LoRa){
-        .LoRaSPI = LoRa_SPI,
-        .reset_pin = EN_LORA,
-        .CS_pin = LoRa_NSS,
-        .DIO0_pin = LoRa_DIO0,
-        .bandWidth = system_config.lora_bw,
-        .freq_mhz = system_config.lora_freq,
-        .power = system_config.lora_tx_power,
-        .preamble = system_config.lora_preamble,
-        .codingRate = system_config.lora_cr,
-        .spredingFactor = system_config.lora_sf,
-        .ldro = system_config.lora_ldro,
-        .overCurrentProtection = 120,
-        .new_rx_data_flag = 0,
-        .delay = DWT_Delay_ms,
-    };
+
     if (system_config.lora_enable == 1){
-        if (LoRa_init(&sx127x) == LORA_OK) {
+        if (LoRa_Init(
+                system_config.lora_freq,
+                system_config.lora_sf,
+                system_config.lora_bw,
+                system_config.lora_cr,
+                system_config.lora_tx_power
+            ) == 0) {
             xprintf("Radio inited\n");
-            LoRa_gotoMode(&sx127x, RXCONTIN_MODE);
         } else {
             xprintf("Radio initialization failed!\n");
         }
     } else {
         xprintf("Radio disabled in config\n");
     }
-    // SX1268 = (SX126x){
-    //     .gpio = (SX126x_GPIO){
-    //         .busy_pin = LoRa_BUSY,
-    //         .CS_pin = LoRa_NSS,
-    //         .MISO_pin = LoRa_MISO,
-    //         .MOSI_pin = LoRa_MOSI,
-    //         .SCK_pin = LoRa_SCK,
-    //         .reset_pin = EN_LORA,
-    //         .DIO1_pin = LoRa_DIO1,
-    //         .__MISO_AF_pin = PB4_SPI1_MISO,
-    //         .__MOSI_AF_pin = PB5_SPI1_MOSI,
-    //         .__SCK_AF_pin = PB3_SPI1_SCK,
-    //     },
-    //     .spi = LoRa_SPI,
-    //     .config = (SX126x_Config){
-    //         .frequency = 433000000,
-    //         .header_type = 0x00,
-    //         .preamble_len = 8,
-    //         .bandWidth = 0x05, // BW250
-    //         .crcRate = 0x01,  // CR4/5
-    //         .crc_on_off = 0x01,
-    //         .iq_polarity = 0x00,
-    //         .low_data_rate_optim = 0x01,
-    //         .packet_type = 0x01, // LoRa
-    //         .spreadingFactor = 7,
-    //         .power_dbm = 15,
-    //         .ramping_time = 0x03,
-    //         .sync_word = 0x1424, // 0x12 (0x3444 = 0x34)
-    //     },
-    //     .rx_data = {0},
-    //     .tx_data = {0},
-    // };
 
     buzzer = (tBuzzer){
         .channel = PWM_CH2,
@@ -313,11 +294,7 @@ void System_Init() {
     if (system_config.enable_beep) {
         BUZZ_beep(&buzzer, 500, 50);
     }
-    // SX126x_Init(&SX1268);
-    // uint8_t tx_data[] = "hello world!";
-    // SX126x_SendData(&SX1268, tx_data, 12);
-    // SX126x_GetStatus(&SX1268);
-    // LoRa_transmit(&sx127x, (uint8_t *)"hello world!", 12);
+
     ow = (OneWire){.uart = USART3};
 
     for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
@@ -393,7 +370,7 @@ void System_Init() {
     ADC_InitRegChannel(&adc, TEMP, uninitialized, SMP_92);
     ADC_Enable(&adc);
     ADC_Start(&adc);
-
+    #ifdef USE_GSM
     sim7000g = (GSM){
         .uart = LPUART1,
         .gpio.pwr = GSM_PWR,
@@ -401,6 +378,7 @@ void System_Init() {
     };
     UART_init(LPUART1, 9600, FULL_DUPLEX);
     NVIC_SetPriority(LPUART1_IRQn, 11);
+    #endif
     NVIC_SetPriority(USART1_IRQn, 11);
 
 
@@ -412,5 +390,8 @@ void System_Init() {
 
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;
+
+#ifdef USE_SX127x
     sx127x.delay = vTaskDelay;
+#endif
 }

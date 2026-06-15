@@ -3,7 +3,6 @@
 
 #include "stm32l4xx.h"
 #include "ff.h"
-#include "gsm.h"
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -15,5 +14,7 @@ FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t off
 FRESULT copy_to_flash(const char *path, char *buff, uint16_t buff_size, uint32_t addr);
 FRESULT tail(const char *path, char *buff, size_t buff_size, uint32_t str_count, uint32_t *offset);
 FRESULT head(const char *path, char *buff, size_t buff_size, uint32_t str_count);
+#ifdef USE_GSM
 bool GSM_SendFile(GSM *driver, char *filename, uint32_t read_amount);
+#endif
 #endif

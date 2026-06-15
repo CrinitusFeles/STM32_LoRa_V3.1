@@ -1,14 +1,20 @@
 #include "periph_handlers.h"
 #include "uart.h"
 #include "adc.h"
-#include "gsm.h"
 #include <string.h>
-#include "sx127x.h"
-// #include "sx126x.h"
 #include "microrl.h"
 #include "stm32_misc.h"
 #include "xprintf.h"
+#include "main.h"
 
+#ifdef USE_SX127x
+#include "sx127x.h"
+#elif defined USE_SX126x
+#include "sx126x.h"
+#endif
+
+#ifdef USE_GSM
+#include "gsm.h"
 GSM sim7000g;
 
 
@@ -44,6 +50,9 @@ void LPUART1_IRQHandler(void) {
         sim7000g.frame_error_counter++;
     }
 }
+
+#endif
+
 void USART1_IRQHandler(void) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     while (USART1->ISR & USART_ISR_RXNE) {
@@ -77,15 +86,17 @@ void USART1_IRQHandler(void) {
 // void USART3_IRQHandler(void) {
 //     GSM_RX_Handler();
 // }
+#ifdef USE_SX127x
 void EXTI9_5_IRQHandler(void){
     EXTI->PR1 |= EXTI_PR1_PIF6;
-    sx127x.new_rx_data_flag = 1;
+    sx127x.base.new_rx_data_flag = 1;
 }
-
-// void EXTI2_IRQHandler(void){
-//     EXTI->PR1 |= EXTI_PR1_PIF2;
-//     SX1268.new_rx_data_flag = 1;
-// }
+#elif defined USE_SX126x
+void EXTI2_IRQHandler(void){
+    EXTI->PR1 |= EXTI_PR1_PIF2;
+    SX1268.base.new_rx_data_flag = 1;
+}
+#endif
 void ADC1_IRQHandler(void){
     ADC_Handler();
 }

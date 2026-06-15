@@ -7,12 +7,13 @@
 #include "low_power.h"
 #include "xprintf.h"
 #include "rtc.h"
-#include "gsm.h"
 #include "adc.h"
 #include "main.h"
 #include "console_utils.h"
 #include <string.h>
-
+#ifdef USE_GSM
+#include "gsm.h"
+#endif
 
 #define TASK_SIZE       configMINIMAL_STACK_SIZE * 3
 #define UNUSED(x)       (void)(x)
@@ -56,7 +57,7 @@ void log_error(char *msg){
     f_close(&file);
 }
 
-
+#ifdef USE_GSM
 uint8_t GSM_Routine(UINT read_amount){
     uint8_t status = 0;
     GSM_TogglePower(&sim7000g);
@@ -90,6 +91,13 @@ uint8_t GSM_Routine(UINT read_amount){
     }
     return status;
 }
+#else
+uint8_t GSM_Routine(UINT read_amount){
+    (void)(read_amount);
+    return 0;
+}
+#endif
+
 
 uint32_t calc_crc(uint32_t *buffer, uint32_t word_amount){
     register uint8_t ptr;

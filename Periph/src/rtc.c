@@ -185,6 +185,7 @@ void RTC_data_update(RTC_struct_brief *br_data){
 //     uint32_t sec = br_data->seconds + br_data->minutes * 60 + br_data->hours * 3600 + br_data->date * 86400 +
 // }
 uint8_t RTC_Init(int16_t ppm){
+    (void)(ppm);
 	RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;
 
 	if((RCC->BDCR & RCC_BDCR_RTCEN) == 0){
