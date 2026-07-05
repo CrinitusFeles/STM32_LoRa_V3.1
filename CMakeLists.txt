@@ -45,7 +45,7 @@ file(GLOB_RECURSE SOURCES
         "XModem/*.c"
         "BootLib/*.c"
         "FAT_FS/*.c"
-        "lua-5.4.7/src/*.c"
+        # "lua-5.4.7/src/*.c"
         "SEGGER/*.c"
         "SEGGER/OS/*.c"
         "SEGGER/Config/*.c"
@@ -54,9 +54,9 @@ file(GLOB_RECURSE SOURCES
         )
 
 file(GLOB_RECURSE SIZE_OPTIMIZATION
-    "lua-5.4.7/src/*.c"
+    # "lua-5.4.7/src/*.c"
     "FreeRTOS/src/*.c"
-    "Middleware/src/*.c"
+    # "Middleware/src/*.c"
     "SEGGER/*.c"
     "SEGGER/OS/*.c"
     "SEGGER/RTT/*.c"

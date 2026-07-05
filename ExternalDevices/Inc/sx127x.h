@@ -76,17 +76,18 @@
 #define RegVersion					0x42
 
 
-typedef struct SX127x_IRQ_Status{
-    uint8_t RxTimeout: 1;
-    uint8_t RxDone: 1;
-    uint8_t PayloadCrcError: 1;
-    uint8_t ValidHeader: 1;
-    uint8_t TxDone: 1;
-    uint8_t CadDone: 1;
-    uint8_t FhssChangeChannel: 1;
-    uint8_t CadDetected: 1;
-    uint8_t reserve1: 1;
-    uint8_t reserve2: 1;
+typedef union SX127x_IRQ_Status{
+    uint8_t irq;
+    struct{
+        uint8_t CadDetected: 1;
+        uint8_t FhssChangeChannel: 1;
+        uint8_t CadDone: 1;
+        uint8_t TxDone: 1;
+        uint8_t ValidHeader: 1;
+        uint8_t PayloadCrcError: 1;
+        uint8_t RxDone: 1;
+        uint8_t RxTimeout: 1;
+    };
 } SX127x_IRQ_Status;
 
 typedef struct SX127x{
@@ -108,6 +109,7 @@ void SX127x_startReceiving(SX127x* _LoRa);
 uint8_t SX127x_receive(SX127x* _LoRa, uint8_t* data, uint8_t length);
 int SX127x_getRSSI(SX127x* _LoRa);
 void SX127x_ReadIRQ(SX127x* _LoRa);
+void SX127x_RxHandler(SX127x *driver);
 uint8_t SX127x_init(SX127x* _LoRa);
 
 extern SX127x SX1278;

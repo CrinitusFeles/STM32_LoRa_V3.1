@@ -86,10 +86,11 @@ void USART1_IRQHandler(void) {
 // void USART3_IRQHandler(void) {
 //     GSM_RX_Handler();
 // }
+
 #ifdef USE_SX127x
 void EXTI9_5_IRQHandler(void){
     EXTI->PR1 |= EXTI_PR1_PIF6;
-    sx127x.base.new_rx_data_flag = 1;
+    SX1278.base.new_rx_data_flag = 1;
 }
 #elif defined USE_SX126x
 void EXTI2_IRQHandler(void){

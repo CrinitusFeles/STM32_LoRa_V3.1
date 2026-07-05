@@ -43,17 +43,15 @@ typedef struct GPIO_Struct{
     uint8_t port_num;
 } GPIO_Struct;
 
-GPIO_Struct gpio_calculate(GPIO_Pin gpio){
+void gpio_calculate(GPIO_Pin gpio, GPIO_Struct *gpio_ptr){
     if(gpio == uninitialized){
         // while(1) NVIC_SystemReset();
         while(1);
     }
     gpio--;
-    static GPIO_Struct temp = {0};
-	temp.port_num = gpio / NUMBER_OF_PINS_ON_EACH_PORT;  // GPIOA = 1, GPIOB = 2, ..., GPIOE = 5
-	temp.pin = gpio % NUMBER_OF_PINS_ON_EACH_PORT;  // PB0 = 0, PA1 = 1, PD4 = 4
-    temp.port = (GPIO_TypeDef *)(AHB2PERIPH_BASE + (0x0400UL * temp.port_num) );
-    return temp;
+	gpio_ptr->port_num = gpio / NUMBER_OF_PINS_ON_EACH_PORT;  // GPIOA = 1, GPIOB = 2, ..., GPIOE = 5
+	gpio_ptr->pin = gpio % NUMBER_OF_PINS_ON_EACH_PORT;  // PB0 = 0, PA1 = 1, PD4 = 4
+    gpio_ptr->port = (GPIO_TypeDef *)(AHB2PERIPH_BASE + (0x0400UL * gpio_ptr->port_num) );
 }
 
 /// @brief Инициализация пина
@@ -63,7 +61,8 @@ GPIO_Struct gpio_calculate(GPIO_Pin gpio){
 /// @param pull_up_down подтяжка (no_pull, pull_up, pull_down)
 /// @param speed скорость работы (Low_speed, Medium_speed, High_speed, Very_high_speed, Input)
 void gpio_init(GPIO_Pin gpio, GPIO_Mode mode, GPIO_Config config, GPIO_Pull pull_up_down, GPIO_Speed speed){
-	GPIO_Struct gpio_struct = gpio_calculate(gpio);
+	GPIO_Struct gpio_struct = {0};
+    gpio_calculate(gpio, &gpio_struct);
     RCC->AHB2ENR |= 1 << gpio_struct.port_num;
 	gpio_struct.port->PUPDR &= ~(3 << (gpio_struct.pin * 2));  // pull up / pull down register
 	gpio_struct.port->PUPDR |= pull_up_down << (gpio_struct.pin * 2);
@@ -96,7 +95,8 @@ void gpio_init(GPIO_Pin gpio, GPIO_Mode mode, GPIO_Config config, GPIO_Pull pull
 /// @param state LOW or HIGH
 void gpio_state(GPIO_Pin gpio, GPIO_State state){
     if(state == LOW || state == HIGH){
-        GPIO_Struct gpio_struct = gpio_calculate(gpio);
+        GPIO_Struct gpio_struct = {0};
+        gpio_calculate(gpio, &gpio_struct);
         gpio_struct.port->BSRR = 0x01 << (gpio_struct.pin + (!state) * 16);
     }
 }
@@ -104,7 +104,8 @@ void gpio_state(GPIO_Pin gpio, GPIO_State state){
 /// @brief Инвертирует состояние пина
 /// @param gpio номер вывода (PA0, PA1, ...)
 void gpio_toggle(GPIO_Pin gpio){
-    GPIO_Struct gpio_struct = gpio_calculate(gpio);
+	GPIO_Struct gpio_struct = {0};
+    gpio_calculate(gpio, &gpio_struct);
 	gpio_struct.port->ODR ^= 0x01 << gpio_struct.pin;
 }
 
@@ -112,8 +113,11 @@ void gpio_toggle(GPIO_Pin gpio){
 /// @param gpio номер вывода (PA0, PA1, ...)
 /// @return LOW or HIGH
 GPIO_State gpio_read(GPIO_Pin gpio){
-    GPIO_Struct gpio_struct = gpio_calculate(gpio);
-    return (gpio_struct.port->IDR & (0x01 << gpio_struct.pin)) >> gpio_struct.pin;
+	GPIO_Struct gpio_struct = {0};
+    gpio_calculate(gpio, &gpio_struct);
+    uint32_t idr = gpio_struct.port->IDR;
+    uint32_t tmp = (idr & (0x01 << gpio_struct.pin));
+    return tmp >> gpio_struct.pin;
 }
 
 void gpio_exti_init(GPIO_Pin gpio, uint8_t mode){

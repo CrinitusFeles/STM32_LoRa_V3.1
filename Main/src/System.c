@@ -60,8 +60,8 @@ StaticStreamBuffer_t  cli_static_stream;
 // logging_init_t logger;
 #ifdef USE_SX126x
 SX126x SX1268;
-#elif USE_SX127x
-SX127x sx127x;
+#elif defined USE_SX127x
+SX127x SX1278;
 #endif
 XModem xmodem = {
     .delay = vTaskDelay,
@@ -207,13 +207,17 @@ void System_Init() {
     gpio_init(LoRa_MISO, PB4_SPI1_MISO, Open_drain, no_pull, Input);
     gpio_init(LoRa_SCK, PB3_SPI1_SCK, Push_pull, no_pull, High_speed);
     gpio_init(LoRa_NSS, General_output, Push_pull, no_pull, High_speed);
-    gpio_init(LoRa_DIO0, Input_mode, Open_drain, no_pull, Input);
-    // gpio_init(LoRa_DIO1, Input_mode, Open_drain, no_pull, Input);
     gpio_init(LoRa_BUSY, Input_mode, Open_drain, no_pull, Input);
     gpio_init(BUZZ, PB15_TIM15_CH2, Push_pull, no_pull, Very_high_speed);
     gpio_init(EN_PERIPH, General_output, Push_pull, no_pull, Low_speed);
     gpio_init(UART3_TX, PB10_USART3_TX, Open_drain, no_pull, High_speed);
-
+    #ifdef USE_SX127x
+    gpio_init(LoRa_DIO0, Input_mode, Open_drain, no_pull, Input);
+    gpio_exti_init(LoRa_DIO0, 0);
+    #elif defined USE_SX126x
+    gpio_exti_init(LoRa_DIO1, 0);
+    gpio_init(LoRa_DIO1, Input_mode, Open_drain, no_pull, Input);
+    #endif
     #ifdef USE_GSM
     gpio_init(GSM_TX, PC1_LPUART1_TX, Push_pull, pull_up, High_speed);
     gpio_init(GSM_RX, PC0_LPUART1_RX, Open_drain, pull_up, Input);
@@ -225,9 +229,6 @@ void System_Init() {
     gpio_state(LoRa_NSS, HIGH);
     gpio_state(EN_PERIPH, LOW);
     gpio_state(EN_LORA, system_config.lora_enable == 1 ? LOW : HIGH);
-
-    gpio_exti_init(LoRa_DIO0, 0);
-    // gpio_exti_init(LoRa_DIO1, 0);
 
     UART_init(USART1, 76800, FULL_DUPLEX);
 
@@ -278,9 +279,17 @@ void System_Init() {
                 system_config.lora_cr,
                 system_config.lora_tx_power
             ) == 0) {
-            xprintf("Radio inited\n");
+            #ifdef USE_SX127x
+            xprintf("Radio SX1278 inited\n");
+            #elif defined USE_SX126x
+            xprintf("Radio SX1268 inited\n");
+            #endif
         } else {
-            xprintf("Radio initialization failed!\n");
+            #ifdef USE_SX127x
+            xprintf("Radio SX1278 initialization failed!\n");
+            #elif defined USE_SX126x
+            xprintf("Radio SX1268 initialization failed!\n");
+            #endif
         }
     } else {
         xprintf("Radio disabled in config\n");
@@ -387,11 +396,10 @@ void System_Init() {
     int16_t temp = ADC_internal_temp(adc.reg_channel_queue[1].result, adc.vdda_mvolt);
     xprintf("Vref: %d mV\n", adc.vdda_mvolt);
     xprintf("Temp: %d C\n", temp);
-
+    LoRa_Transmit((uint8_t*)"hello world!", 12);
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;
-
-#ifdef USE_SX127x
-    sx127x.delay = vTaskDelay;
-#endif
+    #ifdef USE_SX127x
+    SX1278.base.delay = vTaskDelay;
+    #endif
 }

@@ -175,7 +175,7 @@
 
 #define SELF_ID        1
 //-----------------------//
-#define USE_SX126x
+#define USE_SX127x
 
 
 #endif /* INC_MAIN_H_ */

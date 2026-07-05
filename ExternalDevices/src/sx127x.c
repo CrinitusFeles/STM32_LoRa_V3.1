@@ -1,7 +1,7 @@
 #include "sx127x.h"
 #include "sx127x_misc.h"
 #include "iwdg.h"
-
+#include "string.h"
 
 
 
@@ -149,15 +149,12 @@ void SX127x_startReceiving(SX127x* _LoRa){
 
 void SX127x_ReadIRQ(SX127x* _LoRa){
     uint8_t result = SX127x_Read(_LoRa, RegIrqFlags);
-    _LoRa->irq_status = *(SX127x_IRQ_Status*)(&result);
+    _LoRa->irq_status.irq = result;
 }
 
 uint8_t SX127x_receive(SX127x* _LoRa, uint8_t* data, uint8_t length){
 	uint8_t min = 0;
-	// volatile uint8_t stat = 0;
-	for(uint8_t i = 0; i < length; i++){
-		data[i] = 0;
-    }
+	memset(_LoRa->base.rx_data.payload, 0, RADIO_PROTOCOL_PAYLOAD_SIZE);
 	SX127x_gotoMode(_LoRa, STNBY_MODE);
 	// stat = SX127x_Read(_LoRa, RegOpMode);
 	SX127x_ReadIRQ(_LoRa);
@@ -180,6 +177,11 @@ int SX127x_getRSSI(SX127x* _LoRa){
 	uint8_t read = 0;
 	read = SX127x_Read(_LoRa, RegPktRssiValue);
 	return -164 + read;
+}
+
+void SX127x_RxHandler(SX127x *driver){
+    SX127x_receive(driver, driver->base.rx_data.buffer,
+                   sizeof(driver->base.rx_data.buffer));
 }
 
 uint8_t SX127x_init(SX127x* _LoRa){

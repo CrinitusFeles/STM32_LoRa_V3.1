@@ -20,7 +20,13 @@
 #include "console_utils.h"
 #include "sensors_task.h"
 #include "LoRa.h"
+#include "radio_protocol.h"
 
+#ifdef USE_SX126x
+#include "sx126x.h"
+#elif defined USE_SX127x
+#include "sx127x.h"
+#endif
 #ifdef USE_GSM
 #include "gsm.h"
 #endif
@@ -560,10 +566,10 @@ int execute(int argc, const char *const *argv) {
                 RTC_data_update(&new_time);
                 RTC_string_datetime(rtc_buffer);
                 xprintf("%s\n", rtc_buffer);
-            } else {
-                xprintf("incorrect arguments for \'time\' cmd\n");
-            }
-            break;
+        } else {
+            xprintf("incorrect arguments for \'time\' cmd\n");
+        }
+        break;
     case _CMD_RADIO_CONF:
         // if (argc == 1) {
         //     xprintf("Reg num: Value\n");
@@ -574,29 +580,61 @@ int execute(int argc, const char *const *argv) {
         //     xprintf("LoRa settings:\nFrequency: %d\nSF: %d\nBW: %d\nCR: %d\nOutPow: %d\n",
         //             SX1278.frequency, SX1278.spreadingFactor, SX1278.bandWidth, SX1278.coding_rate, SX1278.power);
         // } else if (argc == 7) {
-        //     long bandWidth = 0;
-        //     long frequency = 0;
-        //     long spreadingFactor = 0;
-        //     long coding_rate = 0;
-        //     long power = 0;
-        //     xatoi((char *)argv[1], &bandWidth);
-        //     xatoi((char *)argv[2], &frequency);
-        //     xatoi((char *)argv[3], &spreadingFactor);
-        //     xatoi((char *)argv[4], &coding_rate);
-        //     xatoi((char *)argv[5], &power);
-        //     SX1278.bandWidth = (uint8_t)bandWidth;
-        //     SX1278.frequency = (uint32_t)frequency;
-        //     SX1278.spreadingFactor = (uint8_t)spreadingFactor;
-        //     SX1278.coding_rate = (uint8_t)coding_rate;
-        //     SX1278.power = (uint8_t)power;
-        // } else {
-        //     xprintf("you should set only frequency and duration\n");
-        // }
+        if (argc == 7) {
+            long bandWidth = 0;
+            long frequency = 0;
+            long spreadingFactor = 0;
+            long coding_rate = 0;
+            long power = 0;
+            xatoi((char *)argv[1], &bandWidth);
+            xatoi((char *)argv[2], &frequency);
+            xatoi((char *)argv[3], &spreadingFactor);
+            xatoi((char *)argv[4], &coding_rate);
+            xatoi((char *)argv[5], &power);
+            LoRa_Init(frequency, spreadingFactor, bandWidth, coding_rate, power);
+        } else {
+            xprintf("you should set only frequency and duration\n");
+        }
         break;
     case _CMD_SEND_RADIO:
-        if (argc == 2) {
+        // TaskHandle_t task_handle = xTaskGetHandle("RADIO_TASK");
+        // vTaskSuspend(task_handle);
+
+        if (argc > 2) {
+            char buf[250] = "";
+            long dst = 0;
+            xatoi((char *)(argv[1]), &dst);
+            for(uint8_t i = 2; i < argc; i++){
+                strcat(buf, argv[i]);
+                if(i != argc - 1)
+                    strcat(buf, " ");
+            }
+            strcat(buf, "\n\r");
+            #ifdef USE_SX126x
+            SX1268.base.tx_data.dst_addr = (uint8_t)dst;
+            SX1268.base.tx_data.dlen = (uint8_t)(strlen(buf));
+            memset(SX1268.base.tx_data.payload, 0, 250);
+            memcpy(SX1268.base.tx_data.payload, (uint8_t *)buf, SX1268.base.tx_data.dlen);
+            uint16_t crc = crc16_calc(SX1268.base.tx_data.payload, SX1268.base.tx_data.dlen);
+            // SX1268.tx_data.crc16 = (crc >> 8) | ((crc & 0x0F) << 8);
+            SX1268.base.tx_data.crc16 = crc;
+            SX1268.base.tx_data.src_addr = system_config.module_id;
+            LoRa_Transmit(SX1268.base.tx_data.buffer, (uint8_t)(strlen(buf)) + 5);
+            #elif defined USE_SX127x
+            SX1278.base.tx_data.dst_addr = (uint8_t)dst;
+            SX1278.base.tx_data.dlen = (uint8_t)(strlen(buf));
+            memset(SX1278.base.tx_data.payload, 0, 250);
+            memcpy(SX1278.base.tx_data.payload, (uint8_t *)buf, SX1278.base.tx_data.dlen);
+            uint16_t crc = crc16_calc(SX1278.base.tx_data.payload, SX1278.base.tx_data.dlen);
+            // SX1268.tx_data.crc16 = (crc >> 8) | ((crc & 0x0F) << 8);
+            SX1278.base.tx_data.crc16 = crc;
+            SX1278.base.tx_data.src_addr = system_config.module_id;
+            LoRa_Transmit(SX1278.base.tx_data.buffer, SX1278.base.tx_data.dlen + 5);
+            #endif
+        } else if (argc == 2){
             LoRa_Transmit((uint8_t *)argv[1], strlen(argv[1]));
         }
+        // vTaskResume(task_handle);
         break;
     case _CMD_XMODEM:
         if (argc == 1) {

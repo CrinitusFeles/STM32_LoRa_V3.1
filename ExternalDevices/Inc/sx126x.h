@@ -126,17 +126,20 @@ typedef enum SX126x_ModeStatus{
     SX126x_TX_Mode
 } SX126x_ModeStatus;
 
-typedef struct SX126x_IRQ_Status{
-    uint8_t TxDone: 1;  // Packet transmission completed
-    uint8_t RxDone: 1;  // Packet received
-    uint8_t PreambleDetected: 1;  //  Preamble detected
-    uint8_t SyncWordValid: 1;  //  Valid sync word detected
-    uint8_t HeaderValid: 1;  // Valid LoRa header received
-    uint8_t HeaderErr: 1;  // LoRa header CRC error
-    uint8_t CRC_Err: 1;  //  Wrong CRC received
-    uint8_t CadDone: 1;  // Channel activity detection finished
-    uint8_t CadDetected: 1;  //  Channel activity detected
-    uint8_t Timeout: 1;  // Rx or Tx timeout
+typedef union SX126x_IRQ_Status{
+    uint16_t irq;
+    struct{
+        uint8_t TxDone: 1;  // Packet transmission completed
+        uint8_t RxDone: 1;  // Packet received
+        uint8_t PreambleDetected: 1;  //  Preamble detected
+        uint8_t SyncWordValid: 1;  //  Valid sync word detected
+        uint8_t HeaderValid: 1;  // Valid LoRa header received
+        uint8_t HeaderErr: 1;  // LoRa header CRC error
+        uint8_t CRC_Err: 1;  //  Wrong CRC received
+        uint8_t CadDone: 1;  // Channel activity detection finished
+        uint8_t CadDetected: 1;  //  Channel activity detected
+        uint8_t Timeout: 1;  // Rx or Tx timeout
+    };
 } SX126x_IRQ_Status;
 
 typedef enum SX126x_CMD_Status{
@@ -148,9 +151,14 @@ typedef enum SX126x_CMD_Status{
     tx_done
 } SX126x_CMD_Status;
 
-typedef struct SX126x_Mode{
-    SX126x_ModeStatus mode : 3;
-    SX126x_CMD_Status cmd : 3;
+typedef union SX126x_Mode{
+    uint8_t status;
+    struct{
+        uint8_t res1: 1;
+        SX126x_CMD_Status cmd : 3;
+        SX126x_ModeStatus mode : 3;
+        uint8_t res2: 1;
+    };
 } SX126x_Mode;
 
 
