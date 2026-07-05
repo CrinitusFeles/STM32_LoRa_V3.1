@@ -7,23 +7,23 @@ static uint8_t *DUMMY_PTR = 0;
 
 uint8_t SX126x_Init(SX126x *driver){
     SX126x_SetStandby(driver, 0);
-    SX126x_SetPacketType(driver, driver->base.config.mode);
+    SX126x_SetPacketType(driver, driver->base->config.mode);
     SX126x_SetDIO2AsRfSwitchCtr(driver, 1);
     SX126x_GetPacketType(driver);
-    SX126x_SetRfFrequency(driver, driver->base.config.frequency);
-    SX126x_SetTxParams(driver, driver->base.config.power_dbm, SX126X_RAMP_80U);
+    SX126x_SetRfFrequency(driver, driver->base->config.frequency);
+    SX126x_SetTxParams(driver, driver->base->config.power_dbm, SX126X_RAMP_80U);
     SX126x_SetModulationParams(
-        driver, driver->base.config.spreadingFactor,
+        driver, driver->base->config.spreadingFactor,
         SX126X_BW_250,
-        driver->base.config.coding_rate,
-        driver->base.config.ldro
+        driver->base->config.coding_rate,
+        driver->base->config.ldro
     );
     SX126x_GetDeviceErrors(driver);
     SX126x_SetDioIrqParams(driver, 0x3F, 1 << 1, 0, 0);
-    // SX126x_SetOCP(driver, driver->base.overCurrentProtection);
+    // SX126x_SetOCP(driver, driver->base->overCurrentProtection);
     uint8_t extra_tx_params[3] = {0x08, 0x89, 0x01};  // 0 if LoRa BW = 500kHz
     SX126x_WriteRegisters(driver, extra_tx_params, 3);
-    SX126x_SetSyncWord(driver, driver->base.config.sync_word);
+    SX126x_SetSyncWord(driver, driver->base->config.sync_word);
     SX126x_SetBufferBaseAddress(driver, 0, 0);
     return 0;
 }
@@ -31,7 +31,7 @@ uint8_t SX126x_Init(SX126x *driver){
 void SX126x_SendData(SX126x *driver, uint8_t *data, uint16_t data_len){
     SX126x_GetIrqStatus(driver);
     while(driver->irq_status.TxDone){
-        SX126x_ClearIrqStatus(&SX1268, 0xFFFF);
+        SX126x_ClearIrqStatus(driver, 0xFFFF);
         SX126x_GetIrqStatus(driver);
     }
 
@@ -47,24 +47,24 @@ void SX126x_SendData(SX126x *driver, uint8_t *data, uint16_t data_len){
         } else if(counter + chunk_size > data_len){
             chunk_size = data_len - counter;
         }
-        if(driver->base.tx_data.buffer != data)
-            memcpy(driver->base.tx_data.buffer, data + counter, chunk_size);
+        if(driver->base->tx_data.buffer != data)
+            memcpy(driver->base->tx_data.buffer, data + counter, chunk_size);
         SX126x_SetPacketParams(
-            driver, driver->base.config.preamble,
-            driver->base.config.implicit_header,
-            chunk_size, driver->base.config.crc_enable,
-            driver->base.config.iq_polarity
+            driver, driver->base->config.preamble,
+            driver->base->config.implicit_header,
+            chunk_size, driver->base->config.crc_enable,
+            driver->base->config.iq_polarity
         );
-        SX126x_WriteBuffer(driver, driver->base.tx_data.buffer, chunk_size);
+        SX126x_WriteBuffer(driver, driver->base->tx_data.buffer, chunk_size);
         SX126x_GetIrqStatus(driver);
-        driver->base.transmitting_progress = 1;
+        driver->base->transmitting_progress = 1;
         SX126x_SetTx(driver, 0);
         while(!driver->irq_status.TxDone)
             SX126x_GetIrqStatus(driver);
-        driver->base.transmitting_progress = 0;
-        driver->base.tx_data.dlen = 0;
+        driver->base->transmitting_progress = 0;
+        driver->base->tx_data.dlen = 0;
         SX126x_GetStatus(driver);
-        driver->base.restart_watchdog();
+        driver->base->restart_watchdog();
         counter += chunk_size;
     }
     SX126x_SetRx(driver, 0);
@@ -150,8 +150,8 @@ void SX126x_SetTx(SX126x *driver, uint16_t timeout_ms){
 void SX126x_SetRx(SX126x *driver, uint16_t timeout_ms){
     // max timeout 262000 ms ; 0xFFFFFF - continuous mode
     SX126x_SetPacketParams(
-        driver, driver->base.config.preamble, driver->base.config.implicit_header, 0,
-        driver->base.config.crc_enable, driver->base.config.iq_polarity
+        driver, driver->base->config.preamble, driver->base->config.implicit_header, 0,
+        driver->base->config.crc_enable, driver->base->config.iq_polarity
     );
     uint32_t timeout = timeout_ms / 0.015625;
     uint8_t data[3] = {timeout >> 16, (timeout >> 8) & 0xFF, timeout & 0xFF};
@@ -175,7 +175,7 @@ uint8_t SX126x_GetPacketType(SX126x *driver){
     uint8_t buf[2] = {0};
     SX126x_SendOpcode(driver, OPCODE_GET_PACKET_TYPE, DUMMY_PTR, 0, buf, 2);
     SX126x_CalculateMode(driver, buf[0]);
-    driver->base.config.mode = buf[1];
+    driver->base->config.mode = buf[1];
     return buf[1];
 }
 
@@ -239,16 +239,16 @@ void SX126x_GetRxBufferStatus(SX126x *driver){
     uint8_t buf[3] = {0};
     SX126x_SendOpcode(driver, OPCODE_GET_RX_BUFFER_STATUS, DUMMY_PTR, 0, buf, 3);
     SX126x_CalculateMode(driver, buf[0]);
-    driver->base.rx_pkt_len = buf[1];
-    driver->base.rx_buf_ptr = buf[2];
+    driver->base->rx_pkt_len = buf[1];
+    driver->base->rx_buf_ptr = buf[2];
 }
 void SX126x_GetPacketStatus(SX126x *driver){
     uint8_t buf[4] = {0};
     SX126x_SendOpcode(driver, OPCODE_GET_PACKET_STATUS, DUMMY_PTR, 0, buf, 4);
     SX126x_CalculateMode(driver, buf[0]);
-    driver->base.rssi = buf[1];
-    driver->base.snr = buf[2];
-    // driver->base.signal_rssi = buf[3];
+    driver->base->rssi = buf[1];
+    driver->base->snr = buf[2];
+    // driver->base->signal_rssi = buf[3];
 }
 void SX126x_ClearIrqStatus(SX126x *driver, uint16_t param){
     uint8_t data[2] = {param >> 8, param & 0xff};
@@ -257,16 +257,16 @@ void SX126x_ClearIrqStatus(SX126x *driver, uint16_t param){
 
 
 void SX126x_RxHandler(SX126x *driver){
-    memset(driver->base.rx_data.payload, 0, RADIO_PROTOCOL_PAYLOAD_SIZE);
+    memset(driver->base->rx_data.payload, 0, RADIO_PROTOCOL_PAYLOAD_SIZE);
 
     SX126x_GetIrqStatus(driver);
-    memset(driver->base.rx_data.buffer, 0, 255);
+    memset(driver->base->rx_data.buffer, 0, 255);
     SX126x_ClearIrqStatus(driver, 0x3F);
     SX126x_GetIrqStatus(driver);
     SX126x_GetPacketStatus(driver);
     SX126x_GetRxBufferStatus(driver);
     SX126x_ReadBuffer(
-        driver, driver->base.rx_buf_ptr, driver->base.rx_data.buffer, driver->base.rx_pkt_len
+        driver, driver->base->rx_buf_ptr, driver->base->rx_data.buffer, driver->base->rx_pkt_len
     );
     SX126x_SetRx(driver, 0);
     SX126x_GetStatus(driver);

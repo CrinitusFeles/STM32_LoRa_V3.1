@@ -90,12 +90,12 @@ void USART1_IRQHandler(void) {
 #ifdef USE_SX127x
 void EXTI9_5_IRQHandler(void){
     EXTI->PR1 |= EXTI_PR1_PIF6;
-    SX1278.base.new_rx_data_flag = 1;
+    LoRa.new_rx_data_flag = 1;
 }
 #elif defined USE_SX126x
 void EXTI2_IRQHandler(void){
     EXTI->PR1 |= EXTI_PR1_PIF2;
-    SX1268.base.new_rx_data_flag = 1;
+    LoRa.new_rx_data_flag = 1;
 }
 #endif
 void ADC1_IRQHandler(void){

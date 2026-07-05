@@ -92,25 +92,25 @@ typedef union SX127x_IRQ_Status{
 
 typedef struct SX127x{
     SX127x_IRQ_Status irq_status;
-    LoRa_t base;
+    LoRa_t *base;
 } SX127x;
 
 
-void SX127x_gotoMode(SX127x* _LoRa, uint8_t mode);
+void SX127x_gotoMode(SX127x* driver, uint8_t mode);
 
-void SX127x_setFrequency(SX127x* _LoRa, uint32_t frequency);
-void SX127x_setSpreadingFactor(SX127x* _LoRa, uint8_t SP);
-void SX127x_setPower(SX127x* _LoRa, uint8_t power_dbm);
-void SX127x_setOCP(SX127x* _LoRa, uint8_t current);
-void SX127x_set_LDRO(SX127x* _LoRa, uint8_t ldro);
-void SX127x_setTOMsb_setCRCon(SX127x* _LoRa);
-uint8_t SX127x_transmit(SX127x* _LoRa, uint8_t *data, uint16_t length);
-void SX127x_startReceiving(SX127x* _LoRa);
-uint8_t SX127x_receive(SX127x* _LoRa, uint8_t* data, uint8_t length);
-int SX127x_getRSSI(SX127x* _LoRa);
-void SX127x_ReadIRQ(SX127x* _LoRa);
+void SX127x_setFrequency(SX127x* driver, uint32_t frequency);
+void SX127x_setSpreadingFactor(SX127x* driver, uint8_t SP);
+void SX127x_setPower(SX127x* driver, uint8_t power_dbm);
+void SX127x_setOCP(SX127x* driver, uint8_t current);
+void SX127x_set_LDRO(SX127x* driver, uint8_t ldro);
+void SX127x_setTOMsb_setCRCon(SX127x* driver);
+uint8_t SX127x_transmit(SX127x* driver, uint8_t *data, uint16_t length);
+void SX127x_startReceiving(SX127x* driver);
+uint8_t SX127x_receive(SX127x* driver, uint8_t* data, uint8_t length);
+int SX127x_getRSSI(SX127x* driver);
+void SX127x_ReadIRQ(SX127x* driver);
 void SX127x_RxHandler(SX127x *driver);
-uint8_t SX127x_init(SX127x* _LoRa);
+uint8_t SX127x_init(SX127x* driver);
 
 extern SX127x SX1278;
 

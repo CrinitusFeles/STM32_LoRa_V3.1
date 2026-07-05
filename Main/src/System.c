@@ -58,11 +58,7 @@ StaticSemaphore_t xSemaphoreBuffer;
 static uint8_t cli_stream_storage[257];
 StaticStreamBuffer_t  cli_static_stream;
 // logging_init_t logger;
-#ifdef USE_SX126x
-SX126x SX1268;
-#elif defined USE_SX127x
-SX127x SX1278;
-#endif
+
 XModem xmodem = {
     .delay = vTaskDelay,
     .on_first_packet = FLASH_erase_neighbor,
@@ -279,17 +275,9 @@ void System_Init() {
                 system_config.lora_cr,
                 system_config.lora_tx_power
             ) == 0) {
-            #ifdef USE_SX127x
-            xprintf("Radio SX1278 inited\n");
-            #elif defined USE_SX126x
-            xprintf("Radio SX1268 inited\n");
-            #endif
+            xprintf("Radio %s inited\n", LoRa.driver_name);
         } else {
-            #ifdef USE_SX127x
-            xprintf("Radio SX1278 initialization failed!\n");
-            #elif defined USE_SX126x
-            xprintf("Radio SX1268 initialization failed!\n");
-            #endif
+            xprintf("Radio %s initialization failed!\n", LoRa.driver_name);
         }
     } else {
         xprintf("Radio disabled in config\n");
@@ -400,6 +388,6 @@ void System_Init() {
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;
     #ifdef USE_SX127x
-    SX1278.base.delay = vTaskDelay;
+    LoRa.delay = vTaskDelay;
     #endif
 }

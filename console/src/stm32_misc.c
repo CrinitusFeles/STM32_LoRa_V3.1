@@ -22,11 +22,7 @@
 #include "LoRa.h"
 #include "radio_protocol.h"
 
-#ifdef USE_SX126x
-#include "sx126x.h"
-#elif defined USE_SX127x
-#include "sx127x.h"
-#endif
+
 #ifdef USE_GSM
 #include "gsm.h"
 #endif
@@ -610,27 +606,16 @@ int execute(int argc, const char *const *argv) {
                     strcat(buf, " ");
             }
             strcat(buf, "\n\r");
-            #ifdef USE_SX126x
-            SX1268.base.tx_data.dst_addr = (uint8_t)dst;
-            SX1268.base.tx_data.dlen = (uint8_t)(strlen(buf));
-            memset(SX1268.base.tx_data.payload, 0, 250);
-            memcpy(SX1268.base.tx_data.payload, (uint8_t *)buf, SX1268.base.tx_data.dlen);
-            uint16_t crc = crc16_calc(SX1268.base.tx_data.payload, SX1268.base.tx_data.dlen);
-            // SX1268.tx_data.crc16 = (crc >> 8) | ((crc & 0x0F) << 8);
-            SX1268.base.tx_data.crc16 = crc;
-            SX1268.base.tx_data.src_addr = system_config.module_id;
-            LoRa_Transmit(SX1268.base.tx_data.buffer, (uint8_t)(strlen(buf)) + 5);
-            #elif defined USE_SX127x
-            SX1278.base.tx_data.dst_addr = (uint8_t)dst;
-            SX1278.base.tx_data.dlen = (uint8_t)(strlen(buf));
-            memset(SX1278.base.tx_data.payload, 0, 250);
-            memcpy(SX1278.base.tx_data.payload, (uint8_t *)buf, SX1278.base.tx_data.dlen);
-            uint16_t crc = crc16_calc(SX1278.base.tx_data.payload, SX1278.base.tx_data.dlen);
-            // SX1268.tx_data.crc16 = (crc >> 8) | ((crc & 0x0F) << 8);
-            SX1278.base.tx_data.crc16 = crc;
-            SX1278.base.tx_data.src_addr = system_config.module_id;
-            LoRa_Transmit(SX1278.base.tx_data.buffer, SX1278.base.tx_data.dlen + 5);
-            #endif
+
+            LoRa.tx_data.dst_addr = (uint8_t)dst;
+            LoRa.tx_data.dlen = (uint8_t)(strlen(buf));
+            memset(LoRa.tx_data.payload, 0, 250);
+            memcpy(LoRa.tx_data.payload, (uint8_t *)buf, LoRa.tx_data.dlen);
+            uint16_t crc = crc16_calc(LoRa.tx_data.payload, LoRa.tx_data.dlen);
+            LoRa.tx_data.crc16 = crc;
+            LoRa.tx_data.src_addr = system_config.module_id;
+            LoRa_Transmit(LoRa.tx_data.buffer, (uint8_t)(strlen(buf)) + 5);
+
         } else if (argc == 2){
             LoRa_Transmit((uint8_t *)argv[1], strlen(argv[1]));
         }

@@ -24,6 +24,7 @@ typedef struct LoRa_s{
 	SPI_TypeDef* spi;
     LoRa_Config config;
 	// Module settings:
+    char driver_name[12];
     uint8_t new_rx_data_flag;
     uint8_t rssi;
     int8_t snr;
@@ -46,5 +47,6 @@ void LoRa_Transmit(uint8_t *data, uint8_t length);
 uint8_t LoRa_Init(uint32_t freq_hz, uint8_t sf, uint8_t bw, uint8_t cr, uint8_t power);
 void LoRa_RxHandler();
 
+extern LoRa_t LoRa;
 
 #endif

@@ -14,11 +14,8 @@
 #include "action_task.h"
 #include "system_config.h"
 #include "radio_protocol.h"
-#ifdef USE_SX126x
-#include "sx126x.h"
-#elif defined USE_SX127x
-#include "sx127x.h"
-#endif
+#include "LoRa.h"
+
 
 #define UNUSED(x) (void)(x)
 #define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 10
@@ -42,27 +39,26 @@ StackType_t xStack_CONSOLE [CONSOLE_SIZE];
 
 static uint8_t cli_to_lora_flag = 0;
 
-
 void route_cli_to_lora(uint8_t data){
     cli_to_lora_flag = 1;
     #ifdef USE_SX126x
-    while(SX1268.base.transmitting_progress)
+    while(LoRa.transmitting_progress)
         vTaskDelay(1);
-    SX1268.base.tx_data.payload[SX1268.base.tx_data.dlen] = data;
+    LoRa.tx_data.payload[LoRa.tx_data.dlen] = data;
     timeout_counter = 0;
-    SX1268.base.tx_data.dlen++;
-    if(SX1268.base.tx_data.dlen == 250){
-        SX1268.base.transmitting_progress = 1;
+    LoRa.tx_data.dlen++;
+    if(LoRa.tx_data.dlen == 250){
+        LoRa.transmitting_progress = 1;
         return;
     }
     #elif defined USE_SX127x
-    while(SX1278.base.transmitting_progress)
+    while(LoRa.transmitting_progress)
         vTaskDelay(1);
-    SX1278.base.tx_data.payload[SX1278.base.tx_data.dlen] = data;
+    LoRa.tx_data.payload[LoRa.tx_data.dlen] = data;
     timeout_counter = 0;
-    SX1278.base.tx_data.dlen++;
-    if(SX1278.base.tx_data.dlen == 250){
-        SX1278.base.transmitting_progress = 1;
+    LoRa.tx_data.dlen++;
+    if(LoRa.tx_data.dlen == 250){
+        LoRa.transmitting_progress = 1;
         return;
     }
     #endif
@@ -89,79 +85,40 @@ unsigned long vGetTimerForRunTimeStats(void){
 void RADIO_TASK(void *pvParameters){
     UNUSED(pvParameters);
     for (;;) {
-        #ifdef USE_SX127x
-        if(SX1278.base.new_rx_data_flag){
-            SX127x_RxHandler(&SX1278);
-            SX1278.base.new_rx_data_flag = 0;
-            if(SX1278.base.rx_data.dst_addr != system_config.module_id){
-                // xprintf((char*)SX1278.base.rx_data.buffer);
+        if(LoRa.new_rx_data_flag){
+            LoRa_RxHandler();
+            LoRa.new_rx_data_flag = 0;
+            if(LoRa.rx_data.dst_addr != system_config.module_id){
+                // xprintf((char*)LoRa.rx_data.buffer);
                 continue;
             }
-            uint16_t crc16 = crc16_calc(SX1278.base.rx_data.payload, SX1278.base.rx_data.dlen);
-            if(crc16 != SX1278.base.rx_data.crc16){
-                // xprintf((char*)SX1278.base.rx_data.buffer);
+            uint16_t crc16 = crc16_calc(LoRa.rx_data.payload, LoRa.rx_data.dlen);
+            if(crc16 != LoRa.rx_data.crc16){
+                // xprintf((char*)LoRa.rx_data.buffer);
                 continue;
             }
-            SX1278.base.rx_data.payload[SX1278.base.rx_data.dlen] = 0;
+            LoRa.rx_data.payload[LoRa.rx_data.dlen] = 0;
             xdev_out(uart_print);
-            xprintf((char*)SX1278.base.rx_data.payload);
+            xprintf((char*)LoRa.rx_data.payload);
             xdev_out(route_cli_to_lora);
-            xStreamBufferSend(cli_stream, &SX1278.base.rx_data.payload,
-                                SX1278.base.rx_data.dlen, portMAX_DELAY);
+            xStreamBufferSend(cli_stream, &LoRa.rx_data.payload,
+                              LoRa.rx_data.dlen, portMAX_DELAY);
             // xStreamBufferSend(cli_stream, "\n\r", 3, portMAX_DELAY);
         }
         if(cli_to_lora_flag){
-            if(SX1278.base.tx_data.dlen > 1){
+            if(LoRa.tx_data.dlen > 1){
                 timeout_counter += 1;
             }
-            if((SX1278.base.tx_data.dlen == 250) || timeout_counter >= 10){
-                SX1278.base.tx_data.crc16 = crc16_calc(SX1278.base.tx_data.payload, SX1278.base.tx_data.dlen);
-                SX1278.base.tx_data.src_addr = system_config.module_id;
-                SX1278.base.tx_data.dst_addr = SX1278.base.rx_data.src_addr;
-                SX127x_transmit(&SX1278, SX1278.base.tx_data.buffer, SX1278.base.tx_data.dlen + 5);
+            if((LoRa.tx_data.dlen == 250) || timeout_counter >= 10){
+                LoRa.tx_data.crc16 = crc16_calc(LoRa.tx_data.payload, LoRa.tx_data.dlen);
+                LoRa.tx_data.src_addr = system_config.module_id;
+                LoRa.tx_data.dst_addr = LoRa.rx_data.src_addr;
+                LoRa_Transmit(LoRa.tx_data.buffer, LoRa.tx_data.dlen + 5);
                 timeout_counter = 0;
-                SX1278.base.tx_data.dlen = 0;
+                LoRa.tx_data.dlen = 0;
                 cli_to_lora_flag = 0;
             }
         }
-        #elif defined USE_SX126x
-        if (SX1268.base.new_rx_data_flag){
-            SX126x_RxHandler(&SX1268);
-            SX1268.base.new_rx_data_flag = 0;
-            if(SX1268.base.rx_data.dst_addr != system_config.module_id){
-                xprintf((char*)SX1268.base.rx_data.buffer);
-                continue;
-            }
-            uint16_t crc16 = crc16_calc(SX1268.base.rx_data.payload,
-                                        SX1268.base.rx_data.dlen);
-            if(crc16 != SX1268.base.rx_data.crc16){
-                xprintf((char*)SX1268.base.rx_data.buffer);
-                continue;
-            }
-            SX1268.base.rx_data.payload[SX1268.base.rx_data.dlen] = 0;
-            xdev_out(uart_print);
-            xprintf((char*)SX1268.base.rx_data.payload);
-            xdev_out(route_cli_to_lora);
-            xStreamBufferSend(cli_stream, SX1268.base.rx_data.payload,
-                              SX1268.base.rx_data.dlen, portMAX_DELAY);
-        }
-        if(cli_to_lora_flag){
-            if(SX1268.base.tx_data.dlen > 1){
-                timeout_counter += 1;
-            }
-            if((SX1268.base.tx_data.dlen == 250) || timeout_counter >= 10){
-                SX1268.base.tx_data.crc16 = crc16_calc(SX1268.base.tx_data.payload,
-                                                       SX1268.base.tx_data.dlen);
-                SX1268.base.tx_data.src_addr = system_config.module_id;
-                SX1268.base.tx_data.dst_addr = SX1268.base.rx_data.src_addr;
-                SX126x_SendData(&SX1268, SX1268.base.tx_data.buffer,
-                                SX1268.base.tx_data.dlen + 5);
-                timeout_counter = 0;
-                SX1268.base.tx_data.dlen = 0;
-                cli_to_lora_flag = 0;
-            }
-        }
-        #endif
         vTaskDelay(15);
     }
     vTaskDelete( NULL );

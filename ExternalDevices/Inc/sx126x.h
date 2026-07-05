@@ -165,7 +165,7 @@ typedef union SX126x_Mode{
 typedef struct SX126x{
     SX126x_IRQ_Status irq_status;
     SX126x_Mode status;
-    LoRa_t base;
+    LoRa_t *base;
 } SX126x;
 
 uint8_t SX126x_Init(SX126x *driver);
