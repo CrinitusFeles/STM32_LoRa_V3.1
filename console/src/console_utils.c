@@ -5,7 +5,7 @@
 #include "system_config.h"
 #include "rtc.h"
 #include <string.h>
-
+#include "iwdg.h"
 
 void neofetch(){
     xprintf(
@@ -75,6 +75,7 @@ void ls(const char *path) {
 void dump_memory(unsigned long addr, uint32_t *ptr, size_t len){
     xprintf("%10s | %-8s | %-8s | %-8s | %-8s | %-16s\n", "Address", "0", "4", "8", "C", "ASCII");
     for(uint32_t i = 0; i < len; i += 4){
+        IWDG_refresh();
         // xprintf("0x%08lX | %08lX | %08lX | %08lX | %08lX | ",
         //         addr + (i << 2), *(ptr + i), *(ptr + i + 1), *(ptr + i + 2), *(ptr + i + 3));
         xprintf("0x%08lX | ", addr + (i << 2));
@@ -108,6 +109,7 @@ FRESULT dump_file(const char *path, char *buff, uint16_t buff_size, uint32_t off
     }
     xprintf("%10s | %-8s | %-8s | %-8s | %-8s | %-16s\n", "Address", "0", "4", "8", "C", "ASCII");
     while(f_size(&file) > offset){
+        IWDG_refresh();
         memset(buff, 0, buff_size);
         res = f_lseek(&file, offset);
         if(res != FR_OK) break;
@@ -153,6 +155,7 @@ FRESULT file_read(const char *path, char *buff, uint16_t buff_size, uint32_t off
         return res;
     }
     while(f_size(&file) > offset){
+        IWDG_refresh();
         memset(buff, 0, buff_size);
         res = f_lseek(&file, offset);
         if(res != FR_OK) break;
@@ -184,6 +187,7 @@ FRESULT copy_to_flash(const char *path, char *buff, uint16_t buff_size, uint32_t
         return res;
     }
     while(f_size(&file) > offset){
+        IWDG_refresh();
         memset(buff, 0, buff_size);
         res = f_lseek(&file, offset);
         if(res != FR_OK) break;
@@ -210,6 +214,7 @@ FRESULT tail(const char *path, char *buff, size_t buff_size, uint32_t str_count,
     }
     read_ptr = f_size(&file);
     while(read_ptr > 0){
+        IWDG_refresh();
         memset(buff, 0, buff_size);
         read_ptr -= buff_size;
         if(read_ptr < 0){
@@ -243,6 +248,7 @@ FRESULT head(const char *path, char *buff, size_t buff_size, uint32_t str_count)
         return res;
     }
     while(read_count_sum < f_size(&file) && str_count){
+        IWDG_refresh();
         memset(buff, 0, buff_size);
         res = f_lseek(&file, read_count_sum);
         if(res != FR_OK) break;

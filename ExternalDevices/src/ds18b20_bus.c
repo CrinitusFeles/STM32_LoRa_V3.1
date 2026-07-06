@@ -1,11 +1,12 @@
 #include "ds18b20_bus.h"
-
+#include "iwdg.h"
 #define CALIBRATION_TEMP_DELTA  3
 
 OW_Status TemperatureSensorsMeasure(DS18B20_BUS *bus, uint8_t is_sorted){
     OW_Status status = DS18B20_StartTempMeas(bus->ow);
     if(status != OW_OK) return status;
     for(uint8_t i = 0; i < bus->connected_amount; i++){
+        IWDG_refresh();
         if(is_sorted){
             status = OW_MatchRom(bus->ow, (RomCode*)(&bus->serials[i]));
         } else{
