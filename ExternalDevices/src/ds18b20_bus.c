@@ -17,7 +17,7 @@ OW_Status TemperatureSensorsMeasure(DS18B20_BUS *bus, uint8_t is_sorted){
         if(status != OW_OK) return status;
         status = OW_ReadArray(bus->ow, (uint8_t *)(&(bus->sensors[i].scratchpad)), 9);
         if(status != OW_OK) return status;
-        bus->sensors[i].temperature = (uint32_t)(bus->sensors[i].scratchpad.temperature) * 0.0625;
+        bus->sensors[i].temperature = (int16_t)(bus->sensors[i].scratchpad.temperature) * 0.0625;
     }
     return status;
 }
