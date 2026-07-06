@@ -5,32 +5,15 @@
 
 
 
-void SX127x_gotoMode(SX127x* driver, uint8_t mode){
-	uint8_t read = 0;
-	uint8_t data = 0;
-
-	read = SX127x_Read(driver, RegOpMode);
-	data = (read & 0xF8);
-
-	if(mode == SLEEP_MODE){
-		driver->base->config.mode = SLEEP_MODE;
-		SX127x_Write(driver, RegOpMode, (uint8_t[1]){0x08}, 1);
-		return;
-	}else if (mode == STNBY_MODE){
-		data |= 0x01;
-		driver->base->config.mode = STNBY_MODE;
-	}else if (mode == TRANSMIT_MODE){
-		data |= 0x03;
-		driver->base->config.mode = TRANSMIT_MODE;
-	}else if (mode == RXCONTIN_MODE){
-		data |= 0x05;
-		driver->base->config.mode = RXCONTIN_MODE;
-	}else if (mode == RXSINGLE_MODE){
-		data |= 0x06;
-		driver->base->config.mode = RXSINGLE_MODE;
-	}
-
-	SX127x_Write(driver, RegOpMode, &data, 1);
+void SX127x_gotoMode(SX127x* driver, SX127x_Mode mode){
+    driver->status.status = SX127x_Read(driver, RegOpMode);
+    while(driver->status.mode != mode){
+        driver->status.long_range_mode = 1;
+        driver->status.low_freq_mode_on = 1;
+        driver->status.mode = mode;
+        SX127x_Write(driver, RegOpMode, &driver->status.status, 1);
+        driver->status.status = SX127x_Read(driver, RegOpMode);
+    }
 }
 
 
@@ -111,7 +94,7 @@ uint8_t SX127x_transmit(SX127x* driver, uint8_t *data, uint16_t length){
 	// int mode = driver->base->config.current_mode;
 	SX127x_gotoMode(driver, STNBY_MODE);
 	SX127x_Write(driver, RegIrqFlags, (uint8_t[1]){0xFF}, 1);
-	read = SX127x_Read(driver, RegOpMode);
+	// read = SX127x_Read(driver, RegOpMode);
 	read = SX127x_Read(driver, RegFiFoTxBaseAddr);
     uint16_t counter = 0;
     uint8_t chunk_size = 255;
@@ -122,18 +105,16 @@ uint8_t SX127x_transmit(SX127x* driver, uint8_t *data, uint16_t length){
         SX127x_Write(driver, RegFiFoAddPtr, &read, 1);
         SX127x_Write(driver, RegPayloadLength, &chunk_size, 1);
         SX127x_Write(driver, RegFiFo, data, chunk_size);
-        read = SX127x_Read(driver, RegOpMode);
         driver->base->transmitting_progress = 1;
         SX127x_gotoMode(driver, TRANSMIT_MODE);
-        while(1){
+        while(!driver->irq_status.TxDone){
             SX127x_ReadIRQ(driver);
-            read = SX127x_Read(driver, RegOpMode);
-            if(read != TRANSMIT_MODE && (driver->irq_status.TxDone))
-                break;
         }
         driver->base->transmitting_progress = 0;
-        driver->base->tx_data.dlen = 0;
+        driver->base->tx_data.payload_len = 0;
         IWDG_refresh();
+        SX127x_Write(driver, RegIrqFlags, (uint8_t[1]){0xFF}, 1);
+        SX127x_ReadIRQ(driver);
         counter += chunk_size;
     }
 	// модуль ненадолго переходит в режим отправки, после чего возвращается в режим ожидания или приема.
@@ -155,11 +136,10 @@ void SX127x_ReadIRQ(SX127x* driver){
 uint8_t SX127x_receive(SX127x* driver, uint8_t* data, uint8_t length){
 	uint8_t min = 0;
 	memset(driver->base->rx_data.payload, 0, RADIO_PROTOCOL_PAYLOAD_SIZE);
-	SX127x_gotoMode(driver, STNBY_MODE);
+	// SX127x_gotoMode(driver, STNBY_MODE);
 	// stat = SX127x_Read(driver, RegOpMode);
 	SX127x_ReadIRQ(driver);
 	if((driver->irq_status.RxDone) != 0){
-		SX127x_Write(driver, RegIrqFlags, (uint8_t[1]){0xFF}, 1);
 		driver->base->rx_pkt_len = SX127x_Read(driver, RegRxNbBytes);
 		driver->base->rx_buf_ptr = SX127x_Read(driver, RegFiFoRxCurrentAddr);
 		SX127x_Write(driver, RegFiFoAddPtr, &(driver->base->rx_buf_ptr), 1);

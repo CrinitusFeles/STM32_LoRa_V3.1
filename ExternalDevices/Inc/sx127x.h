@@ -8,14 +8,14 @@
 #define RECEIVE_TIMEOUT		2000
 
 //--------- MODES ---------//
-#define SLEEP_MODE				0x00
-#define	STNBY_MODE				0x01
-#define	FSTX_MODE				0x02
-#define TRANSMIT_MODE			0x03
-#define FSRX_MODE			    0x04
-#define RXCONTIN_MODE			0x05
-#define RXSINGLE_MODE			0x06
-#define CAD_MODE			    0x07
+// #define SLEEP_MODE				0x00
+// #define	STNBY_MODE				0x01
+// #define	FSTX_MODE				0x02
+// #define TRANSMIT_MODE			0x03
+// #define FSRX_MODE			    0x04
+// #define RXCONTIN_MODE			0x05
+// #define RXSINGLE_MODE			0x06
+// #define CAD_MODE			    0x07
 
 #define LORA_MODE               0x80
 #define FSK_MODE                0x00
@@ -90,13 +90,35 @@ typedef union SX127x_IRQ_Status{
     };
 } SX127x_IRQ_Status;
 
+typedef enum{
+    SLEEP_MODE = 	0x00,
+    STNBY_MODE = 	0x01,
+    FSTX_MODE = 	0x02,
+    TRANSMIT_MODE = 0x03,
+    FSRX_MODE =     0x04,
+    RXCONTIN_MODE = 0x05,
+    RXSINGLE_MODE = 0x06,
+    CAD_MODE =      0x07
+} SX127x_Mode;
+typedef union{
+    uint8_t status;
+    struct{
+        SX127x_Mode mode: 3;
+        uint8_t low_freq_mode_on: 1;
+        uint8_t res: 2;
+        uint8_t access_share_reg: 1;
+        uint8_t long_range_mode: 1;
+    };
+} SX127x_Status;
+
 typedef struct SX127x{
     SX127x_IRQ_Status irq_status;
+    SX127x_Status status;
     LoRa_t *base;
 } SX127x;
 
 
-void SX127x_gotoMode(SX127x* driver, uint8_t mode);
+void SX127x_gotoMode(SX127x* driver, SX127x_Mode mode);
 
 void SX127x_setFrequency(SX127x* driver, uint32_t frequency);
 void SX127x_setSpreadingFactor(SX127x* driver, uint8_t SP);

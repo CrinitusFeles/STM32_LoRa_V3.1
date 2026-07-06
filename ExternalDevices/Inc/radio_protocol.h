@@ -3,14 +3,21 @@
 
 #include "stdint.h"
 
-#define RADIO_PROTOCOL_PAYLOAD_SIZE   250
+#define RADIO_PROTOCOL_PAYLOAD_SIZE   249
+
+typedef enum{
+    LORA_ANSWER,
+    LORA_ANSWER_LAST,
+    LORA_CMD_REQUEST,
+} LoRa_CMD_Type;
 
 typedef union RadioProtocol{
     uint8_t buffer[255];
     struct {
         uint8_t dst_addr;
         uint8_t src_addr;
-        uint8_t dlen;
+        uint8_t cmd_type;
+        uint8_t payload_len;
         uint16_t crc16 __attribute__((packed, aligned(1)));
         uint8_t payload[RADIO_PROTOCOL_PAYLOAD_SIZE];
     };

@@ -117,14 +117,14 @@
 
 
 
-typedef enum SX126x_ModeStatus{
+typedef enum SX126x_Mode{
     SX126x_RFU_Mode = 1,
     SX126x_STBY_RC_Mode,
     SX126x_STBY_XOSC_Mode,
     SX126x_FS_Mode,
     SX126x_RX_Mode,
     SX126x_TX_Mode
-} SX126x_ModeStatus;
+} SX126x_Mode;
 
 typedef union SX126x_IRQ_Status{
     uint16_t irq;
@@ -151,20 +151,20 @@ typedef enum SX126x_CMD_Status{
     tx_done
 } SX126x_CMD_Status;
 
-typedef union SX126x_Mode{
+typedef union{
     uint8_t status;
     struct{
         uint8_t res1: 1;
         SX126x_CMD_Status cmd : 3;
-        SX126x_ModeStatus mode : 3;
+        SX126x_Mode mode : 3;
         uint8_t res2: 1;
     };
-} SX126x_Mode;
+} SX126x_Status;
 
 
 typedef struct SX126x{
     SX126x_IRQ_Status irq_status;
-    SX126x_Mode status;
+    SX126x_Status status;
     LoRa_t *base;
 } SX126x;
 

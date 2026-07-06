@@ -597,7 +597,7 @@ int execute(int argc, const char *const *argv) {
         // vTaskSuspend(task_handle);
 
         if (argc > 2) {
-            char buf[250] = "";
+            char buf[RADIO_PROTOCOL_PAYLOAD_SIZE] = "";
             long dst = 0;
             xatoi((char *)(argv[1]), &dst);
             for(uint8_t i = 2; i < argc; i++){
@@ -608,14 +608,16 @@ int execute(int argc, const char *const *argv) {
             strcat(buf, "\n\r");
 
             LoRa.tx_data.dst_addr = (uint8_t)dst;
-            LoRa.tx_data.dlen = (uint8_t)(strlen(buf));
-            memset(LoRa.tx_data.payload, 0, 250);
-            memcpy(LoRa.tx_data.payload, (uint8_t *)buf, LoRa.tx_data.dlen);
-            uint16_t crc = crc16_calc(LoRa.tx_data.payload, LoRa.tx_data.dlen);
+            LoRa.tx_data.payload_len = (uint8_t)(strlen(buf));
+            memset(LoRa.tx_data.payload, 0, RADIO_PROTOCOL_PAYLOAD_SIZE);
+            memcpy(LoRa.tx_data.payload, (uint8_t *)buf, LoRa.tx_data.payload_len);
+            uint16_t crc = crc16_calc(LoRa.tx_data.payload, LoRa.tx_data.payload_len);
             LoRa.tx_data.crc16 = crc;
             LoRa.tx_data.src_addr = system_config.module_id;
-            LoRa_Transmit(LoRa.tx_data.buffer, (uint8_t)(strlen(buf)) + 5);
-
+            LoRa.tx_data.cmd_type = LORA_CMD_REQUEST;
+            LoRa_Transmit(LoRa.tx_data.buffer, (uint8_t)(strlen(buf)) + 6);
+            LoRa.tx_data.cmd_type = 0;
+            LoRa.tx_data.payload_len = 0;
         } else if (argc == 2){
             LoRa_Transmit((uint8_t *)argv[1], strlen(argv[1]));
         }

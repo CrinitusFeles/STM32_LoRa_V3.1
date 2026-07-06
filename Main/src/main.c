@@ -19,7 +19,7 @@
 
 #define UNUSED(x) (void)(x)
 #define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 10
-#define RADIO_SIZE              configMINIMAL_STACK_SIZE
+#define RADIO_SIZE              configMINIMAL_STACK_SIZE * 2
 
 #ifdef USE_GSM
 #define GSM_SIZE                configMINIMAL_STACK_SIZE
@@ -30,38 +30,20 @@ StackType_t xStack_GSM_PRINT [GSM_SIZE];
 SemaphoreHandle_t xSemaphore;
 #endif
 
-uint8_t timeout_counter = 0;
+// uint8_t timeout_counter = 0;
 StreamBufferHandle_t  cli_stream;
-StaticTask_t xTaskBuffer_RADIO;
+StreamBufferHandle_t  radio_tx_stream;
+
+StaticTask_t xTaskBuffer_RX_RADIO;
+StaticTask_t xTaskBuffer_TX_RADIO;
 StaticTask_t xTaskBuffer_RADIO_CONSOLE;
-StackType_t xStack_RADIO [RADIO_SIZE];
+StackType_t xStack_RX_RADIO [RADIO_SIZE];
+StackType_t xStack_TX_RADIO [RADIO_SIZE];
 StackType_t xStack_CONSOLE [CONSOLE_SIZE];
 
-static uint8_t cli_to_lora_flag = 0;
 
 void route_cli_to_lora(uint8_t data){
-    cli_to_lora_flag = 1;
-    #ifdef USE_SX126x
-    while(LoRa.transmitting_progress)
-        vTaskDelay(1);
-    LoRa.tx_data.payload[LoRa.tx_data.dlen] = data;
-    timeout_counter = 0;
-    LoRa.tx_data.dlen++;
-    if(LoRa.tx_data.dlen == 250){
-        LoRa.transmitting_progress = 1;
-        return;
-    }
-    #elif defined USE_SX127x
-    while(LoRa.transmitting_progress)
-        vTaskDelay(1);
-    LoRa.tx_data.payload[LoRa.tx_data.dlen] = data;
-    timeout_counter = 0;
-    LoRa.tx_data.dlen++;
-    if(LoRa.tx_data.dlen == 250){
-        LoRa.transmitting_progress = 1;
-        return;
-    }
-    #endif
+    xStreamBufferSend(radio_tx_stream, &data, 1, portMAX_DELAY);
 }
 
 void vConfigureTimerForRunTimeStats(void){
@@ -82,44 +64,74 @@ unsigned long vGetTimerForRunTimeStats(void){
     return ulHighFrequencyTimerTicks;
 }
 
-void RADIO_TASK(void *pvParameters){
+void TX_RADIO_TASK(void *pvParameters){
     UNUSED(pvParameters);
+    for (;;) {
+        uint8_t size = xStreamBufferReceive(
+            radio_tx_stream,
+            LoRa.tx_data.payload + LoRa.tx_data.payload_len,
+            RADIO_PROTOCOL_PAYLOAD_SIZE - LoRa.tx_data.payload_len, 100
+        );
+        LoRa.tx_data.payload_len += size;
+        if((size == 0 && LoRa.tx_data.payload_len > 0)
+            || (size == RADIO_PROTOCOL_PAYLOAD_SIZE
+                || LoRa.tx_data.payload_len == RADIO_PROTOCOL_PAYLOAD_SIZE)){
+            LoRa.tx_data.crc16 = crc16_calc(LoRa.tx_data.payload,
+                                            LoRa.tx_data.payload_len);
+            LoRa.tx_data.src_addr = system_config.module_id;
+            LoRa.tx_data.dst_addr = LoRa.rx_data.src_addr;
+            LoRa.tx_data.cmd_type = size == 0 ? LORA_ANSWER_LAST : LORA_ANSWER;
+            LoRa_Transmit(LoRa.tx_data.buffer, LoRa.tx_data.payload_len + 6);
+            LoRa.tx_data.payload_len = 0;
+        }
+    }
+    vTaskDelete( NULL );
+}
+
+void RX_RADIO_TASK(void *pvParameters){
+    UNUSED(pvParameters);
+    char buffer[256] = {0};
+    uint8_t j = 0;
     for (;;) {
         if(LoRa.new_rx_data_flag){
             LoRa_RxHandler();
             LoRa.new_rx_data_flag = 0;
-            if(LoRa.rx_data.dst_addr != system_config.module_id){
-                // xprintf((char*)LoRa.rx_data.buffer);
+            if(LoRa.rx_data.cmd_type < LORA_CMD_REQUEST){
+                for(uint8_t i = 0; i < LoRa.rx_data.payload_len; i++){
+                    buffer[j] = LoRa.rx_data.payload[i];
+                    if(LoRa.rx_data.payload[i] == '\n' && LoRa.rx_data.payload[i-1] == '\r'){
+                        buffer[j+1] = 0;
+                        UART_tx_string(USART_PRINT, buffer);
+                        j = 0;
+                        continue;
+                    }
+                    j++;
+                }
+                if(LoRa.rx_data.cmd_type == LORA_ANSWER_LAST){
+                    buffer[j + 1] = 0;
+                    UART_tx_string(USART_PRINT, buffer);
+                    j = 0;
+                }
+                // xprintf((char*)LoRa.rx_data.payload);
                 continue;
             }
-            uint16_t crc16 = crc16_calc(LoRa.rx_data.payload, LoRa.rx_data.dlen);
+            if(LoRa.rx_data.dst_addr != system_config.module_id){
+                continue;
+            }
+            uint16_t crc16 = crc16_calc(LoRa.rx_data.payload, LoRa.rx_data.payload_len);
             if(crc16 != LoRa.rx_data.crc16){
                 // xprintf((char*)LoRa.rx_data.buffer);
                 continue;
             }
-            LoRa.rx_data.payload[LoRa.rx_data.dlen] = 0;
+            LoRa.rx_data.payload[LoRa.rx_data.payload_len] = 0;
             xdev_out(uart_print);
             xprintf((char*)LoRa.rx_data.payload);
             xdev_out(route_cli_to_lora);
             xStreamBufferSend(cli_stream, &LoRa.rx_data.payload,
-                              LoRa.rx_data.dlen, portMAX_DELAY);
+                              LoRa.rx_data.payload_len, portMAX_DELAY);
             // xStreamBufferSend(cli_stream, "\n\r", 3, portMAX_DELAY);
         }
-        if(cli_to_lora_flag){
-            if(LoRa.tx_data.dlen > 1){
-                timeout_counter += 1;
-            }
-            if((LoRa.tx_data.dlen == 250) || timeout_counter >= 10){
-                LoRa.tx_data.crc16 = crc16_calc(LoRa.tx_data.payload, LoRa.tx_data.dlen);
-                LoRa.tx_data.src_addr = system_config.module_id;
-                LoRa.tx_data.dst_addr = LoRa.rx_data.src_addr;
-                LoRa_Transmit(LoRa.tx_data.buffer, LoRa.tx_data.dlen + 5);
-                timeout_counter = 0;
-                LoRa.tx_data.dlen = 0;
-                cli_to_lora_flag = 0;
-            }
-        }
-        vTaskDelay(15);
+        vTaskDelay(1);
     }
     vTaskDelete( NULL );
 }
@@ -128,7 +140,7 @@ void CONSOLE_TASK(void *pvParameters){
     UNUSED(pvParameters);
     char data[256] = {0};
     for (;;) {
-        uint8_t rsize = xStreamBufferReceive(cli_stream, data, 256, portMAX_DELAY);
+        uint8_t rsize = xStreamBufferReceive(cli_stream, data, 255, portMAX_DELAY);
         for(uint8_t i = 0; i < rsize; i++){
             if(rl.last_index < 50){
                 rl.last_index += 1;
@@ -229,7 +241,8 @@ int main(){
     if(system_config.action_mode){
         create_action_task();
     }
-    xTaskCreateStatic( RADIO_TASK, "RADIO", RADIO_SIZE, NULL, 2, xStack_RADIO, &xTaskBuffer_RADIO);
+    xTaskCreateStatic( RX_RADIO_TASK, "RX_RADIO", RADIO_SIZE, NULL, 2, xStack_RX_RADIO, &xTaskBuffer_RX_RADIO);
+    xTaskCreateStatic( TX_RADIO_TASK, "TX_RADIO", RADIO_SIZE, NULL, 2, xStack_TX_RADIO, &xTaskBuffer_TX_RADIO);
     // xTaskCreateStatic( GSM_PRINT, "GSM_PRINT", GSM_SIZE, NULL, 2, xStack_GSM_PRINT, &xTaskBuffer_RADIO_GSM_PRINT);
     xTaskCreateStatic( CONSOLE_TASK, "CONSOLE", CONSOLE_SIZE, NULL, 2, xStack_CONSOLE, &xTaskBuffer_RADIO_CONSOLE);
     vTaskStartScheduler();

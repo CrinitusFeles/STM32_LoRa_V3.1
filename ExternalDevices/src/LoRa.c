@@ -34,7 +34,7 @@ inline uint8_t LoRa_Init(uint32_t freq_hz, uint8_t sf, uint8_t bw, uint8_t cr, u
         .delay = DWT_Delay_ms,
         #elif defined USE_SX126x
         .driver_name = "SX1268",
-        .restart_watchdog = IWDG_refresh
+        .restart_watchdog = IWDG_refresh,
         #endif
         .spi = LoRa_SPI,
         .config = {
@@ -67,7 +67,7 @@ inline uint8_t LoRa_Init(uint32_t freq_hz, uint8_t sf, uint8_t bw, uint8_t cr, u
     return result;
     #elif defined USE_SX126x
     SX1268 = (SX126x){
-        .base = &LoRa;
+        .base = &LoRa
     };
     return SX126x_Init(&SX1268);
     #endif

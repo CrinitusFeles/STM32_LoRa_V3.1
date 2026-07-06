@@ -17,6 +17,7 @@ void EXTI9_5_IRQHandler(void);
 
 extern StreamBufferHandle_t  gsm_stream;
 extern StreamBufferHandle_t  cli_stream;
+extern StreamBufferHandle_t  radio_tx_stream;
 extern  SemaphoreHandle_t xSemaphore;
 
 

@@ -55,8 +55,10 @@ StaticStreamBuffer_t  gsm_static_stream;
 StaticSemaphore_t xSemaphoreBuffer;
 #endif
 
-static uint8_t cli_stream_storage[257];
+static uint8_t cli_stream_storage[255];
+static uint8_t radio_tx_stream_storage[255];
 StaticStreamBuffer_t  cli_static_stream;
+StaticStreamBuffer_t  radio_tx_static_stream;
 // logging_init_t logger;
 
 XModem xmodem = {
@@ -173,7 +175,10 @@ void System_Init() {
     gsm_stream = xStreamBufferCreateStatic(64, 1, gsm_stream_storage, &gsm_static_stream);
     vStreamBufferSetStreamBufferNumber(gsm_stream, 1);
 #endif
-    cli_stream = xStreamBufferCreateStatic(256, 1, cli_stream_storage, &cli_static_stream);
+    cli_stream = xStreamBufferCreateStatic(255, 1, cli_stream_storage,
+                                           &cli_static_stream);
+    radio_tx_stream = xStreamBufferCreateStatic(255, 1, radio_tx_stream_storage,
+                                                &radio_tx_static_stream);
     // vQueueAddToRegistry(gsm_queue, "GSM_QUEUE");
     // vQueueAddToRegistry(cli_queue, "CLI_QUEUE");
     vStreamBufferSetStreamBufferNumber(cli_stream, 2);
@@ -264,7 +269,7 @@ void System_Init() {
         FLASH_disable_iwdg_stby();
     }
 
-    spi_init(LoRa_SPI, div_4, Mode_0, data_8_bit, MSB);
+    spi_init(LoRa_SPI, div_2, Mode_0, data_8_bit, MSB);
 
 
     if (system_config.lora_enable == 1){
