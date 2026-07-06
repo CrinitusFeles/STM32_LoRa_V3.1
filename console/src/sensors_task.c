@@ -64,7 +64,7 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
     FSIZE_t file_size = 0;
     UINT written_count = 0;
     FRESULT res;
-    const TCHAR *file_path;
+    TCHAR file_path[32] = {0};
 
     for(uint8_t i = 1; i < args->argc; i++){
         if(strcmp(args->argv[i], "-m") == 0){
@@ -80,8 +80,9 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
             }
         } else if(strcmp(args->argv[i], "-f") == 0){
             if(i < args->argc - 1){
-                file_path = args->argv[i + 1];
+                strcpy(file_path, args->argv[i + 1]);
                 res = f_open(&file, file_path, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+                f_close(&file);
                 if(res == FR_OK){
                     save_to_sd = 1;
                 } else {
