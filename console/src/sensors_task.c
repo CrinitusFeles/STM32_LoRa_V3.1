@@ -64,6 +64,7 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
     FSIZE_t file_size = 0;
     UINT written_count = 0;
     FRESULT res;
+    const TCHAR *file_path;
 
     for(uint8_t i = 1; i < args->argc; i++){
         if(strcmp(args->argv[i], "-m") == 0){
@@ -79,11 +80,12 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
             }
         } else if(strcmp(args->argv[i], "-f") == 0){
             if(i < args->argc - 1){
-                res = f_open(&file, args->argv[i + 1], FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+                file_path = args->argv[i + 1];
+                res = f_open(&file, file_path, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
                 if(res == FR_OK){
                     save_to_sd = 1;
                 } else {
-                    xprintf("Can not open file %s\n", args->argv[i + 1]);
+                    xprintf("Can not open file %s\n", file_path);
                     break;
                 }
             }
@@ -227,15 +229,17 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
         xprintf(file_buff);
 
         if(save_to_sd){
+            res = f_open(&file, file_path, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
             res = f_lseek(&file, file_size);
             res = f_write(&file, file_buff, buffer_ptr, &written_count);
             if(res != FR_OK || (int)written_count < buffer_ptr){
                 xprintf("Failed to write to SD card\n");
             }
+            f_close(&file);
+
         }
         vTaskDelay(meas_period > 0 ? meas_period * 1000 : 1);
     }
-    f_close(&file);
     xprintf("Measure process finished\n");
     vTaskDelete(NULL);
 }
