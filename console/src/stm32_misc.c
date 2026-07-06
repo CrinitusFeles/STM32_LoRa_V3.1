@@ -777,6 +777,7 @@ void sigint(void) {
     for(uint8_t i = 0; i < 4; i++){
         TaskHandle_t task_handle = xTaskGetHandle(tasks[i]);
         if(task_handle != NULL){
+            f_close(&file);
             vTaskDelete(task_handle);
             xprintf("\n%d cancelled!\n\r", tasks[i]);
         }

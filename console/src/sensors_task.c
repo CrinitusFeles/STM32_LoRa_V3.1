@@ -232,10 +232,11 @@ void SENSORS_MEASURE_TASK(void *pvParameters){
             if(res != FR_OK || (int)written_count < buffer_ptr){
                 xprintf("Failed to write to SD card\n");
             }
-            f_close(&file);
         }
         vTaskDelay(meas_period > 0 ? meas_period * 1000 : 1);
     }
+    f_close(&file);
+    xprintf("Measure process finished\n");
     vTaskDelete(NULL);
 }
 
