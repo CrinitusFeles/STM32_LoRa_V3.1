@@ -11,6 +11,7 @@
 #include "main.h"
 #include "console_utils.h"
 #include <string.h>
+#include "LoRa.h"
 #ifdef USE_GSM
 #include "gsm.h"
 #endif
@@ -42,7 +43,8 @@ TaskHandle_t action_task;
 
 OW_Status ow_status = OW_OK;
 UINT written_count = 0;
-UINT send_size = 0;
+UINT bin_send_size = 0;
+UINT txt_send_size = 0;
 UINT read_count = 0;
 
 void log_error(char *msg){
@@ -91,11 +93,6 @@ uint8_t GSM_Routine(UINT read_amount){
     }
     return status;
 }
-#else
-uint8_t GSM_Routine(UINT read_amount){
-    (void)(read_amount);
-    return 0;
-}
 #endif
 
 
@@ -136,6 +133,7 @@ void write_txt_log(){
         sd_ptr += xsprintf(file_buff + sd_ptr, "%d\n", adc.vdda_mvolt);
         f_lseek(&file, file.obj.objsize);
         f_write(&file, file_buff, sd_ptr, &written_count);
+        txt_send_size += written_count;
     }
     f_close(&file);
 }
@@ -158,7 +156,7 @@ void write_bin_log(){
         f_lseek(&file, file.obj.objsize);
         res = f_write(&file, measures.data, MEASURES_SIZE, &written_count);
         if(res == FR_OK){
-            send_size += written_count;
+            bin_send_size += written_count;
         }
     }
     f_close(&file);
@@ -178,44 +176,62 @@ void ACTION_TASK(void *pvParameters){
     // ADC_WaitMeasures(&adc, 10000);
     sensors_bus.power_off();
 
-    send_size = RTC->BKP1R;
+    bin_send_size = RTC->BKP1R;
     write_txt_log();
     write_bin_log();
-
     switch (ow_status) {
-    case OW_OK:
+        case OW_OK:
         break;
-    case OW_EMPTY_BUS:
+        case OW_EMPTY_BUS:
         log_error("Empty bus\n");
         break;
-    case OW_TIMEOUT:
+        case OW_TIMEOUT:
         log_error("Timeout\n");
         break;
-    case OW_ROM_FINDING_ERROR:
+        case OW_ROM_FINDING_ERROR:
         log_error("ROM_FINDING_ERROR\n");
         break;
-    default:
+        default:
         log_error("ERROR\n");
         break;
     }
 
     write_single_bkp_reg(BCKP_MEAS_AMOUNT, RTC->BKP2R + 1);
+    if(system_config.lora_enable){
+        xStreamBufferSend(radio_tx_stream, &file_buff, txt_send_size, portMAX_DELAY);
+        // LoRa.tx_data.src_addr = system_config.module_id;
+        // LoRa.tx_data.dst_addr = 0xFF;
+        // for(uint16_t i = 0; i < txt_send_size; i++){
+        //     LoRa.tx_data.payload[LoRa.tx_data.payload_len] = file_buff[i];
+        //     LoRa.tx_data.payload_len += 1;
+        //     if(LoRa.tx_data.payload_len == RADIO_PROTOCOL_PAYLOAD_SIZE){
+        //         LoRa_Transmit((uint8_t*)file_buff, txt_send_size);
+        //     }
+        // }
+        txt_send_size = 0;
+        vTaskDelay(6000);
+    }
+    #ifdef USE_GSM
     if(RTC->BKP2R > (uint32_t)system_config.modem_period){
-        if(GSM_Routine(send_size)){
+        if(GSM_Routine(bin_send_size)){
 
         } else {
-            send_size = 0;
+            bin_send_size = 0;
             write_single_bkp_reg(BCKP_MEAS_AMOUNT, 0);
         }
     }
-    write_single_bkp_reg(BCKP_SEND_SIZE, send_size);
-
-    f_mount(0, "", 1);
-    xprintf("\n\rGo to sleep\n\r\n\r");
-    RTC_auto_wakeup_enable(system_config.wakeup_period);
-    gpio_state(EN_SD, HIGH);
-    gpio_state(EN_LORA, HIGH);
-    stop_cortex();
+    write_single_bkp_reg(BCKP_SEND_SIZE, bin_send_size);
+    #endif
+    if(system_config.action_mode){
+        f_mount(0, "", 1);
+        xprintf("\n\rGo to sleep\n\r\n\r");
+        RTC_auto_wakeup_enable(system_config.wakeup_period);
+        gpio_state(EN_SD, HIGH);
+        gpio_state(EN_LORA, HIGH);
+        stop_cortex();
+    } else {
+        xprintf("Cancelled action mode\n");
+    }
 
     vTaskDelete(NULL);
 }

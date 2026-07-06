@@ -389,7 +389,6 @@ void System_Init() {
     int16_t temp = ADC_internal_temp(adc.reg_channel_queue[1].result, adc.vdda_mvolt);
     xprintf("Vref: %d mV\n", adc.vdda_mvolt);
     xprintf("Temp: %d C\n", temp);
-    LoRa_Transmit((uint8_t*)"hello world!", 12);
     rl.print(rl.prompt_str);
     buzzer.delay = vTaskDelay;
     #ifdef USE_SX127x
