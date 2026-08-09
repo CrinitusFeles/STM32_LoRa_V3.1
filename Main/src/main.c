@@ -19,7 +19,7 @@
 
 #define UNUSED(x) (void)(x)
 #define CONSOLE_SIZE            configMINIMAL_STACK_SIZE * 10
-#define RADIO_SIZE              configMINIMAL_STACK_SIZE * 2
+#define RADIO_SIZE              configMINIMAL_STACK_SIZE * 10
 
 #ifdef USE_GSM
 #define GSM_SIZE                configMINIMAL_STACK_SIZE
@@ -74,8 +74,7 @@ void TX_RADIO_TASK(void *pvParameters){
         );
         LoRa.tx_data.payload_len += size;
         if((size == 0 && LoRa.tx_data.payload_len > 0)
-            || (size == RADIO_PROTOCOL_PAYLOAD_SIZE
-                || LoRa.tx_data.payload_len == RADIO_PROTOCOL_PAYLOAD_SIZE)){
+            || (size == RADIO_PROTOCOL_PAYLOAD_SIZE || LoRa.tx_data.payload_len == RADIO_PROTOCOL_PAYLOAD_SIZE)){
             LoRa.tx_data.crc16 = crc16_calc(LoRa.tx_data.payload,
                                             LoRa.tx_data.payload_len);
             LoRa.tx_data.src_addr = system_config.module_id;
@@ -90,8 +89,8 @@ void TX_RADIO_TASK(void *pvParameters){
 
 void RX_RADIO_TASK(void *pvParameters){
     UNUSED(pvParameters);
-    char buffer[256] = {0};
-    uint8_t j = 0;
+    char buffer[512] = {0};
+    uint16_t j = 0;
     for (;;) {
         if(LoRa.new_rx_data_flag){
             LoRa_RxHandler();

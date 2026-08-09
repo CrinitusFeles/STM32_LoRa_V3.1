@@ -29,7 +29,7 @@
     #include "sx127x.h"
 #endif
 
-#define WATCHDOG_PERIOD_MS 5000
+#define WATCHDOG_PERIOD_MS 8000
 
 void _close_r(void) {}
 void _lseek_r(void) {}
@@ -56,7 +56,7 @@ StaticSemaphore_t xSemaphoreBuffer;
 #endif
 
 static uint8_t cli_stream_storage[255];
-static uint8_t radio_tx_stream_storage[255];
+static uint8_t radio_tx_stream_storage[1024];
 StaticStreamBuffer_t  cli_static_stream;
 StaticStreamBuffer_t  radio_tx_static_stream;
 // logging_init_t logger;
@@ -177,7 +177,7 @@ void System_Init() {
 #endif
     cli_stream = xStreamBufferCreateStatic(255, 1, cli_stream_storage,
                                            &cli_static_stream);
-    radio_tx_stream = xStreamBufferCreateStatic(255, 1, radio_tx_stream_storage,
+    radio_tx_stream = xStreamBufferCreateStatic(1024, 1, radio_tx_stream_storage,
                                                 &radio_tx_static_stream);
     // vQueueAddToRegistry(gsm_queue, "GSM_QUEUE");
     // vQueueAddToRegistry(cli_queue, "CLI_QUEUE");
