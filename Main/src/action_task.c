@@ -18,7 +18,7 @@
 
 #define TASK_SIZE       configMINIMAL_STACK_SIZE * 3
 #define UNUSED(x)       (void)(x)
-#define LOG_FILENAME    "measures.log"
+#define LOG_FILENAME    "measures.csv"
 #define BIN_FILENAME    "measures.bin"
 #define MEASURES_SIZE   (TEMP_SENSOR_AMOUNT * 2 + 18)
 
@@ -111,16 +111,16 @@ void write_txt_log(){
     FRESULT res = f_open(&file, LOG_FILENAME, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
     if(res == FR_OK){
         if (f_size(&file) == 0) {
-            sd_ptr += xsprintf(file_buff + sd_ptr, "Module id: %d\n\n", system_config.module_id);
+            // sd_ptr += xsprintf(file_buff + sd_ptr, "Module id: %d\n\n", system_config.module_id);
+            // for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
+            //     sd_ptr += xsprintf(file_buff + sd_ptr, "T%02d: [0x%016llX]\n", i + 1,
+            //                         sensors_bus.is_calibrated ? sensors_bus.serials[i]
+            //                                                     : sensors_bus.sensors[i].serialNumber->serial_code);
+            // }
+            // sd_ptr += xsprintf(file_buff + sd_ptr, "\n");
+            sd_ptr += xsprintf(file_buff + sd_ptr, "%s;", "Timestamp");
             for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-                sd_ptr += xsprintf(file_buff + sd_ptr, "T%02d: [0x%016llX]\n", i + 1,
-                                    sensors_bus.is_calibrated ? sensors_bus.serials[i]
-                                                                : sensors_bus.sensors[i].serialNumber->serial_code);
-            }
-            sd_ptr += xsprintf(file_buff + sd_ptr, "\n");
-            sd_ptr += xsprintf(file_buff + sd_ptr, "%-25s", "Timestamp");
-            for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-                sd_ptr += xsprintf(file_buff + sd_ptr, "T%02d    ", i + 1);
+                sd_ptr += xsprintf(file_buff + sd_ptr, "T%02d;", i + 1);
             }
             sd_ptr += xsprintf(file_buff + sd_ptr, "Vref\n");
         }
@@ -128,9 +128,14 @@ void write_txt_log(){
         sd_ptr += RTC_string_datetime(file_buff + sd_ptr);
         sd_ptr += xsprintf(file_buff + sd_ptr, "  ");
         for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
-            sd_ptr += xsprintf(file_buff + sd_ptr, "%.2f  ", sensors_bus.sensors[i].temperature);
+            sd_ptr += xsprintf(file_buff + sd_ptr, "%.2f;", sensors_bus.sensors[i].temperature);
         }
         sd_ptr += xsprintf(file_buff + sd_ptr, "%d\n", adc.vdda_mvolt);
+        for(uint16_t i = 0; i < sd_ptr; i++){
+            if(file_buff[i] == '.'){
+                file_buff[i] = ',';
+            }
+        }
         f_lseek(&file, file.obj.objsize);
         f_write(&file, file_buff, sd_ptr, &written_count);
         txt_send_size += written_count;
@@ -165,16 +170,23 @@ void write_bin_log(){
 
 void ACTION_TASK(void *pvParameters){
     UNUSED(pvParameters);
-    sensors_bus.power_on();
-    vTaskDelay(50);
-    // ADC_Start(&adc);
-    if (sensors_bus.found_amount == 0) {
-        ow_status = OW_EMPTY_BUS;
-    } else {
-        ow_status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
+    ow_status = OW_EMPTY_BUS;
+    for(uint8_t i = 0 ; i < 3 && ow_status != OW_OK; i++){
+        sensors_bus.power_on();
+        vTaskDelay(100);
+        // ADC_Start(&adc);
+        if (sensors_bus.found_amount == 0) {
+            ow_status = OW_EMPTY_BUS;
+        } else {
+            ow_status = TemperatureSensorsMeasure(&sensors_bus, sensors_bus.is_calibrated);
+        }
+        // ADC_WaitMeasures(&adc, 10000);
+        sensors_bus.power_off();
+        vTaskDelay(100);
+        if(ow_status != OW_OK){
+            xprintf("Failed to measure temp\n");
+        }
     }
-    // ADC_WaitMeasures(&adc, 10000);
-    sensors_bus.power_off();
 
     bin_send_size = RTC->BKP1R;
     write_txt_log();
@@ -198,7 +210,7 @@ void ACTION_TASK(void *pvParameters){
 
     write_single_bkp_reg(BCKP_MEAS_AMOUNT, RTC->BKP2R + 1);
     if(system_config.lora_enable){
-        xStreamBufferSend(radio_tx_stream, &file_buff, txt_send_size, portMAX_DELAY);
+        xStreamBufferSend(radio_tx_stream, file_buff, txt_send_size, portMAX_DELAY);
         // LoRa.tx_data.src_addr = system_config.module_id;
         // LoRa.tx_data.dst_addr = 0xFF;
         // for(uint16_t i = 0; i < txt_send_size; i++){
@@ -208,8 +220,8 @@ void ACTION_TASK(void *pvParameters){
         //         LoRa_Transmit((uint8_t*)file_buff, txt_send_size);
         //     }
         // }
-        txt_send_size = 0;
         vTaskDelay(6000);
+        txt_send_size = 0;
     }
     #ifdef USE_GSM
     if(RTC->BKP2R > (uint32_t)system_config.modem_period){
