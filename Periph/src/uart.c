@@ -69,7 +69,7 @@ void UART_tx(USART_TypeDef *USARTx, uint8_t data){
 }
 
 void UART_tx_string(USART_TypeDef *USARTx, char *array){
-	for(uint8_t i = 0; array[i] != '\0'; i++) {
+	for(uint32_t i = 0; array[i] != '\0'; i++) {
 		UART_tx(USARTx, array[i]);
 	}
 }
