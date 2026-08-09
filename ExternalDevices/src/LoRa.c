@@ -58,18 +58,23 @@ inline uint8_t LoRa_Init(uint32_t freq_hz, uint8_t sf, uint8_t bw, uint8_t cr, u
         },
 
     };
+    uint8_t result = 0;
     #ifdef USE_SX127x
     SX1278 = (SX127x){
         .base = &LoRa
     };
-    uint8_t result = SX127x_init(&SX1278);
-    SX127x_gotoMode(&SX1278, RXCONTIN_MODE);
+    result = SX127x_init(&SX1278);
+    if(result == 0){
+        SX127x_gotoMode(&SX1278, RXCONTIN_MODE);
+    }
     return result;
     #elif defined USE_SX126x
     SX1268 = (SX126x){
         .base = &LoRa
     };
-    return SX126x_Init(&SX1268);
+    result = SX126x_Init(&SX1268);
+    SX126x_SetRx(&SX1268, 0);
+    return result;
     #endif
 }
 
