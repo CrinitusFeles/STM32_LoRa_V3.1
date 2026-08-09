@@ -173,9 +173,15 @@
 #define GSM_TX          PC1
 #define GSM_PWR         PA5
 
-#define SELF_ID        1
+
 //-----------------------//
+
 #define USE_SX126x
 
+#ifdef USE_SX126x
+    #define SELF_ID        1
+#elif defined USE_SX127x
+    #define SELF_ID        10
+#endif
 
 #endif /* INC_MAIN_H_ */
