@@ -126,12 +126,12 @@ void write_txt_log(){
         }
 
         sd_ptr += RTC_string_datetime(file_buff + sd_ptr);
-        sd_ptr += xsprintf(file_buff + sd_ptr, "  ");
+        sd_ptr += xsprintf(file_buff + sd_ptr, ";");
         for (uint8_t i = 0; i < TEMP_SENSOR_AMOUNT; i++) {
             sd_ptr += xsprintf(file_buff + sd_ptr, "%.2f;", sensors_bus.sensors[i].temperature);
         }
         sd_ptr += xsprintf(file_buff + sd_ptr, "%d\n", adc.vdda_mvolt);
-        for(uint16_t i = 0; i < sd_ptr; i++){
+        for(uint16_t i = 24; i < sd_ptr; i++){
             if(file_buff[i] == '.'){
                 file_buff[i] = ',';
             }
